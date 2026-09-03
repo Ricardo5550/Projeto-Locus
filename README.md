@@ -7,8 +7,8 @@ O principal objetivo do Locus é desenvolver uma plataforma web de apoio ao estu
 
 # 2 - Ferramentas e Tecnologias
 
-- Front-End: linguagens CSS e TypeScript, bibliotecas Tiptap, React e React Flow.
-- Back-End: linguagem Python e frameworks Django e Django REST.
+- Front-End: linguagens CSS e TypeScript com bibliotecas Tiptap, React e React Flow.
+- Back-End: linguagem Python com frameworks Django e Django REST.
 - Banco de Dados: PostgreSQL.
 - API externa: Crossref REST API.
 - Ferramentas: Render, Figma, Visual Studio Code e Vite.
