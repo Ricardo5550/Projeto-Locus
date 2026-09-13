@@ -1,102 +1,156 @@
 import { useState } from 'react';
 import HomeMenu from './features/home/HomeMenu';
-import AnnotationPlaceholder from './features/annotations/AnnotationPlaceholder';
 import MindMap from './features/mindmaps/MindMap';
-import type { ContentType } from './features/mindmaps/mindMapTypes';
+import NoteEditor from './features/notes/NoteEditor';
 import './App.css';
 
 type Screen = 'home' | 'mindmap' | 'annotation';
 
-const ROOT_MINDMAP_BREADCRUMB = ['Início', 'Mapa mental'];
-const ROOT_ANNOTATION_BREADCRUMB = ['Início', 'Anotação'];
+type HistoryEntry = {
+  screen: 'mindmap' | 'annotation';
+  id: number | null;
+  breadcrumb: string[];
+  mapViewStack?: string[];
+};
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
-  const [currentBlockName, setCurrentBlockName] = useState<string | null>(null);
-  const [breadcrumb, setBreadcrumb] = useState<string[]>(ROOT_MINDMAP_BREADCRUMB);
-  const [currentRelated, setCurrentRelated] = useState<string[]>([]);
+  const [currentMapId, setCurrentMapId] = useState<number | null>(null);
+  const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
+  const [currentMapViewStack, setCurrentMapViewStack] = useState<string[]>();
+  const [breadcrumb, setBreadcrumb] = useState<string[]>(['Início']);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
-  function resetContentContext(nextBreadcrumb: string[]) {
-    setCurrentBlockName(null);
-    setCurrentRelated([]);
-    setBreadcrumb(nextBreadcrumb);
-  }
-
-  function openMindMap() {
-    resetContentContext(ROOT_MINDMAP_BREADCRUMB);
+  function openNewMindMap() {
+    setHistory([]);
+    setCurrentMapId(null);
+    setCurrentNoteId(null);
+    setCurrentMapViewStack(undefined);
+    setBreadcrumb(['Início', 'Mapa mental']);
     setScreen('mindmap');
   }
 
-  function openAnnotation() {
-    resetContentContext(ROOT_ANNOTATION_BREADCRUMB);
+  function openSavedMindMap(id: number, title: string) {
+    setHistory([]);
+    setCurrentMapId(id);
+    setCurrentNoteId(null);
+    setCurrentMapViewStack(undefined);
+    setBreadcrumb(['Início', title]);
+    setScreen('mindmap');
+  }
+
+  function openNewNote() {
+    setHistory([]);
+    setCurrentNoteId(null);
+    setCurrentMapId(null);
+    setCurrentMapViewStack(undefined);
+    setBreadcrumb(['Início', 'Nova anotação']);
     setScreen('annotation');
   }
 
-  function openBlock(
+  function openSavedNote(id: number, title: string) {
+    setHistory([]);
+    setCurrentNoteId(id);
+    setCurrentMapId(null);
+    setCurrentMapViewStack(undefined);
+    setBreadcrumb(['Início', title]);
+    setScreen('annotation');
+  }
+
+  function openAnnotationFromMap(
     blockName: string,
-    relatedNames: string[],
-    contentType: ContentType
+    noteId: number,
+    parentMapId: number,
+    viewStack: string[]
   ) {
-    setCurrentBlockName(blockName);
-    setCurrentRelated(relatedNames);
+    setHistory((current) => [
+      ...current,
+      {
+        screen: 'mindmap',
+        id: parentMapId,
+        breadcrumb: [...breadcrumb],
+        mapViewStack: [...viewStack],
+      },
+    ]);
+
+    setCurrentMapViewStack([...viewStack]);
     setBreadcrumb((current) => [...current, blockName]);
-    setScreen(contentType);
+    setCurrentNoteId(noteId);
+    setCurrentMapId(null);
+    setScreen('annotation');
   }
 
-  function goHome() {
-    resetContentContext(ROOT_MINDMAP_BREADCRUMB);
-    setScreen('home');
-  }
+  function goBack() {
+    const previous = history[history.length - 1];
 
-  function goBackFromAnnotation() {
-    if (!currentBlockName) {
-      goHome();
+    if (!previous) {
+      setScreen('home');
+      setCurrentMapId(null);
+      setCurrentNoteId(null);
+      setCurrentMapViewStack(undefined);
+      setBreadcrumb(['Início']);
       return;
     }
 
-    setBreadcrumb((current) => current.slice(0, -1));
-    setScreen('mindmap');
+    setHistory((current) => current.slice(0, -1));
+    setBreadcrumb(previous.breadcrumb);
+    setScreen(previous.screen);
+
+    if (previous.screen === 'mindmap') {
+      setCurrentMapId(previous.id);
+      setCurrentNoteId(null);
+      setCurrentMapViewStack(previous.mapViewStack);
+    } else {
+      setCurrentNoteId(previous.id);
+      setCurrentMapId(null);
+      setCurrentMapViewStack(undefined);
+    }
   }
 
-  function goBackFromMindMap() {
-    if (breadcrumb.length <= 2) {
-      goHome();
-      return;
-    }
-
-    setBreadcrumb((current) => current.slice(0, -1));
-    setCurrentBlockName(null);
-    setCurrentRelated([]);
+  function updateLastBreadcrumb(title: string) {
+    setBreadcrumb((current) => {
+      if (current.length === 0) return [title];
+      return [...current.slice(0, -1), title];
+    });
   }
 
   if (screen === 'home') {
     return (
       <HomeMenu
-        onCreateMindMap={openMindMap}
-        onOpenMindMap={openMindMap}
-        onCreateNote={openAnnotation}
+        onCreateMindMap={openNewMindMap}
+        onCreateNote={openNewNote}
+        onOpenMindMap={openSavedMindMap}
+        onOpenNote={openSavedNote}
       />
     );
   }
 
   if (screen === 'annotation') {
     return (
-      <AnnotationPlaceholder
-        title={currentBlockName ?? 'Nova anotação'}
+      <NoteEditor
+        noteId={currentNoteId}
+        initialTitle={breadcrumb[breadcrumb.length - 1] || 'Nova anotação'}
         breadcrumb={breadcrumb}
-        relatedNames={currentRelated}
-        showRelated={currentBlockName !== null}
-        onBack={goBackFromAnnotation}
+        onBack={goBack}
+        onCreated={(id, title) => {
+          setCurrentNoteId(id);
+          updateLastBreadcrumb(title);
+        }}
       />
     );
   }
 
   return (
     <MindMap
+      mapId={currentMapId}
       breadcrumb={breadcrumb}
-      relatedNames={currentRelated}
-      onBack={goBackFromMindMap}
-      onEnterBlock={openBlock}
+      initialViewStack={currentMapViewStack}
+      onBack={goBack}
+      onMapCreated={(id, title) => {
+        setCurrentMapId(id);
+        updateLastBreadcrumb(title);
+      }}
+      onOpenAnnotation={openAnnotationFromMap}
     />
   );
 }

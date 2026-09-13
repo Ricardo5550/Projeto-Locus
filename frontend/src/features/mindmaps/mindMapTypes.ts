@@ -7,49 +7,49 @@ export type BlockShape =
   | 'octagon'
   | 'star';
 
-export type ElementKind = 'shape' | 'text';
-export type TextAlignMode = 'left' | 'center' | 'right';
-export type VerticalAlignMode = 'top' | 'center' | 'bottom';
 export type ContentType = 'annotation' | 'mindmap';
 
 export type BlockData = {
   label: string;
-  elementKind: ElementKind;
+  elementKind: 'shape' | 'text';
+  shape: BlockShape;
   connectionMode: boolean;
+
+  /** Tipo escolhido para o conteúdo deste bloco. Depois de definido, não muda. */
+  linkedContentType?: ContentType;
+
+  /** ID de uma visão interna do mesmo projeto de mapa mental. */
+  linkedViewId?: string;
+  linkedAnnotationId?: number;
+
   fontSize: number;
   fontFamily: string;
   textColor: string;
   bold: boolean;
   italic: boolean;
   strike: boolean;
-  textAlign: TextAlignMode;
-  verticalAlign: VerticalAlignMode;
+  textAlign: 'left' | 'center' | 'right';
+  verticalAlign: 'top' | 'center' | 'bottom';
+
   backgroundColor: string;
-  shape: BlockShape;
   borderColor: string;
   borderWidth: number;
   borderRadius: number;
-  isPreview?: boolean;
 };
 
-export type DragPayload =
-  | { kind: 'shape'; shape: BlockShape }
-  | { kind: 'text' };
-
-export type HistoryState = {
+export type MindMapView = {
+  title: string;
   nodes: Node<BlockData>[];
   edges: Edge[];
 };
 
-export type ClipboardState = HistoryState;
-
-export type MindMapProps = {
-  onBack: () => void;
-  breadcrumb: string[];
-  relatedNames?: string[];
-  onEnterBlock: (
-    blockName: string,
-    relatedNames: string[],
-    contentType: ContentType
-  ) => void;
+/**
+ * Um único registro de MapaMental contém todas as telas internas.
+ * Cada bloco pode apontar para outra view por linkedViewId.
+ */
+export type MindMapData = {
+  rootViewId: string;
+  views: Record<string, MindMapView>;
 };
+
+export type StoredMindMapData = MindMapData;
