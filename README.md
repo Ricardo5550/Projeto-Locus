@@ -3,6 +3,8 @@
 O **Locus** é uma plataforma web para criação e organização de conteúdos de estudo por meio de anotações e mapas mentais interativos.
  
 A aplicação permite criar, editar e armazenar anotações formatadas, além de construir mapas mentais com elementos personalizáveis, conexões e navegação entre conteúdos.
+
+- [Como executar](#Como-executar)
  
 ## Tecnologias
  
@@ -13,7 +15,7 @@ A aplicação permite criar, editar e armazenar anotações formatadas, além de
 - **Node.js - 24.21.0:** utilizado como ambiente de execução para as ferramentas do Front-End e para o gerenciamento das dependências via npm.
 - **Vite - 8.2.2:** utilizado como ferramenta de desenvolvimento e execução do Front-End.
 - **Tiptap - 3.31.3:** utilizado na implementação do editor de anotações e na representação de conteúdos de texto estruturados e formatados.
-- **React Flow (`@xyflow/react`) - 12.11.6:** utilizado na criação e manipulação dos blocos, posições e conexões dos mapas mentais.
+- **React Flow - 12.11.6:** utilizado na criação e manipulação dos blocos, posições e conexões dos mapas mentais.
 - **Lucide React - 1.45.0:** utilizado para os ícones presentes na interface.
 - **CSS:** utilizado na estilização e organização visual da aplicação.
  
@@ -49,7 +51,7 @@ Com o PostgreSQL em execução, crie um banco de dados para a aplicação. Por e
 locus
 ```
  
-Dentro da pasta `backend`, crie um arquivo `.env` com as informações de conexão:
+Dentro da pasta /backend, crie um arquivo .env com as informações de conexão:
  
 ```env
 DB_NAME=locus
@@ -58,9 +60,7 @@ DB_PASSWORD=sua_senha
 DB_HOST=localhost
 ```
  
-O valor de `DB_PASSWORD` deve corresponder à senha configurada no PostgreSQL.
- 
-O arquivo `.env` contém configurações locais e não deve ser enviado ao repositório.
+O valor de DB_PASSWORD é o mesmo da senha configurada no PostgreSQL.
  
 ### Back-End
  
