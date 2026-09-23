@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-
+## Anotações.
 class Anotacao(models.Model):
     titulo = models.CharField(max_length=100)
     conteudo = models.JSONField(default=dict)

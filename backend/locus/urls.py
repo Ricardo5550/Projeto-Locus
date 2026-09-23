@@ -19,16 +19,20 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
+from usuarios.views import EstudanteViewSet
+from usuarios.views import LoginView
 from django.conf import settings
 from django.conf.urls.static import static
 
 router = DefaultRouter()
 router.register(r'anotacoes', AnotacaoViewSet)
 router.register(r'mapas-mentais', MapaMentalViewSet)
+router.register(r'estudantes', EstudanteViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/login/', LoginView.as_view(), name='login'),
 ]
 
 if settings.DEBUG:
