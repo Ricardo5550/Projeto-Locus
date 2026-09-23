@@ -11,6 +11,8 @@ import TextAlign from '@tiptap/extension-text-align';
 
 import NoteHeader from './NoteHeader';
 import NoteToolbar from './NoteToolbar';
+import ReferencePanel from './ReferencePanel';
+import type { AcademicReference } from './referenceApi';
 import {
   createNote,
   EMPTY_NOTE_CONTENT,
@@ -37,6 +39,9 @@ export default function NoteEditor({
 }: NoteEditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [status, setStatus] = useState('');
+  const [selectedText, setSelectedText] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showReferences, setShowReferences] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -50,11 +55,19 @@ export default function NoteEditor({
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: EMPTY_NOTE_CONTENT,
+    onSelectionUpdate: ({ editor: activeEditor }) => {
+      const { from, to, empty } = activeEditor.state.selection;
+      setSelectedText(
+        empty ? '' : activeEditor.state.doc.textBetween(from, to, ' ').replace(/\s+/g, ' ').trim()
+      );
+    },
   });
 
   useEffect(() => {
     if (!editor) return;
 
+    setSelectedText('');
+    setShowReferences(false);
     if (noteId === null) {
       setTitle(initialTitle);
       editor.commands.setContent(EMPTY_NOTE_CONTENT);
@@ -99,6 +112,30 @@ export default function NoteEditor({
     }
   }
 
+  function openReferenceSearch() {
+    if (selectedText.length < 2 || selectedText.length > 200) return;
+    setSearchTerm(selectedText);
+    setShowReferences(true);
+  }
+
+  function insertReference(reference: AcademicReference) {
+    if (!editor) return;
+    // Insere os metadados no fim da anotação; não altera o trecho usado na pesquisa.
+    const parts = [
+      reference.autores.length ? `${reference.autores.join(', ')}.` : '',
+      reference.titulo ? `${reference.titulo}.` : '',
+      reference.publicacao ? `${reference.publicacao}.` : '',
+      reference.ano ? String(reference.ano) + '.' : '',
+      reference.doi ? `DOI: ${reference.doi}.` : '',
+      reference.url || '',
+    ].filter(Boolean);
+    editor.chain().focus('end').insertContent({
+      type: 'paragraph',
+      content: [{ type: 'text', text: parts.join(' ') }],
+    }).run();
+    setStatus('Dados bibliográficos inseridos. Clique em Salvar para armazenar a anotação.');
+  }
+
   return (
     <div className="note-editor">
       <NoteHeader
@@ -114,8 +151,28 @@ export default function NoteEditor({
 
       <NoteToolbar editor={editor} />
 
+      {selectedText && (
+        <div className="note-editor__selection-actions">
+          <span title={selectedText}>Trecho selecionado: “{selectedText.length > 75 ? `${selectedText.slice(0, 75)}…` : selectedText}”</span>
+          {selectedText.length <= 200 ? (
+            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={openReferenceSearch}>
+              Pesquisar fontes
+            </button>
+          ) : (
+            <small>Selecione até 200 caracteres para pesquisar fontes.</small>
+          )}
+        </div>
+      )}
+
       <main className="note-editor__scroll">
         <EditorContent editor={editor} className="note-editor__paper" />
+        {showReferences && (
+          <ReferencePanel
+            initialTerm={searchTerm}
+            onClose={() => setShowReferences(false)}
+            onInsert={insertReference}
+          />
+        )}
       </main>
     </div>
   );

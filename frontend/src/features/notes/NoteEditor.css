@@ -173,3 +173,89 @@
     padding: 24px;
   }
 }
+
+/* A pesquisa parte de um trecho escolhido no editor e fica abaixo da folha. */
+.note-editor__selection-actions {
+  margin: -4px 24px 12px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  border: 1px solid #ded5ca;
+  border-radius: 9px;
+  background: #f2eadd;
+  font-size: 13px;
+}
+
+.note-editor__selection-actions span {
+  flex: 1;
+  min-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-editor__selection-actions button,
+.note-references button {
+  border: 1px solid #5e402b;
+  border-radius: 7px;
+  padding: 8px 12px;
+  color: #fff;
+  background: #5e402b;
+  cursor: pointer;
+}
+
+.note-references {
+  width: min(900px, 100%);
+  margin: 18px auto 0;
+  padding: 22px;
+  border: 1px solid #ded5ca;
+  border-radius: 10px;
+  background: #fffdf8;
+}
+
+.note-references__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.note-references h2, .note-references h3 { margin: 0 0 5px; }
+.note-references h2 { font-size: 19px; }
+.note-references h3 { font-size: 15px; }
+.note-references p { margin: 5px 0; }
+.note-references__header p { color: #806b5d; font-size: 13px; }
+.note-references__header button { background: #fff; color: #5e402b; }
+
+.note-references__search { margin-top: 20px; }
+.note-references__search label { display: block; font-size: 13px; margin-bottom: 8px; }
+.note-references__search > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.note-references__search input {
+  flex: 1;
+  min-width: min(240px, 100%);
+  padding: 9px 10px;
+  border: 1px solid #c9bdad;
+  border-radius: 7px;
+  background: #fff;
+  color: #3b291d;
+}
+.note-references button:disabled { opacity: .5; cursor: not-allowed; }
+.note-references__message { padding: 14px 0; color: #5e402b; }
+.note-references__results { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
+.note-references__results li {
+  border: 1px solid #e4d9c9;
+  border-radius: 8px;
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+.note-references__results li p { font-size: 13px; color: #6f5e50; }
+.note-references__doi { font-family: monospace; }
+.note-references__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.note-references__actions a { color: #5e402b; text-decoration: underline; }
+
+@media (max-width: 760px) {
+  .note-references { padding: 16px; }
+  .note-references__header { flex-wrap: wrap; }
+}
