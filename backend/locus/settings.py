@@ -20,6 +20,8 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Definindo tipo padrão da chave primaria para os modelos
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
@@ -46,6 +48,8 @@ INSTALLED_APPS = [
     'anotacoes',
     'mapas',
     'corsheaders',
+    'auditoria',
+    'referencias',
 ]
 
 MIDDLEWARE = [
