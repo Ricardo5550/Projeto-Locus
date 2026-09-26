@@ -43,12 +43,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'rest_framework',
     'anotacoes',
     'mapas',
     'usuarios',
     'corsheaders',
     'rest_framework_simplejwt',
+    'rest_framework.authtoken',
+    'dj_rest_auth',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'dj_rest_auth.registration',
 ]
 
 MIDDLEWARE = [
@@ -60,6 +67,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'locus.urls'
@@ -164,3 +172,12 @@ SIMPLE_JWT = {
 
 
 RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY')
+
+SITE_ID = 1
+
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
+
+REST_AUTH = {
+    'USE_JWT': True,
+}

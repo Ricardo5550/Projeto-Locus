@@ -1,6 +1,9 @@
 from rest_framework import viewsets
+from rest_framework import generics
+from rest_framework.permissions import AllowAny
 from .models import Estudante
 from .serializers import EstudanteSerializer
+from .serializers import RegistroSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -12,6 +15,11 @@ import requests
 class EstudanteViewSet(viewsets.ModelViewSet):
     queryset = Estudante.objects.all().order_by('-id')
     serializer_class = EstudanteSerializer
+
+class RegistroEstudanteView(generics.CreateAPIView):
+    queryset = Estudante.objects.all()
+    serializer_class = RegistroSerializer
+    permission_classes = [AllowAny]
 
 class LoginView(APIView):
     def post(self, request):

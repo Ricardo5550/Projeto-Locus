@@ -1,0 +1,108 @@
+.page-background {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #FCF5EB;
+  font-family: sans-serif;
+}
+
+.card-login {
+  background-color: #F6D56D;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 30px;
+  border-radius: 8px; 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.logo-pill {
+  background-color: #FFFFFF;
+  color: #000000;
+  font-size: 28px;
+  font-weight: bold;
+  padding: 10px 45px;
+  border-radius: 30px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.card-login h1 {
+  margin-bottom: 30px;
+  font-size: 24px;
+  font-weight: 500;
+  color: #000000;
+}
+
+form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.form-group {
+  width: 100%;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.form-group label {
+  margin-bottom: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #000000;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+input:focus {
+  outline: 2px solid #5C4033;
+}
+
+.btn-entrar {
+  margin-top: 30px;
+  padding: 12px 40px;
+  border: none;
+  border-radius: 8px;
+  background-color: #5C4033;
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-entrar:hover {
+  background-color: #4A3329;
+}
+
+.auth-link {
+  margin-top: 15px;
+  color: #5C4033;
+  cursor: pointer;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.captcha-container {
+  margin-top: 15px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
