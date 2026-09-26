@@ -19,6 +19,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
+from usuarios.views import EstudanteViewSet
 from revisoes.views import PerguntaViewSet, TentativaViewSet
 from django.conf import settings
 from django.conf.urls.static import static
@@ -27,6 +28,7 @@ from referencias.views import buscar_referencias
 router = DefaultRouter()
 router.register(r'anotacoes', AnotacaoViewSet)
 router.register(r'mapas-mentais', MapaMentalViewSet)
+router.register(r'estudantes', EstudanteViewSet)
 router.register(r'perguntas', PerguntaViewSet)
 router.register(r'tentativas', TentativaViewSet)
 
@@ -34,6 +36,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/referencias/', buscar_referencias, name='buscar-referencias'),
+    path('api/auth/', include('dj_rest_auth.urls')),
+    path('api/auth/registro/', include('dj_rest_auth.registration.urls')),
 ]
 
 if settings.DEBUG:

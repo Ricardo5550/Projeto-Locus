@@ -5,20 +5,22 @@ import NoteEditor, {
   type NoteRelationshipContext,
   type NoteRelationshipTarget,
 } from './features/notes/NoteEditor';
+import UserRegister from './features/users/UserRegister';
+import UserLogin from './features/users/UserLogin';
 import Questionnaire from './features/reviews/Questionnaire';
 import './App.css';
 
-type Screen = 'home' | 'mindmap' | 'annotation' | 'questionnaire';
+type Screen = 'home' | 'mindmap' | 'annotation' | 'register' | 'login' | 'questionnaire';
 
 type HistoryEntry = {
-  screen: 'mindmap' | 'annotation';
+  screen: 'mindmap' | 'annotation' | 'register' | 'login';
   id: number | null;
   breadcrumb: string[];
   mapViewStack?: string[];
 };
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreen] = useState<Screen>('login');
   const [currentMapId, setCurrentMapId] = useState<number | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
   const [currentMapViewStack, setCurrentMapViewStack] = useState<string[]>();
@@ -222,6 +224,14 @@ export default function App() {
         }}
       />
     );
+  }
+
+  if (screen === 'register') {
+    return <UserRegister onNavigateToLogin={ () => setScreen('login') } />;
+  }
+
+  if (screen === 'login') {
+    return <UserLogin onLoginSuccess={ () => setScreen('home') } onNavigateToRegister={ () => setScreen('register') } />;
   }
 
   return (
