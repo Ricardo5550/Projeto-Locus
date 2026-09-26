@@ -14,6 +14,7 @@ import {
 import './HomeMenu.css';
 
 type HomeMenuProps = {
+  onOpenQuestionnaire: () => void;
   onCreateMindMap: () => void;
   onCreateNote: () => void;
   onOpenMindMap: (id: number, title: string) => void;
@@ -48,6 +49,7 @@ function getLinkedAnnotationIds(maps: StoredMindMap[]): Set<number> {
 }
 
 export default function HomeMenu({
+  onOpenQuestionnaire,
   onCreateMindMap,
   onCreateNote,
   onOpenMindMap,
@@ -178,6 +180,9 @@ export default function HomeMenu({
 
         <button className="home-nav-button" type="button">
           ▣ Biblioteca
+        </button>
+        <button className="home-nav-button" type="button" onClick={onOpenQuestionnaire}>
+          ◩ Questionário
         </button>
       </aside>
 

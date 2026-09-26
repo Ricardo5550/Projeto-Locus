@@ -375,3 +375,10 @@
 .mindmap-header__actions .mindmap-header__tag {
   margin-left: 0;
 }
+
+.mindmap-header__title { min-width: 0; flex: 1; }
+.mindmap-header__title-input { width: min(360px, 100%); min-width: 110px; border: 0; outline: 0; background: transparent; color: #3b291d; font-size: 16px; font-weight: 700; }
+.mindmap-neighbors { position: absolute; z-index: 22; right: 12px; top: 74px; width: 230px; max-height: calc(100vh - 100px); overflow-y: auto; padding: 15px; border: 1px solid #ded5ca; border-radius: 10px; background: #fffaf0; box-shadow: 0 3px 12px #3b291d16; }
+.mindmap-neighbors h3 { font-size: 15px; margin: 0 0 8px; }
+.mindmap-neighbors small, .mindmap-neighbors p { color: #806b5d; }
+.mindmap-neighbors button { display: block; width: 100%; margin-top: 9px; text-align: left; border: 1px solid #ded5ca; background: white; color: #3b291d; padding: 10px; border-radius: 8px; cursor: pointer; overflow-wrap: anywhere; }

@@ -55,13 +55,15 @@ type MindMapProps = {
   mapId: number | null;
   breadcrumb: string[];
   initialViewStack?: string[];
+  initialSelectedNodeId?: string;
   onBack: () => void;
   onMapCreated: (id: number, title: string) => void;
   onOpenAnnotation: (
     blockName: string,
     noteId: number,
     parentMapId: number,
-    viewStack: string[]
+    viewStack: string[],
+    sourceNodeId: string
   ) => void;
 };
 
@@ -166,6 +168,7 @@ export default function MindMap({
   mapId,
   breadcrumb,
   initialViewStack,
+  initialSelectedNodeId,
   onBack,
   onMapCreated,
   onOpenAnnotation,
@@ -220,7 +223,12 @@ export default function MindMap({
 
         setProjectData(normalized);
         setViewStack(nextStack);
-        setNodes(nextView?.nodes ?? []);
+        setNodes(
+          (nextView?.nodes ?? []).map((node) => ({
+            ...node,
+            selected: node.id === initialSelectedNodeId,
+          }))
+        );
         setEdges(nextView?.edges ?? []);
         setSaveStatus('Mapa carregado do banco.');
         setTimeout(() => flow?.fitView({ padding: 0.2 }), 0);
@@ -240,6 +248,45 @@ export default function MindMap({
     .filter((viewTitle): viewTitle is string => Boolean(viewTitle));
 
   const fullBreadcrumb = [...breadcrumb, ...internalBreadcrumb];
+
+  // Quando estamos dentro de um bloco, as conexões exibidas na lateral
+  // pertencem ao bloco da visão externa (pai), e não à seleção atual.
+  const externalNavigation = (() => {
+    if (viewStack.length <= 1) return null;
+
+    const currentViewId = viewStack[viewStack.length - 1];
+    const parentViewId = viewStack[viewStack.length - 2];
+    const parentView = projectData.views[parentViewId];
+    if (!parentView) return null;
+
+    const sourceNode = parentView.nodes.find(
+      (node) => node.data.linkedViewId === currentViewId
+    );
+    if (!sourceNode) return null;
+
+    const connectedIds = new Set(
+      parentView.edges
+        .filter(
+          (edge) => edge.source === sourceNode.id || edge.target === sourceNode.id
+        )
+        .map((edge) =>
+          edge.source === sourceNode.id ? edge.target : edge.source
+        )
+    );
+
+    const connectedNodes = parentView.nodes.filter((node) =>
+      connectedIds.has(node.id)
+    );
+
+    if (!connectedNodes.length) return null;
+
+    return {
+      sourceNode,
+      connectedNodes,
+      parentViewId,
+      parentStack: viewStack.slice(0, -1),
+    };
+  })();
 
   function snapshotCurrentView(
     nextNodes: Node<BlockData>[] = nodes,
@@ -270,20 +317,10 @@ export default function MindMap({
     data = resetConnectionMode(data);
     let finalTitle = mapTitle.trim();
 
-    if (!finalTitle && storedMapId === null) {
-      const typedTitle = window.prompt('Nome do mapa mental:');
-      finalTitle = typedTitle?.trim() ?? '';
-
-      if (!finalTitle) {
-        setSaveStatus('Informe um nome para salvar o mapa.');
-        throw new Error('MAP_NAME_REQUIRED');
-      }
-
-      setMapTitle(finalTitle);
-    }
-
     if (!finalTitle) {
-      finalTitle = breadcrumbTitle;
+      window.alert('Informe um nome para salvar o mapa mental.');
+      setSaveStatus('Informe um nome para salvar o mapa.');
+      throw new Error('MAP_NAME_REQUIRED');
     }
 
     const rootView = data.views[data.rootViewId];
@@ -587,12 +624,80 @@ export default function MindMap({
         currentNode.data.label,
         noteId,
         parentMapId,
-        viewStack
+        viewStack,
+        currentNode.id
       );
     } catch (error) {
       if (error instanceof Error && error.message === 'MAP_NAME_REQUIRED') return;
       console.error(error);
       setSaveStatus('Erro ao criar ou abrir o conteúdo associado.');
+    }
+  }
+
+  async function navigateToExternalConnection(targetNode: Node<BlockData>) {
+    if (!externalNavigation) return;
+
+    try {
+      setSaveStatus('Salvando...');
+      const nextData = snapshotCurrentView();
+      const parentMapId = await persistProject(nextData);
+      const contentType = getLinkedContentType(targetNode.data);
+
+      if (
+        contentType === 'mindmap' &&
+        targetNode.data.linkedViewId &&
+        nextData.views[targetNode.data.linkedViewId]
+      ) {
+        const targetViewId = targetNode.data.linkedViewId;
+        const targetView = nextData.views[targetViewId];
+
+        setViewStack([...externalNavigation.parentStack, targetViewId]);
+        setNodes(targetView.nodes);
+        setEdges(targetView.edges);
+        setEnteringNode(null);
+        setSaveStatus(`Mapa de ${targetNode.data.label || 'bloco'} aberto.`);
+        setTimeout(() => flow?.fitView({ padding: 0.2 }), 0);
+        return;
+      }
+
+      if (contentType === 'annotation' && targetNode.data.linkedAnnotationId) {
+        setSaveStatus('Abrindo anotação conectada...');
+        onOpenAnnotation(
+          targetNode.data.label || 'Anotação',
+          targetNode.data.linkedAnnotationId,
+          parentMapId,
+          externalNavigation.parentStack,
+          targetNode.id
+        );
+        return;
+      }
+
+      // Se o bloco conectado ainda não tem conteúdo interno, volta à visão
+      // externa e deixa esse bloco selecionado para o usuário decidir o tipo.
+      const parentView = nextData.views[externalNavigation.parentViewId];
+      if (!parentView) return;
+
+      const parentNodes = parentView.nodes.map((node) => ({
+        ...node,
+        selected: node.id === targetNode.id,
+      }));
+
+      setViewStack(externalNavigation.parentStack);
+      setNodes(parentNodes);
+      setEdges(parentView.edges);
+      setEnteringNode(null);
+      setSaveStatus('Bloco conectado selecionado na visão externa.');
+      setTimeout(() => {
+        flow?.setCenter(
+          targetNode.position.x + SHAPE_SIZE / 2,
+          targetNode.position.y + SHAPE_SIZE / 2,
+          { duration: 350, zoom: 1 }
+        );
+      }, 0);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'MAP_NAME_REQUIRED') return;
+      console.error(error);
+      setSaveStatus('Erro ao abrir o bloco conectado.');
     }
   }
 
@@ -626,6 +731,9 @@ export default function MindMap({
 
         <div className="mindmap-header__title">
           <small>{fullBreadcrumb.join(' / ')}</small>
+          <input aria-label="Nome do mapa mental" className="mindmap-header__title-input"
+            value={mapTitle} placeholder="Digite o título do mapa mental..."
+            onChange={(event) => setMapTitle(event.target.value)} />
         </div>
 
         <div className="mindmap-header__actions">
@@ -741,6 +849,22 @@ export default function MindMap({
         <Background />
         <Controls />
       </ReactFlow>
+
+      {externalNavigation && (
+        <aside className="mindmap-neighbors" aria-label="Blocos conectados na visão externa">
+          <h3>Blocos conectados</h3>
+          <small>Conexões de {externalNavigation.sourceNode.data.label || 'bloco'}</small>
+          {externalNavigation.connectedNodes.map((node) => (
+            <button
+              key={node.id}
+              type="button"
+              onClick={() => void navigateToExternalConnection(node)}
+            >
+              {node.data.label || 'Bloco sem título'} →
+            </button>
+          ))}
+        </aside>
+      )}
 
       {enteringNode && (
         <div className="mindmap-modal" onClick={() => setEnteringNode(null)}>

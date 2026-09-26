@@ -1,5 +1,7 @@
 .home-layout {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   display: grid;
   grid-template-columns: 220px 1fr;
   background: #fbf8f2;
@@ -35,10 +37,14 @@
   border-radius: 8px;
   background: #e7ddd2;
   text-align: left;
+  margin-bottom: 8px;
+  cursor: pointer;
 }
 
 .home-main {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .home-topbar {

@@ -259,3 +259,139 @@
   .note-references { padding: 16px; }
   .note-references__header { flex-wrap: wrap; }
 }
+
+/* Ferramentas compactas à esquerda; resultados do Crossref continuam abaixo da folha. */
+.note-editor__workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 18px;
+  padding: 0 24px 24px;
+}
+
+.note-editor__sidebar {
+  flex: 0 0 248px;
+  align-self: flex-start;
+  max-height: calc(100vh - 190px);
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid #ded5ca;
+  border-radius: 10px;
+  background: #f2ece4;
+}
+
+.note-editor__sidebar h3 { margin: 0 0 10px; font-size: 15px; }
+.note-editor__sidebar > button,
+.note-editor__question button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 9px;
+  border: 1px solid #5e402b;
+  border-radius: 7px;
+  background: #5e402b;
+  color: white;
+  cursor: pointer;
+}
+.note-editor__sidebar button:disabled { opacity: .5; cursor: not-allowed; }
+.note-editor__sidebar button.is-secondary { background: white; color: #5e402b; }
+.note-editor__help { margin: 0 0 10px; font-size: 12px; color: #806b5d; line-height: 1.45; }
+.note-editor__excerpt { margin: 10px 0; padding: 9px; border-radius: 7px; background: #fff9e7; overflow-wrap: anywhere; font-size: 12px; line-height: 1.4; }
+.note-editor__question { margin-top: 14px; padding-top: 14px; border-top: 1px solid #d0c3b6; }
+.note-editor__question small { overflow-wrap: anywhere; }
+.note-editor__question label { display: block; margin: 10px 0 6px; }
+.note-editor__question textarea { width: 100%; padding: 8px; border: 1px solid #c9bdad; border-radius: 7px; resize: vertical; }
+
+.note-editor__scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 0 30px;
+}
+
+.note-editor__scroll .note-references {
+  margin-top: 18px;
+}
+
+.note-editor__relations {
+  flex: 0 0 220px;
+  align-self: flex-start;
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid #ded5ca;
+  border-radius: 10px;
+  background: #f2ece4;
+}
+
+.note-editor__relations h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.note-editor__relations > small {
+  display: block;
+  margin-bottom: 10px;
+  color: #806b5d;
+}
+
+.note-editor__relations-list {
+  display: grid;
+  gap: 8px;
+}
+
+.note-editor__relations-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #d0c3b6;
+  border-radius: 8px;
+  background: #fff9e7;
+  color: #3b291d;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-editor__relations-list button:hover {
+  border-color: #5e402b;
+  background: #fff;
+}
+
+.note-editor__relations-list button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.note-editor__relations-list button small {
+  flex: 0 0 auto;
+  color: #806b5d;
+  font-size: 10px;
+}
+
+@media (max-width: 780px) {
+  .note-editor__workspace {
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 16px 20px;
+  }
+
+  .note-editor__sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 38vh;
+  }
+
+  .note-editor__relations {
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 30vh;
+  }
+
+  .note-editor__scroll { min-height: 160px; }
+}
