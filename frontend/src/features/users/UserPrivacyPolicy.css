@@ -1,0 +1,13 @@
+.policy-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 40px;
+    line-height: 1.6;
+    background-color: #F6D56D;
+    color: #000000;
+    border-radius: 12px;
+}
+
+.policy-container h1, .policy-container h2 {
+    color: #5C4033;
+}

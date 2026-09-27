@@ -1,0 +1,13 @@
+.terms-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 40px;
+    line-height: 1.6;
+    background-color: #F6D56D;
+    color: #000000;
+    border-radius: 12px;
+}
+
+.terms-container h1, .terms-container h2 {
+    color: #5C4033;
+}
