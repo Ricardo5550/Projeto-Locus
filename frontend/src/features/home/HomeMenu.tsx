@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { CircleUserRound, Pencil, Trash2 } from 'lucide-react';
 import {
   deleteMindMap,
   listMindMaps,
@@ -11,6 +11,7 @@ import {
   listNotes,
   renameNote,
 } from '../notes/noteApi';
+import { getCurrentUser } from '../users/userApi';
 import './HomeMenu.css';
 
 type HomeMenuProps = {
@@ -19,6 +20,9 @@ type HomeMenuProps = {
   onCreateNote: () => void;
   onOpenMindMap: (id: number, title: string) => void;
   onOpenNote: (id: number, title: string) => void;
+  onOpenTerms: () => void;
+  onOpenPrivacy: () => void;
+  onLogout: () => void;
 };
 
 type LibraryItem = {
@@ -54,10 +58,14 @@ export default function HomeMenu({
   onCreateNote,
   onOpenMindMap,
   onOpenNote,
+  onOpenTerms,
+  onOpenPrivacy,
+  onLogout,
 }: HomeMenuProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('Carregando biblioteca...');
+  const [accountName, setAccountName] = useState('Conta');
 
   useEffect(() => {
     Promise.all([listMindMaps(), listNotes()])
@@ -92,6 +100,12 @@ export default function HomeMenu({
         console.error(error);
         setStatus('Não foi possível carregar a biblioteca. Verifique o backend.');
       });
+  }, []);
+
+  useEffect(() => {
+    getCurrentUser()
+      .then((user) => setAccountName(user.username || user.email))
+      .catch((error) => console.error('Não foi possível carregar a conta.', error));
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -184,10 +198,31 @@ export default function HomeMenu({
         <button className="home-nav-button" type="button" onClick={onOpenQuestionnaire}>
           ◩ Questionário
         </button>
+
+        <div className="home-sidebar__bottom">
+          <button
+            className="home-nav-button home-nav-button--legal"
+            type="button"
+            onClick={onOpenTerms}
+          >
+            Termos de Uso
+          </button>
+          <button
+            className="home-nav-button home-nav-button--legal"
+            type="button"
+            onClick={onOpenPrivacy}
+          >
+            Política de Privacidade
+          </button>
+          <button className="home-nav-button home-nav-button--logout" type="button" onClick={onLogout}>
+            Sair
+          </button>
+        </div>
       </aside>
 
       <main className="home-main">
         <header className="home-topbar">
+          <div className="home-topbar__spacer" aria-hidden="true" />
           <input
             type="search"
             placeholder="Buscar conteúdos"
@@ -195,6 +230,10 @@ export default function HomeMenu({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
+          <div className="home-account" title={accountName}>
+            <CircleUserRound size={19} aria-hidden="true" />
+            <span>{accountName}</span>
+          </div>
         </header>
 
         <div className="home-content">

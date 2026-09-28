@@ -1,0 +1,64 @@
+.legal-page {
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
+  background: #fcf5eb;
+  padding: 24px 20px 40px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: sans-serif;
+}
+
+
+.legal-document__header {
+  margin-bottom: 28px;
+  border-bottom: 1px solid rgba(92, 64, 51, 0.28);
+}
+
+.legal-document__header h1 {
+  margin: 8px 0;
+}
+
+.legal-document__brand {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #fff;
+  color: #5c4033;
+  font-weight: 700;
+}
+
+.legal-document__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 34px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(92, 64, 51, 0.28);
+}
+
+.legal-back-button {
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 20px;
+  background: #5c4033;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legal-back-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .legal-page {
+    padding: 12px 10px 28px;
+  }
+}

@@ -4,16 +4,17 @@ import logging
 
 from django.core.cache import cache
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .services import CrossrefIndisponivel, pesquisar_crossref
-
 
 logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def buscar_referencias(request):
     termo = request.query_params.get('q', '').strip()
     if not 2 <= len(termo) <= 200:

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import HomeMenu from './features/home/HomeMenu';
 import MindMap from './features/mindmaps/MindMap';
 import NoteEditor, {
@@ -7,20 +7,49 @@ import NoteEditor, {
 } from './features/notes/NoteEditor';
 import UserRegister from './features/users/UserRegister';
 import UserLogin from './features/users/UserLogin';
+import ForgotPassword from './features/users/ForgotPassword';
+import ResetPassword from './features/users/ResetPassword';
+import VerifyEmail from './features/users/VerifyEmail';
+import UserTerms from './features/users/UserTerms';
+import UserPrivacyPolicy from './features/users/UserPrivacyPolicy';
 import Questionnaire from './features/reviews/Questionnaire';
+import { hasStoredSession, logout } from './services/apiClient';
 import './App.css';
 
-type Screen = 'home' | 'mindmap' | 'annotation' | 'register' | 'login' | 'questionnaire';
+type Screen =
+  | 'home'
+  | 'mindmap'
+  | 'annotation'
+  | 'register'
+  | 'login'
+  | 'forgot-password'
+  | 'reset-password'
+  | 'verify-email'
+  | 'terms'
+  | 'privacy'
+  | 'questionnaire';
 
 type HistoryEntry = {
-  screen: 'mindmap' | 'annotation' | 'register' | 'login';
+  screen: 'mindmap' | 'annotation';
   id: number | null;
   breadcrumb: string[];
   mapViewStack?: string[];
 };
 
+function initialScreen(): Screen {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('verify_email')) return 'verify-email';
+  if (params.has('reset_uid') && params.has('reset_token')) return 'reset-password';
+  return hasStoredSession() ? 'home' : 'login';
+}
+
+function clearAuthLinkParams() {
+  window.history.replaceState({}, '', '/');
+}
+
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('login');
+  const [screen, setScreen] = useState<Screen>(initialScreen);
+  const [loginNotice, setLoginNotice] = useState('');
   const [currentMapId, setCurrentMapId] = useState<number | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
   const [currentMapViewStack, setCurrentMapViewStack] = useState<string[]>();
@@ -29,6 +58,26 @@ export default function App() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [noteRelationshipContext, setNoteRelationshipContext] =
     useState<NoteRelationshipContext | null>(null);
+
+  useEffect(() => {
+    function handleSessionEnd() {
+      setScreen('login');
+      setHistory([]);
+      setCurrentMapId(null);
+      setCurrentNoteId(null);
+      setCurrentMapViewStack(undefined);
+      setCurrentMapSelectedNodeId(undefined);
+      setNoteRelationshipContext(null);
+      setBreadcrumb(['Início']);
+    }
+
+    window.addEventListener('auth:logout', handleSessionEnd);
+    return () => window.removeEventListener('auth:logout', handleSessionEnd);
+  }, []);
+
+  async function handleLogout() {
+    await logout();
+  }
 
   function openNewMindMap() {
     setHistory([]);
@@ -193,6 +242,42 @@ export default function App() {
     });
   }
 
+  if (screen === 'verify-email') {
+    return (
+      <VerifyEmail
+        onBackToLogin={() => {
+          clearAuthLinkParams();
+          setLoginNotice('E-mail confirmado. Entre com sua conta.');
+          setScreen('login');
+        }}
+      />
+    );
+  }
+
+  if (screen === 'reset-password') {
+    return (
+      <ResetPassword
+        onBackToLogin={() => {
+          clearAuthLinkParams();
+          setLoginNotice('Use sua nova senha para entrar.');
+          setScreen('login');
+        }}
+      />
+    );
+  }
+
+  if (screen === 'forgot-password') {
+    return <ForgotPassword onBackToLogin={() => setScreen('login')} />;
+  }
+
+  if (screen === 'terms') {
+    return <UserTerms onBack={() => setScreen('home')} />;
+  }
+
+  if (screen === 'privacy') {
+    return <UserPrivacyPolicy onBack={() => setScreen('home')} />;
+  }
+
   if (screen === 'questionnaire') {
     return <Questionnaire onBack={goBack} />;
   }
@@ -205,6 +290,9 @@ export default function App() {
         onCreateNote={openNewNote}
         onOpenMindMap={openSavedMindMap}
         onOpenNote={openSavedNote}
+        onOpenTerms={() => setScreen('terms')}
+        onOpenPrivacy={() => setScreen('privacy')}
+        onLogout={() => void handleLogout()}
       />
     );
   }
@@ -227,11 +315,35 @@ export default function App() {
   }
 
   if (screen === 'register') {
-    return <UserRegister onNavigateToLogin={ () => setScreen('login') } />;
+    return (
+      <UserRegister
+        onNavigateToLogin={() => setScreen('login')}
+        onRegistrationSuccess={() => {
+          setLoginNotice('Conta criada. Confira seu e-mail para confirmar o cadastro antes de entrar.');
+          setScreen('login');
+        }}
+      />
+    );
   }
 
   if (screen === 'login') {
-    return <UserLogin onLoginSuccess={ () => setScreen('home') } onNavigateToRegister={ () => setScreen('register') } />;
+    return (
+      <UserLogin
+        notice={loginNotice}
+        onLoginSuccess={() => {
+          setLoginNotice('');
+          setScreen('home');
+        }}
+        onNavigateToRegister={() => {
+          setLoginNotice('');
+          setScreen('register');
+        }}
+        onNavigateToForgotPassword={() => {
+          setLoginNotice('');
+          setScreen('forgot-password');
+        }}
+      />
+    );
   }
 
   return (

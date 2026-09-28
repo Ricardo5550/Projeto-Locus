@@ -539,7 +539,6 @@ export default function MindMap({
                   linkedContentType: 'mindmap' as ContentType,
                   linkedViewId: childViewId,
                   linkedAnnotationId: undefined,
-                  linkedMapId: undefined,
                 },
               }
             : node
@@ -608,7 +607,6 @@ export default function MindMap({
                 linkedContentType: 'annotation' as ContentType,
                 linkedAnnotationId: noteId,
                 linkedViewId: undefined,
-                linkedMapId: undefined,
               },
             }
           : node

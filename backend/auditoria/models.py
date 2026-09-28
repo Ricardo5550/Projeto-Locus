@@ -4,13 +4,19 @@ from django.db import models
 
 class RegistroAtividade(models.Model):
     ACAO_CHOICES = [
+        ('login', 'Login'),
+        ('logout', 'Logout'),
         ('criar', 'Criação'),
         ('editar', 'Edição'),
         ('excluir', 'Exclusão'),
+        ('responder', 'Resposta'),
     ]
     RECURSO_CHOICES = [
+        ('conta', 'Conta'),
         ('anotacao', 'Anotação'),
         ('mapa_mental', 'Mapa mental'),
+        ('pergunta', 'Pergunta'),
+        ('tentativa', 'Tentativa'),
     ]
 
     acao = models.CharField(max_length=10, choices=ACAO_CHOICES)

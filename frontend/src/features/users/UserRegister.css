@@ -38,7 +38,7 @@
   color: #000000;
 }
 
-form {
+.card-registro form {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -60,7 +60,7 @@ form {
   color: #000000;
 }
 
-input {
+.card-registro .form-group input {
   width: 100%;
   padding: 12px;
   border: none;
@@ -69,7 +69,7 @@ input {
   box-sizing: border-box;
 }
 
-input:focus {
+.card-registro .form-group input:focus {
   outline: 2px solid #5C4033;
 }
 
@@ -98,4 +98,129 @@ input:focus {
 
 .auth-link:hover {
   text-decoration: underline;
+}
+.field-hint,
+.field-error {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.field-hint {
+  color: #5c514b;
+}
+
+.field-error {
+  color: #8a1f1f;
+}
+
+.auth-message {
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.auth-message--error {
+  background: #fff1f1;
+  color: #8a1f1f;
+  border: 1px solid #e2aaaa;
+}
+
+.auth-message--success {
+  background: #f0f7ed;
+  color: #345b2c;
+  border: 1px solid #afc9a7;
+}
+
+.auth-link-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.btn-registrar:disabled,
+.auth-link-button:disabled,
+.card-registro .form-group input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.legal-consents {
+  width: 100%;
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legal-consent-row {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #2f2925;
+  cursor: pointer;
+}
+
+.legal-consent-row input {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  flex: 0 0 auto;
+}
+
+.legal-consent-row.is-locked {
+  color: #756a64;
+}
+
+.legal-inline-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #5c4033;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.legal-inline-link:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.legal-consent-hint {
+  padding-left: 26px;
+  color: #665a53;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.legal-consent-error {
+  margin-top: 0;
+}
+
+.legal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(32, 27, 24, 0.6);
+  overflow-y: auto;
+}
+
+.legal-modal-panel {
+  min-height: 100%;
+}
+
+.legal-modal-panel .legal-page {
+  min-height: 100vh;
+  background: transparent;
 }

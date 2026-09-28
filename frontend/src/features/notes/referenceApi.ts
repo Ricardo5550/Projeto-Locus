@@ -1,3 +1,5 @@
+import { ApiError, apiFetch } from '../../services/apiClient';
+
 export type AcademicReference = {
   titulo: string;
   autores: string[];
@@ -10,8 +12,6 @@ export type AcademicReference = {
 
 type SearchResponse = { resultados: AcademicReference[] };
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000/api';
-
 export async function searchReferences(
   term: string,
   signal?: AbortSignal
@@ -23,8 +23,8 @@ export async function searchReferences(
 
   let response: Response;
   try {
-    response = await fetch(
-      `${API_URL}/referencias/?q=${encodeURIComponent(query)}`,
+    response = await apiFetch(
+      `/referencias/?q=${encodeURIComponent(query)}`,
       { signal }
     );
   } catch (error) {
@@ -33,19 +33,15 @@ export async function searchReferences(
   }
 
   if (!response.ok) {
-    throw new Error(
+    throw new ApiError(
       response.status === 400
         ? 'Revise os termos de pesquisa e tente novamente.'
-        : 'Não foi possível consultar as fontes agora. Tente novamente em alguns instantes.'
+        : 'Não foi possível consultar as fontes agora. Tente novamente em alguns instantes.',
+      response.status
     );
   }
 
-  let data: SearchResponse;
-  try {
-    data = (await response.json()) as SearchResponse;
-  } catch {
-    throw new Error('Não foi possível interpretar os resultados da pesquisa.');
-  }
+  const data = (await response.json()) as SearchResponse;
   if (!Array.isArray(data.resultados)) {
     throw new Error('Não foi possível interpretar os resultados da pesquisa.');
   }

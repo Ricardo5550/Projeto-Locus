@@ -1,0 +1,64 @@
+.privacy-legal-page {
+  min-height: 100%;
+}
+
+.policy-container {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  padding: 40px;
+  line-height: 1.65;
+  background-color: #f6d56d;
+  color: #1f1b18;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.policy-container h1,
+.policy-container h2 {
+  color: #5c4033;
+}
+
+.policy-container h2 {
+  margin-top: 28px;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.policy-container p {
+  margin: 0 0 12px;
+}
+
+.policy-container ul {
+  margin: 8px 0 16px;
+  padding-left: 24px;
+}
+
+.policy-container li {
+  margin-bottom: 7px;
+}
+
+.privacy-read-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 32px;
+  padding: 16px;
+  border: 1px solid rgba(92, 64, 51, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+
+.privacy-read-confirmation input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .policy-container {
+    padding: 24px 20px;
+  }
+}

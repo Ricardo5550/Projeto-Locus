@@ -4,6 +4,16 @@ from .models import MapaMental
 
 
 class MapaMentalSerializer(serializers.ModelSerializer):
+    dados = serializers.JSONField()
+
     class Meta:
         model = MapaMental
-        fields = '__all__'
+        fields = [
+            'id',
+            'titulo',
+            'dados',
+            'autor',
+            'data_criacao',
+            'data_atualizacao',
+        ]
+        read_only_fields = ['id', 'autor', 'data_criacao', 'data_atualizacao']

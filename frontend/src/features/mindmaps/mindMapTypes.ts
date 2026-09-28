@@ -52,4 +52,3 @@ export type MindMapData = {
   views: Record<string, MindMapView>;
 };
 
-export type StoredMindMapData = MindMapData;

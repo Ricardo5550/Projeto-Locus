@@ -8,6 +8,8 @@
 }
 
 .home-sidebar {
+  display: flex;
+  flex-direction: column;
   padding: 24px 18px;
   background: #f2ece4;
   border-right: 1px solid #ded5ca;
@@ -48,14 +50,16 @@
 }
 
 .home-topbar {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 420px) 1fr;
+  align-items: center;
+  gap: 20px;
   padding: 15px 36px;
   border-bottom: 1px solid #ded5ca;
 }
 
 .home-topbar input {
-  width: min(340px, 100%);
+  width: 100%;
   padding: 10px 14px;
   border: 1px solid #d9cfc4;
   border-radius: 9px;
@@ -211,4 +215,64 @@
   margin: 0 0 12px;
   color: #806b5d;
   font-size: 13px;
+}
+
+.home-nav-button--logout {
+  color: #7a2f2f;
+}
+
+.home-sidebar__bottom {
+  margin-top: auto;
+}
+
+.home-nav-button--legal:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.home-account {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 7px;
+  color: #3b291d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.home-account:hover {
+  text-decoration: underline;
+}
+
+.home-account span {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+@media (max-width: 800px) {
+  .home-topbar {
+    grid-template-columns: 1fr auto;
+    padding: 12px 18px;
+  }
+
+  .home-topbar__spacer {
+    display: none;
+  }
+
+  .home-account:hover {
+  text-decoration: underline;
+}
+
+.home-account span {
+    display: none;
+  }
 }
