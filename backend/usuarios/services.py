@@ -6,6 +6,7 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 
 from anotacoes.models import Anotacao
 from mapas.models import MapaMental
+from pastas.models import Pasta
 from revisoes.models import Pergunta, Tentativa
 
 
@@ -17,6 +18,7 @@ def anonimizar_e_desativar_conta(user):
     Pergunta.objects.filter(anotacao__autor=user).delete()
     Anotacao.objects.filter(autor=user).delete()
     MapaMental.objects.filter(autor=user).delete()
+    Pasta.objects.filter(autor=user).delete()
 
     # Revoga todas as sessões JWT ainda conhecidas.
     for token in OutstandingToken.objects.filter(user=user):

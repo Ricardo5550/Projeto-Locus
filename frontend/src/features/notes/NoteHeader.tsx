@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react';
+import PageHeader from '../../components/PageHeader';
 import type { Editor } from '@tiptap/react';
 
  type NoteHeaderProps = {
@@ -39,31 +40,16 @@ export default function NoteHeader({
   }
 
   return (
-    <header className="note-header">
-      <button type="button" className="note-header__back" onClick={onBack}>
-        ←
-      </button>
-
-      <input
-        className="note-header__title"
-        type="text"
-        placeholder="Digite o título da anotação..."
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-      />
-
-      <div className="note-header__actions">
-        {status && <span className="note-header__status">{status}</span>}
-
-        <label className="note-header__button">
+    <PageHeader
+      title={title} onTitleChange={setTitle} onBack={onBack} status={status}
+      titleLabel="Nome da anotação" placeholder="Digite o título da anotação..." maxLength={100}
+      actions={<>
+        <label className="page-action">
           Inserir imagem
           <input type="file" accept="image/*" onChange={insertImage} hidden />
         </label>
-
-        <button type="button" className="note-header__button is-primary" onClick={onSave}>
-          Salvar
-        </button>
-      </div>
-    </header>
+        <button type="button" className="page-action is-primary" onClick={onSave}>Salvar</button>
+      </>}
+    />
   );
 }

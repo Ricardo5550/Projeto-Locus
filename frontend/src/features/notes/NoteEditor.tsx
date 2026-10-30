@@ -27,6 +27,7 @@ import './NoteEditor.css';
 
 type NoteEditorProps = {
   noteId: number | null;
+  initialFolderId?: number | null;
   initialTitle: string;
   breadcrumb: string[];
   onBack: () => void;
@@ -58,6 +59,7 @@ type RelatedBlock = Omit<
 
 export default function NoteEditor({
   noteId,
+  initialFolderId = null,
   initialTitle,
   breadcrumb,
   onBack,
@@ -188,7 +190,7 @@ export default function NoteEditor({
 
       const saved =
         noteId === null
-          ? await createNote(finalTitle, content)
+          ? await createNote(finalTitle, content, initialFolderId)
           : await updateNote(noteId, finalTitle, content);
 
       setTitle(saved.titulo);
@@ -222,7 +224,7 @@ export default function NoteEditor({
       const finalTitle = title.trim() || 'Anotação sem título';
       // Uma pergunta deve apontar para um registro persistido, inclusive em notas novas.
       const note = noteId === null
-        ? await createNote(finalTitle, editor.getJSON() as NoteContent)
+        ? await createNote(finalTitle, editor.getJSON() as NoteContent, initialFolderId)
         : await updateNote(noteId, finalTitle, editor.getJSON() as NoteContent);
       setTitle(note.titulo);
       onCreated(note.id, note.titulo);
@@ -299,7 +301,7 @@ export default function NoteEditor({
               onChange={(event) => setQuestionDraft({ ...questionDraft, question: event.target.value })}
               placeholder="Edite a pergunta antes de salvar" />
             {questionDraft.step === 'question' && <button type="button" disabled={!questionDraft.question.trim()}
-              onClick={startAnswerSelection}>Selecionar resposta</button>}
+              onClick={startAnswerSelection}>Marcar pergunta</button>}
             {questionDraft.step === 'answer' && <>
               <p className="note-editor__help">Selecione agora, na anotação, o trecho da resposta. Em seguida, clique em Marcar resposta.</p>
               <button type="button" onMouseDown={(event) => event.preventDefault()}

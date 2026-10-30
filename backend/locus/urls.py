@@ -13,6 +13,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
+from pastas.views import PastaViewSet
 from referencias.views import buscar_referencias
 from revisoes.views import PerguntaViewSet, TentativaViewSet
 from usuarios.views import (
@@ -24,6 +25,7 @@ from usuarios.views import (
 )
 
 router = DefaultRouter()
+router.register(r'pastas', PastaViewSet, basename='pasta')
 router.register(r'anotacoes', AnotacaoViewSet, basename='anotacao')
 router.register(r'mapas-mentais', MapaMentalViewSet, basename='mapa-mental')
 router.register(r'perguntas', PerguntaViewSet, basename='pergunta')

@@ -1,5 +1,8 @@
 from django.db import transaction
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
+from .services import excluir_mapa
 from rest_framework.permissions import IsAuthenticated
 
 from auditoria.services import registrar_atividade
@@ -36,13 +39,9 @@ class MapaMentalViewSet(viewsets.ModelViewSet):
             mapa.pk,
         )
 
-    @transaction.atomic
-    def perform_destroy(self, instance):
-        identificador = instance.pk
-        instance.delete()
-        registrar_atividade(
-            self.request,
-            'excluir',
-            'mapa_mental',
-            identificador,
-        )
+    def destroy(self, request, *args, **kwargs):
+        modo = request.query_params.get('modo')
+        if modo not in ('excluir_tudo', 'manter_anotacoes'):
+            raise ValidationError({'modo': 'Escolha excluir_tudo ou manter_anotacoes.'})
+        pasta = excluir_mapa(self.get_object(), modo, request)
+        return Response({'pasta_id': pasta.pk if pasta else None}, status=status.HTTP_200_OK)

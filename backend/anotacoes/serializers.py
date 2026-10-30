@@ -1,15 +1,17 @@
 from rest_framework import serializers
+from pastas.serializers import PastaConteudoMixin
 
 from .models import Anotacao
 
 
-class AnotacaoSerializer(serializers.ModelSerializer):
+class AnotacaoSerializer(PastaConteudoMixin, serializers.ModelSerializer):
     conteudo = serializers.JSONField()
 
     class Meta:
         model = Anotacao
         fields = [
             'id',
+            'pasta',
             'titulo',
             'conteudo',
             'autor',

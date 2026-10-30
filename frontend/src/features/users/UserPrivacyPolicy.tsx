@@ -1,3 +1,4 @@
+import PageHeader, { BackButton } from '../../components/PageHeader';
 import './UserLegal.css';
 import './UserPrivacyPolicy.css';
 
@@ -18,6 +19,7 @@ export default function UserPrivacyPolicy({
 }: UserPrivacyPolicyProps) {
   return (
     <div className="legal-page privacy-legal-page">
+      <PageHeader title="Política de Privacidade" onBack={onBack} />
       <article className="policy-container">
         <div className="legal-document__header">
           <span className="legal-document__brand">Locus</span>
@@ -176,13 +178,7 @@ export default function UserPrivacyPolicy({
 
         <div className="legal-document__footer">
           <strong>Política de Privacidade — versão 1.0</strong>
-          <button
-            type="button"
-            className="legal-back-button"
-            onClick={onBack}
-          >
-            {backLabel}
-          </button>
+          <BackButton onClick={onBack} label={backLabel} />
         </div>
       </article>
     </div>

@@ -1,3 +1,4 @@
+import PageHeader from '../../components/PageHeader';
 import { useEffect, useState } from 'react';
 import {
   deleteQuestion,
@@ -48,11 +49,12 @@ export default function Questionnaire({ onBack }: Props) {
     setAnswers((current) => ({
       ...current,
       [id]: {
-        typed: '',
-        revealed: false,
-        saved: false,
-        error: '',
-        ...current[id],
+        ...(current[id] ?? {
+          typed: '',
+          revealed: false,
+          saved: false,
+          error: '',
+        }),
         ...changes,
       },
     }));
@@ -150,10 +152,7 @@ export default function Questionnaire({ onBack }: Props) {
 
   return (
     <div className="quiz-page">
-      <header className="quiz-header">
-        <button type="button" onClick={onBack}>← Biblioteca</button>
-        <h1>Questionário</h1>
-      </header>
+      <PageHeader title="Questionário" onBack={onBack} />
 
       <main className="quiz-main">
         <p>

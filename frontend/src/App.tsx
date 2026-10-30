@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import HomeMenu from './features/home/HomeMenu';
+import AccountSettings from './features/users/AccountSettings';
 import MindMap from './features/mindmaps/MindMap';
 import NoteEditor, {
   type NoteRelationshipContext,
@@ -17,6 +18,7 @@ import { hasStoredSession, logout } from './services/apiClient';
 import './App.css';
 
 type Screen =
+  | 'account'
   | 'home'
   | 'mindmap'
   | 'annotation'
@@ -49,6 +51,7 @@ function clearAuthLinkParams() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>(initialScreen);
+  const [libraryFolderId, setLibraryFolderId] = useState<number | null>(null);
   const [loginNotice, setLoginNotice] = useState('');
   const [currentMapId, setCurrentMapId] = useState<number | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
@@ -62,6 +65,7 @@ export default function App() {
   useEffect(() => {
     function handleSessionEnd() {
       setScreen('login');
+      setLibraryFolderId(null);
       setHistory([]);
       setCurrentMapId(null);
       setCurrentNoteId(null);
@@ -282,9 +286,24 @@ export default function App() {
     return <Questionnaire onBack={goBack} />;
   }
 
+  if (screen === 'account') {
+    return (
+      <AccountSettings
+        onBack={() => setScreen('home')}
+        onAccountDeleted={() => {
+          window.dispatchEvent(new Event('auth:logout'));
+          setLoginNotice('Conta excluída com sucesso.');
+        }}
+      />
+    );
+  }
+
   if (screen === 'home') {
     return (
       <HomeMenu
+        folderId={libraryFolderId}
+        onFolderChange={setLibraryFolderId}
+        onOpenAccount={() => setScreen('account')}
         onOpenQuestionnaire={() => { setHistory([]); setBreadcrumb(['Início', 'Questionário']); setScreen('questionnaire'); }}
         onCreateMindMap={openNewMindMap}
         onCreateNote={openNewNote}
@@ -301,6 +320,7 @@ export default function App() {
     return (
       <NoteEditor
         noteId={currentNoteId}
+        initialFolderId={libraryFolderId}
         initialTitle={breadcrumb[breadcrumb.length - 1] || 'Nova anotação'}
         breadcrumb={breadcrumb}
         onBack={goBack}
@@ -349,6 +369,7 @@ export default function App() {
   return (
     <MindMap
       mapId={currentMapId}
+      initialFolderId={libraryFolderId}
       breadcrumb={breadcrumb}
       initialViewStack={currentMapViewStack}
       initialSelectedNodeId={currentMapSelectedNodeId}

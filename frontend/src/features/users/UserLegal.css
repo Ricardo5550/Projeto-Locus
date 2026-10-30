@@ -62,3 +62,5 @@
     padding: 12px 10px 28px;
   }
 }
+
+.legal-page > .page-header { margin:-24px -20px 24px; position:sticky; top:-24px; z-index:10; }

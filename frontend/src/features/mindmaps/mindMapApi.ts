@@ -1,8 +1,9 @@
-import { apiJson, apiVoid } from '../../services/apiClient';
+import { apiJson } from '../../services/apiClient';
 import type { MindMapData } from './mindMapTypes';
 
 export type StoredMindMap = {
   id: number;
+  pasta: number | null;
   titulo: string;
   dados: MindMapData;
   autor: number | null;
@@ -12,11 +13,12 @@ export type StoredMindMap = {
 
 export function createMindMap(
   titulo: string,
-  dados: MindMapData
+  dados: MindMapData,
+  pasta: number | null = null
 ): Promise<StoredMindMap> {
   return apiJson<StoredMindMap>('/mapas-mentais/', {
     method: 'POST',
-    body: JSON.stringify({ titulo, dados }),
+    body: JSON.stringify({ titulo, dados, pasta }),
   });
 }
 
@@ -38,8 +40,8 @@ export function renameMindMap(id: number, titulo: string): Promise<StoredMindMap
   });
 }
 
-export function deleteMindMap(id: number): Promise<void> {
-  return apiVoid(`/mapas-mentais/${id}/`, { method: 'DELETE' });
+export function deleteMindMap(id: number, modo: 'excluir_tudo' | 'manter_anotacoes'): Promise<{pasta_id:number|null}> {
+  return apiJson(`/mapas-mentais/${id}/?modo=${modo}`, { method: 'DELETE' });
 }
 
 export function loadMindMap(id: number): Promise<StoredMindMap> {

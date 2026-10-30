@@ -6,6 +6,7 @@ from core.models import SoftDeleteModel
 
 
 class MapaMental(SoftDeleteModel):
+    pasta = models.ForeignKey('pastas.Pasta', null=True, blank=True, on_delete=models.SET_NULL, related_name='mapas')
     titulo = models.CharField(max_length=150)
     dados = EncryptedJSONField(default=dict)
     data_criacao = models.DateTimeField(auto_now_add=True)

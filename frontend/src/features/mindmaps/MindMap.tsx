@@ -1,3 +1,4 @@
+import PageHeader from '../../components/PageHeader';
 import {
   ReactFlow,
   Background,
@@ -14,14 +15,12 @@ import {
 } from '@xyflow/react';
 
 import {
-  ArrowLeft,
   Circle,
   Link2,
   Menu,
   Octagon,
   PanelLeftClose,
   Square,
-  Save,
   Star,
   Triangle,
   Type,
@@ -53,6 +52,7 @@ import './MindMap.css';
 
 type MindMapProps = {
   mapId: number | null;
+  initialFolderId?: number | null;
   breadcrumb: string[];
   initialViewStack?: string[];
   initialSelectedNodeId?: string;
@@ -166,6 +166,7 @@ const shapeOptions: Array<{
 
 export default function MindMap({
   mapId,
+  initialFolderId = null,
   breadcrumb,
   initialViewStack,
   initialSelectedNodeId,
@@ -340,7 +341,7 @@ export default function MindMap({
     setProjectData(dataWithTitle);
 
     if (storedMapId === null) {
-      const saved = await createMindMap(finalTitle, dataWithTitle);
+      const saved = await createMindMap(finalTitle, dataWithTitle, initialFolderId);
       setStoredMapId(saved.id);
       setMapTitle(saved.titulo);
       loadedSourceId.current = saved.id;
@@ -717,38 +718,13 @@ export default function MindMap({
 
   return (
     <div className="mindmap">
-      <header className="mindmap-header">
-        <button
-          type="button"
-          onClick={() => void handleBackFromMap()}
-          className="mindmap-header__back"
-          aria-label="Voltar"
-        >
-          <ArrowLeft size={18} />
-        </button>
-
-        <div className="mindmap-header__title">
-          <small>{fullBreadcrumb.join(' / ')}</small>
-          <input aria-label="Nome do mapa mental" className="mindmap-header__title-input"
-            value={mapTitle} placeholder="Digite o título do mapa mental..."
-            onChange={(event) => setMapTitle(event.target.value)} />
-        </div>
-
-        <div className="mindmap-header__actions">
-          {saveStatus && <small className="mindmap-header__status">{saveStatus}</small>}
-
-          <button
-            type="button"
-            onClick={handleSave}
-            className="mindmap-header__action is-primary"
-          >
-            <Save size={16} />
-            Salvar
-          </button>
-
-          <span className="mindmap-header__tag">Mapa mental</span>
-        </div>
-      </header>
+      <PageHeader
+        title={mapTitle} onTitleChange={setMapTitle}
+        onBack={() => void handleBackFromMap()} status={saveStatus}
+        titleLabel="Nome do mapa mental" placeholder="Digite o título do mapa mental..." maxLength={150}
+        actions={<button type="button" className="page-action is-primary" onClick={() => void handleSave()}>Salvar</button>}
+      />
+      <div className="mindmap-breadcrumb">{fullBreadcrumb.join(' / ')}</div>
 
       <aside className={`mindmap-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <button

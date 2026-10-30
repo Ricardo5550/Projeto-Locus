@@ -1,3 +1,4 @@
+import PageHeader from '../../components/PageHeader';
 import { useEffect, useState } from 'react';
 import { clearAuthTokens } from '../../services/apiClient';
 import {
@@ -21,6 +22,7 @@ export default function AccountSettings({ onBack, onAccountDeleted }: AccountSet
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteForm, setShowDeleteForm] = useState(false);
 
   useEffect(() => {
     getCurrentUser()
@@ -85,10 +87,7 @@ export default function AccountSettings({ onBack, onAccountDeleted }: AccountSet
 
   return (
     <div className="account-page">
-      <header className="account-page__header">
-        <button type="button" onClick={onBack}>← Voltar</button>
-        <strong>Minha conta</strong>
-      </header>
+      <PageHeader title="Minha conta" onBack={onBack} />
 
       <main className="account-card">
         <h1>Dados da conta</h1>
@@ -110,7 +109,7 @@ export default function AccountSettings({ onBack, onAccountDeleted }: AccountSet
             <label htmlFor="account-email">E-mail</label>
             <input id="account-email" value={user.email} disabled />
             <small>
-              O e-mail permanece bloqueado nesta versão porque alterações exigem nova confirmação.
+              Alteração de e-mail.
             </small>
 
             <button
@@ -124,27 +123,61 @@ export default function AccountSettings({ onBack, onAccountDeleted }: AccountSet
 
             <section className="account-danger">
               <h2>Excluir conta</h2>
-              <p>
-                A conta será desativada e anonimizada. Seus conteúdos deixam de ficar disponíveis,
-                enquanto registros de auditoria permanecem para rastreabilidade.
-              </p>
-              <label htmlFor="account-password">Confirme sua senha atual</label>
-              <input
-                id="account-password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                disabled={deleting}
-              />
-              <button
-                type="button"
-                className="account-delete"
-                onClick={() => void handleDelete()}
-                disabled={deleting || saving}
-              >
-                {deleting ? 'Excluindo...' : 'Excluir minha conta'}
-              </button>
+
+              {!showDeleteForm ? (
+                <button
+                  type="button"
+                  className="account-delete"
+                  disabled={saving}
+                  onClick={() => {
+                    setError('');
+                    setShowDeleteForm(true);
+                  }}
+                >
+                  Excluir conta
+                </button>
+              ) : (
+                <>
+                  <p>
+                    Sua conta será excluida junto com seus dados.
+                    Para utilizar o Locus novamente após a exclusão, é necessário criar uma nova conta .
+                  </p>
+
+                  <label htmlFor="account-password">Senha atual</label>
+                  <input
+                    id="account-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    autoFocus
+                    disabled={deleting || saving}
+                  />
+
+                  <button
+                    type="button"
+                    className="account-delete"
+                    onClick={() => void handleDelete()}
+                    disabled={deleting || saving || !password}
+                  >
+                    {deleting ? 'Excluindo...' : 'Confirmar exclusão'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="account-primary"
+                    style={{ marginLeft: '8px' }}
+                    disabled={deleting}
+                    onClick={() => {
+                      setShowDeleteForm(false);
+                      setPassword('');
+                      setError('');
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
             </section>
           </>
         )}

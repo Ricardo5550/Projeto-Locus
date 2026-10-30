@@ -1,3 +1,4 @@
+import PageHeader, { BackButton } from '../../components/PageHeader';
 import './UserLegal.css';
 import './UserTerms.css';
 
@@ -12,6 +13,7 @@ export default function UserTerms({
 }: UserTermsProps) {
   return (
     <div className="legal-page">
+      <PageHeader title="Termos de Uso" onBack={onBack} />
       <article className="terms-container">
         <div className="legal-document__header">
           <span className="legal-document__brand">Locus</span>
@@ -89,9 +91,7 @@ export default function UserTerms({
 
         <div className="legal-document__footer">
           <strong>Termos de Uso — versão 1.0</strong>
-          <button type="button" className="legal-back-button" onClick={onBack}>
-            {backLabel}
-          </button>
+          <BackButton onClick={onBack} label={backLabel} />
         </div>
       </article>
     </div>

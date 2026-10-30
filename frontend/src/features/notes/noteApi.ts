@@ -4,6 +4,7 @@ export type NoteContent = any;
 
 export type StoredNote = {
   id: number;
+  pasta: number | null;
   titulo: string;
   conteudo: NoteContent;
   autor: number | null;
@@ -18,11 +19,12 @@ export const EMPTY_NOTE_CONTENT: NoteContent = {
 
 export function createNote(
   titulo: string,
-  conteudo: NoteContent = EMPTY_NOTE_CONTENT
+  conteudo: NoteContent = EMPTY_NOTE_CONTENT,
+  pasta: number | null = null
 ): Promise<StoredNote> {
   return apiJson<StoredNote>('/anotacoes/', {
     method: 'POST',
-    body: JSON.stringify({ titulo, conteudo }),
+    body: JSON.stringify({ titulo, conteudo, pasta }),
   });
 }
 
