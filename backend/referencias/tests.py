@@ -6,6 +6,7 @@ from unittest.mock import patch
 from urllib.error import URLError
 
 from django.test import SimpleTestCase
+from django.core.cache import cache
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from .services import CrossrefIndisponivel, pesquisar_crossref
@@ -40,28 +41,26 @@ class CrossrefServiceTests(SimpleTestCase):
 
 class CrossrefEndpointTests(SimpleTestCase):
     def setUp(self):
+        cache.clear()
         self.factory = APIRequestFactory()
 
     def _request(self, path):
         request = self.factory.get(path)
-        force_authenticate(request, user=type('User', (), {'is_authenticated': True})())
+        force_authenticate(request, user=type('User', (), {'is_authenticated': True, 'pk': 1})())
         return request
 
     def test_pesquisa_vazia(self):
         resposta = buscar_referencias(self._request('/api/referencias/'))
         self.assertEqual(resposta.status_code, 400)
 
-    @patch('referencias.views.cache.get', return_value=None)
-    @patch('referencias.views.cache.set')
     @patch('referencias.views.pesquisar_crossref', return_value=[{'titulo': 'Teste'}])
-    def test_consulta_sucesso(self, pesquisar, _salvar, _obter):
+    def test_consulta_sucesso(self, pesquisar):
         resposta = buscar_referencias(self._request('/api/referencias/?q=teste'))
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(resposta.data['resultados'][0]['titulo'], 'Teste')
         pesquisar.assert_called_once_with('teste')
 
-    @patch('referencias.views.cache.get', return_value=None)
     @patch('referencias.views.pesquisar_crossref', side_effect=CrossrefIndisponivel())
-    def test_api_indisponivel(self, _pesquisar, _cache):
+    def test_api_indisponivel(self, _pesquisar):
         resposta = buscar_referencias(self._request('/api/referencias/?q=teste'))
         self.assertEqual(resposta.status_code, 503)

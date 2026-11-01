@@ -6,7 +6,5 @@ PRIVACIDADE_HASH_SHA256 = 'af9710b513e1f620b9a5e4f7e479b67a9e1119a17b9899f89b98c
 
 
 def obter_ip_cliente(request):
-    encaminhado = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if encaminhado:
-        return encaminhado.split(',')[0].strip() or None
-    return request.META.get('REMOTE_ADDR') or None
+    from core.ip import obter_ip_cliente as obter_ip_confiavel
+    return obter_ip_confiavel(request)

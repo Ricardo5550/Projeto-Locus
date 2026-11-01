@@ -19,9 +19,13 @@ class RegistroAtividade(models.Model):
         ('tentativa', 'Tentativa'),
     ]
 
-    acao = models.CharField(max_length=10, choices=ACAO_CHOICES)
+    acao = models.CharField(max_length=64)
     recurso = models.CharField(max_length=20, choices=RECURSO_CHOICES)
-    recurso_id = models.PositiveBigIntegerField()
+    recurso_id = models.PositiveBigIntegerField(null=True, blank=True)
+    resultado = models.CharField(max_length=12, default='sucesso', choices=[('sucesso', 'Sucesso'), ('falha', 'Falha'), ('bloqueado', 'Bloqueado')])
+    endereco_ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    descricao = models.CharField(max_length=500, blank=True)
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -37,4 +41,4 @@ class RegistroAtividade(models.Model):
         verbose_name_plural = 'registros de atividade'
 
     def __str__(self):
-        return f'{self.get_acao_display()} de {self.get_recurso_display()} #{self.recurso_id}'
+        return f'{self.acao} de {self.get_recurso_display()} #{self.recurso_id}'

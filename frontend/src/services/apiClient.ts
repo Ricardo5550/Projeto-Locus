@@ -1,124 +1,87 @@
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000/api'
-).replace(/\/$/, '');
+const configuredApi = new URL(import.meta.env.VITE_API_URL ?? `${window.location.protocol}//${window.location.hostname}:8000/api`);
+const loopback = new Set(['localhost', '127.0.0.1']);
+// Evita misturar localhost e 127.0.0.1 no desenvolvimento com cookies SameSite.
+if (loopback.has(configuredApi.hostname) && loopback.has(window.location.hostname)) {
+  configuredApi.hostname = window.location.hostname;
+}
+export const URL_BASE_API = configuredApi.href.replace(/\/$/, '');
 
-const ACCESS_TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
-
-export class ApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-  }
+export class ErroApi extends Error {
+  status:number;
+  constructor(message:string,status:number) {super(message);this.name='ErroApi';this.status=status;}
 }
 
-function url(path: string): string {
-  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+// Remove somente os tokens legados. JWTs novos ficam em cookies HttpOnly.
+export function limparTokensAntigos():void {
+  localStorage.removeItem('access_token');localStorage.removeItem('refresh_token');
+}
+limparTokensAntigos();
+let csrfToken='';
+let csrfPromise:Promise<string>|null=null;
+let refreshPromise:Promise<boolean>|null=null;
+let restorePromise:Promise<boolean>|null=null;
+function url(path:string):string {return `${URL_BASE_API}${path.startsWith('/')?path:`/${path}`}`;}
+
+async function csrf():Promise<string> {
+  if(csrfToken)return csrfToken;
+  if(csrfPromise)return csrfPromise;
+  csrfPromise=(async()=>{
+    const response=await fetch(url('/auth/csrf/'),{credentials:'include',cache:'no-store'});
+    if(!response.ok)throw new ErroApi('Não foi possível iniciar a proteção da sessão.',response.status);
+    const data=await response.json();
+    if(typeof data.csrf_token!=='string')throw new Error('Resposta CSRF inválida.');
+    csrfToken=data.csrf_token;return csrfToken;
+  })().finally(()=>{csrfPromise=null;});
+  return csrfPromise;
 }
 
-export function setAuthTokens(access: string, refresh: string): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, access);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-}
+function notificarSessaoExpirada():void {limparTokensAntigos();window.dispatchEvent(new Event('auth:logout'));}
 
-export function clearAuthTokens(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-}
-
-export function hasStoredSession(): boolean {
-  return Boolean(localStorage.getItem(REFRESH_TOKEN_KEY));
-}
-
-function notifySessionExpired(): void {
-  clearAuthTokens();
-  window.dispatchEvent(new Event('auth:logout'));
-}
-
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  if (refreshPromise) return refreshPromise;
-
-  const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refresh) return null;
-
-  refreshPromise = (async () => {
-    try {
-      const response = await fetch(url('/auth/token/refresh/'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh }),
-      });
-
-      if (!response.ok) return null;
-
-      const data = (await response.json()) as {
-        access?: string;
-        refresh?: string;
-      };
-
-      if (!data.access) return null;
-
-      localStorage.setItem(ACCESS_TOKEN_KEY, data.access);
-      if (data.refresh) {
-        localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh);
-      }
-
-      return data.access;
-    } catch {
-      return null;
-    }
-  })().finally(() => {
-    refreshPromise = null;
-  });
-
-  return refreshPromise;
-}
-
-type ApiFetchOptions = {
-  auth?: boolean;
-  retryOnUnauthorized?: boolean;
-};
-
-export async function apiFetch(
-  path: string,
-  init: RequestInit = {},
-  options: ApiFetchOptions = {}
-): Promise<Response> {
-  const auth = options.auth ?? true;
-  const retryOnUnauthorized = options.retryOnUnauthorized ?? true;
-  const headers = new Headers(init.headers);
-
-  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  if (auth) {
-    const access = localStorage.getItem(ACCESS_TOKEN_KEY);
-    if (access) headers.set('Authorization', `Bearer ${access}`);
-  }
-
-  let response = await fetch(url(path), { ...init, headers });
-
-  if (auth && response.status === 401 && retryOnUnauthorized) {
-    const newAccess = await refreshAccessToken();
-
-    if (newAccess) {
-      headers.set('Authorization', `Bearer ${newAccess}`);
-      response = await fetch(url(path), { ...init, headers });
-    } else {
-      notifySessionExpired();
+async function send(path:string,init:RequestInit):Promise<Response> {
+  const method=(init.method??'GET').toUpperCase();
+  const unsafe=!['GET','HEAD','OPTIONS','TRACE'].includes(method);
+  const headers=new Headers(init.headers);
+  if(init.body && !(init.body instanceof FormData) && !headers.has('Content-Type'))headers.set('Content-Type','application/json');
+  if(unsafe)headers.set('X-CSRFToken',await csrf());
+  let response=await fetch(url(path),{...init,headers,credentials:'include'});
+  if(unsafe && response.status===403) {
+    const body=await response.clone().json().catch(()=>({}));
+    if(typeof body.detail==='string' && body.detail.includes('CSRF')) {
+      csrfToken='';headers.set('X-CSRFToken',await csrf());
+      response=await fetch(url(path),{...init,headers,credentials:'include'});
     }
   }
-
   return response;
 }
 
-async function errorMessage(response: Response): Promise<string> {
+async function renovarSessao():Promise<boolean> {
+  if(refreshPromise)return refreshPromise;
+  const renew=()=>send('/auth/token/refresh/',{method:'POST'}).then(r=>r.ok);
+  refreshPromise=(navigator.locks ? navigator.locks.request('locus-refresh',renew) : renew()).finally(()=>{refreshPromise=null;});
+  return refreshPromise;
+}
+
+type OpcoesRequisicaoApi={auth?:boolean;retryOnUnauthorized?:boolean};
+export async function requisicaoApi(path:string,init:RequestInit={},options:OpcoesRequisicaoApi={}):Promise<Response> {
+  let response=await send(path,init);
+  if((options.auth??true) && response.status===401 && (options.retryOnUnauthorized??true)) {
+    if(await renovarSessao())response=await send(path,init);
+    else notificarSessaoExpirada();
+  }
+  if(path.startsWith('/auth/') && response.ok) {
+    const data=await response.clone().json().catch(()=>({}));
+    if(typeof data.csrf_token==='string')csrfToken=data.csrf_token;
+  }
+  return response;
+}
+
+export async function restaurarSessao():Promise<boolean> {
+  if(restorePromise)return restorePromise;
+  restorePromise=requisicaoApi('/auth/account/').then(r=>r.ok).catch(()=>false).finally(()=>{restorePromise=null;});
+  return restorePromise;
+}
+
+async function mensagemErro(response: Response): Promise<string> {
   try {
     const data = (await response.json()) as Record<string, unknown>;
     const value = data.detail ?? data.error ?? data.mensagem ?? data.non_field_errors;
@@ -140,35 +103,27 @@ async function errorMessage(response: Response): Promise<string> {
 export async function apiJson<T>(
   path: string,
   init: RequestInit = {},
-  options: ApiFetchOptions = {}
+  options: OpcoesRequisicaoApi = {}
 ): Promise<T> {
-  const response = await apiFetch(path, init, options);
+  const response = await requisicaoApi(path, init, options);
   if (!response.ok) {
-    throw new ApiError(await errorMessage(response), response.status);
+    throw new ErroApi(await mensagemErro(response), response.status);
   }
   return response.json() as Promise<T>;
 }
 
-export async function apiVoid(
+export async function apiSemRetorno(
   path: string,
   init: RequestInit = {},
-  options: ApiFetchOptions = {}
+  options: OpcoesRequisicaoApi = {}
 ): Promise<void> {
-  const response = await apiFetch(path, init, options);
+  const response = await requisicaoApi(path, init, options);
   if (!response.ok) {
-    throw new ApiError(await errorMessage(response), response.status);
+    throw new ErroApi(await mensagemErro(response), response.status);
   }
 }
 
-export async function logout(): Promise<void> {
-  const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
-
-  try {
-    await apiVoid('/auth/logout/', {
-      method: 'POST',
-      body: JSON.stringify({ refresh }),
-    });
-  } finally {
-    notifySessionExpired();
-  }
+export async function encerrarSessao():Promise<void> {
+  await apiSemRetorno('/auth/logout/',{method:'POST'},{auth:false});
+  notificarSessaoExpirada();
 }

@@ -11,11 +11,13 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 if DEBUG:
     SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-development-only-change-me')
 else:
     SECRET_KEY = os.environ['SECRET_KEY']
+    if len(SECRET_KEY) < 50 or SECRET_KEY.startswith('django-insecure-'):
+        raise ValueError('Configure uma SECRET_KEY aleatória com pelo menos 50 caracteres para produção.')
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -25,7 +27,7 @@ ALLOWED_HOSTS = [
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    'usuarios.admin_apps.LocusAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -57,6 +59,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'core.middleware.AdminLoginRateLimitMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -128,8 +131,36 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/minute',
+        'user': '180/minute',
+        'login': '10/minute',
+        'login_pair': '5/minute',
+        'admin_login': '10/minute',
+        'registration': '5/hour',
+        'password_reset': '5/hour',
+        'password_confirm': '10/hour',
+        'password_change': '5/hour',
+        'email_verify': '20/hour',
+        'email_resend': '5/hour',
+        'email_confirm': '20/hour',
+        'refresh': '30/minute',
+        'references': '20/minute',
+        'mfa_verify': '20/minute',
+        'mfa_setup': '10/minute',
+        'mfa_manage': '10/minute',
+    },
+    # Não confie em X-Forwarded-For por padrão. Ajuste somente após conhecer
+    # a cadeia de proxies da hospedagem (ver guia).
+    'NUM_PROXIES': int(os.getenv('TRUSTED_PROXY_COUNT', '0')),
+    'DEFAULT_PARSER_CLASSES': ('core.parsers.LimitedJSONParser',),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'usuarios.authentication.CookieJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -141,6 +172,7 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'CHECK_REVOKE_TOKEN': True,
 }
 
 RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY')
@@ -168,6 +200,8 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-repl
 REST_AUTH = {
     'USE_JWT': True,
     'REGISTER_SERIALIZER': 'usuarios.serializers.LocusRegisterSerializer',
+    'SESSION_LOGIN': False,
+    'OLD_PASSWORD_FIELD_ENABLED': True,
 }
 
 AUTHENTICATION_BACKENDS = [
@@ -181,3 +215,34 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+
+# Cookies da API. Em produção, use HTTPS e mantenha Secure habilitado.
+JWT_ACCESS_COOKIE = 'locus_access'
+JWT_REFRESH_COOKIE = 'locus_refresh'
+JWT_COOKIE_SECURE = not DEBUG
+JWT_COOKIE_SAMESITE = os.getenv('JWT_COOKIE_SAMESITE', 'Lax')
+if JWT_COOKIE_SAMESITE not in ('Lax', 'Strict', 'None'):
+    raise ValueError('JWT_COOKIE_SAMESITE deve ser Lax, Strict ou None.')
+if JWT_COOKIE_SAMESITE == 'None' and not JWT_COOKIE_SECURE:
+    raise ValueError('SameSite=None exige HTTPS e DEBUG=False.')
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = JWT_COOKIE_SECURE
+CSRF_COOKIE_SAMESITE = JWT_COOKIE_SAMESITE
+EMAIL_CHANGE_MAX_AGE = 86400
+# Limite para o corpo antes do processamento dos documentos JSON (imagens incluídas).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+
+# Cache compartilhado entre os processos de produção, sem dependência extra.
+# Antes de iniciar em produção: python manage.py createcachetable
+CACHES = {'default': {
+    'BACKEND': ('django.core.cache.backends.locmem.LocMemCache' if DEBUG
+                else 'django.core.cache.backends.db.DatabaseCache'),
+    'LOCATION': 'locus_rate_cache',
+    'OPTIONS': {'MAX_ENTRIES': 20000},
+}}
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
+X_FRAME_OPTIONS = 'DENY'

@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div style="max-width:560px;margin:auto">
+  {% if error %}<p class="errornote">{{ error }}</p>{% endif %}
+  {% if phase == 'password' %}
+    <p>Informe suas credenciais. O segundo fator será exigido antes de liberar o painel.</p>
+    <form method="post">{% csrf_token %}{{ form.as_p }}
+      <input type="hidden" name="next" value="{{ next }}">
+      <input type="submit" value="Continuar">
+    </form>
+  {% elif phase == 'recovery' %}
+    <h2>Guarde seus códigos de recuperação</h2>
+    <p>Cada código funciona uma única vez. Eles não serão exibidos novamente. Guarde-os em um local seguro, separado da senha.</p>
+    <ul>{% for code in recovery_codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+    <a href="{{ next }}" class="button">Guardei os códigos, abrir painel</a>
+  {% else %}
+    <h2>{% if phase == 'setup' %}Configure seu autenticador{% else %}Confirme o segundo fator{% endif %}</h2>
+    <p>Conta: {{ account }}</p>
+    {% if phase == 'setup' %}
+      <p>No Google Authenticator ou outro aplicativo TOTP, adicione uma conta pelo QR Code ou pela chave abaixo. A configuração expira em cinco minutos.</p>
+      <img src="{{ qr_code }}" alt="QR Code para configurar o autenticador" width="240" height="240">
+      <p>Chave: <code>{{ secret }}</code></p>
+    {% endif %}
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <label for="mfa-code">Código do aplicativo{% if phase != 'setup' %} ou de recuperação{% endif %}</label>
+      <input id="mfa-code" name="code" autocomplete="one-time-code" maxlength="80" required autofocus>
+      <input type="submit" value="Confirmar">
+    </form>
+    <form method="post" style="margin-top:1rem">{% csrf_token %}<button name="cancel" value="1">Cancelar e voltar</button></form>
+  {% endif %}
+</div>
+{% endblock %}

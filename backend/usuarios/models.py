@@ -1,6 +1,9 @@
+from uuid import uuid4
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
+from core.fields import EncryptedTextField
 
 
 class Estudante(models.Model):
@@ -46,3 +49,39 @@ class AceiteLegal(models.Model):
 
     def __str__(self):
         return f'{self.usuario_id} - {self.tipo_documento} v{self.versao}'
+
+
+class EstadoAutenticacao(models.Model):
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    versao = models.PositiveIntegerField(default=0)
+
+
+class AlteracaoEmail(models.Model):
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    email = models.EmailField(unique=True)
+    email_anterior = models.EmailField()
+    nonce = models.UUIDField(default=uuid4, editable=False)
+    criado_em = models.DateTimeField(auto_now=True)
+
+
+class SegundoFator(models.Model):
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    segredo = EncryptedTextField()
+    ativo = models.BooleanField(default=False)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    ultimo_contador = models.BigIntegerField(default=-1)
+    recuperacao = models.JSONField(default=list)
+
+    class Meta:
+        permissions = [('suporte_contas', 'Atender contas sem acessar conteúdos de estudo')]
+
+
+class DesafioAutenticacao(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    resumo = models.CharField(max_length=64, unique=True)
+    contexto = models.CharField(max_length=10)
+    versao = models.PositiveIntegerField()
+    senha_assinada = models.CharField(max_length=64)
+    expira_em = models.DateTimeField()
+    tentativas = models.PositiveSmallIntegerField(default=0)
+    usado = models.BooleanField(default=False)

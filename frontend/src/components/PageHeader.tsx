@@ -1,10 +1,11 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Home } from 'lucide-react';
 import './PageHeader.css';
 
 type Props = {
   title: string;
   onBack?: () => void;
+  onHome?: () => void;
   onTitleChange?: (title: string) => void;
   placeholder?: string;
   titleLabel?: string;
@@ -19,7 +20,7 @@ export function BackButton({ onClick, label = 'Voltar' }: { onClick: () => void;
   </button>;
 }
 
-export default function PageHeader({ title, onBack, onTitleChange, placeholder, titleLabel, maxLength, status, actions }: Props) {
+export default function PageHeader({ title, onBack, onHome, onTitleChange, placeholder, titleLabel, maxLength, status, actions }: Props) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const header = ref.current;
@@ -31,7 +32,12 @@ export default function PageHeader({ title, onBack, onTitleChange, placeholder, 
     return () => observer.disconnect();
   }, []);
   return <header className="page-header" ref={ref}>
-    {onBack && <BackButton onClick={onBack} />}
+    {(onBack || onHome) && <div className="page-header__navigation">
+      {onBack && <BackButton onClick={onBack} />}
+      {onHome && <button type="button" className="page-action page-home" onClick={onHome} aria-label="Ir para a Home" title="Ir para a Home">
+        <Home size={18} aria-hidden="true" /><span>Menu</span>
+      </button>}
+    </div>}
     {onTitleChange ? <input className="page-header__title" value={title} onChange={e => onTitleChange(e.target.value)}
       placeholder={placeholder} aria-label={titleLabel || 'Título'} maxLength={maxLength} />
       : <h1 className="page-header__title">{title}</h1>}

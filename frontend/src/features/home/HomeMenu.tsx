@@ -1,37 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CircleUserRound, Folder, FolderInput, Pencil, Trash2 } from 'lucide-react';
-import PageHeader, { BackButton } from '../../components/PageHeader';
+import { Folder, FolderInput, Pencil, Trash2 } from 'lucide-react';
+import { BackButton } from '../../components/PageHeader';
 import Modal from '../../components/Modal';
-import { deleteMindMap, listMindMaps, renameMindMap, type StoredMindMap } from '../mindmaps/mindMapApi';
-import { deleteNote, listNotes, renameNote } from '../notes/noteApi';
-import { getCurrentUser } from '../users/userApi';
-import { createFolder, deleteFolder, listFolders, moveContent, renameFolder, type StoredFolder } from './folderApi';
+import { excluirMapaMental, listarMapasMentais, renomearMapaMental, type MapaMentalSalvo } from '../mapas/apiMapas';
+import { excluirAnotacao, listarAnotacoes, renomearAnotacao } from '../anotacoes/apiAnotacoes';
+import { criarPasta, excluirPasta, listarPastas, moverConteudo, renomearPasta, type PastaSalva } from './apiPastas';
 import './HomeMenu.css';
 
 type HomeMenuProps = {
+  search: string;
   folderId: number | null;
   onFolderChange: (id: number | null) => void;
-  onOpenAccount: () => void;
-  onOpenQuestionnaire: () => void;
   onCreateMindMap: () => void;
   onCreateNote: () => void;
   onOpenMindMap: (id: number, title: string) => void;
   onOpenNote: (id: number, title: string) => void;
-  onOpenTerms: () => void;
-  onOpenPrivacy: () => void;
-  onLogout: () => void;
 };
-type LibraryItem = { id:number; type:'Mapa mental'|'Anotação'|'Pasta'; title:string; folder:number|null; updatedAt?:string };
+type ItemBiblioteca = { id:number; type:'Mapa mental'|'Anotação'|'Pasta'; title:string; folder:number|null; updatedAt?:string };
 
-function linkedNotes(maps: StoredMindMap[]): Set<number> {
+function anotacoesVinculadas(maps: MapaMentalSalvo[]): Set<number> {
   const ids=new Set<number>();
   for(const map of maps) for(const view of Object.values(map.dados.views ?? {})) {
     for(const node of view.nodes ?? []) if(typeof node.data?.linkedAnnotationId==='number') ids.add(node.data.linkedAnnotationId);
   }
   return ids;
 }
-function folderPath(id:number|null, folders:StoredFolder[]):StoredFolder[] {
-  const path:StoredFolder[]=[];const visited=new Set<number>();
+function caminhoPasta(id:number|null, folders:PastaSalva[]):PastaSalva[] {
+  const path:PastaSalva[]=[];const visited=new Set<number>();
   while(id!==null && !visited.has(id)) {
     visited.add(id);const folder=folders.find(f=>f.id===id);if(!folder)break;
     path.unshift(folder);id=folder.pai;
@@ -39,22 +34,20 @@ function folderPath(id:number|null, folders:StoredFolder[]):StoredFolder[] {
   return path;
 }
 
-export default function HomeMenu({folderId,onFolderChange,onOpenAccount,onOpenQuestionnaire,onCreateMindMap,onCreateNote,onOpenMindMap,onOpenNote,onOpenTerms,onOpenPrivacy,onLogout}:HomeMenuProps) {
-  const [items,setItems]=useState<LibraryItem[]>([]);
-  const [folders,setFolders]=useState<StoredFolder[]>([]);
-  const [search,setSearch]=useState('');
+export default function HomeMenu({folderId,onFolderChange,onCreateMindMap,onCreateNote,onOpenMindMap,onOpenNote,search = ''}:HomeMenuProps) {
+  const [items,setItems]=useState<ItemBiblioteca[]>([]);
+  const [folders,setFolders]=useState<PastaSalva[]>([]);
   const [status,setStatus]=useState('Carregando biblioteca...');
   const [error,setError]=useState('');
-  const [accountName,setAccountName]=useState('Conta');
   const [busy,setBusy]=useState(false);
-  const [deleting,setDeleting]=useState<LibraryItem|null>(null);
-  const [moving,setMoving]=useState<LibraryItem|null>(null);
+  const [deleting,setDeleting]=useState<ItemBiblioteca|null>(null);
+  const [moving,setMoving]=useState<ItemBiblioteca|null>(null);
   const [destination,setDestination]=useState('');
 
   async function refresh() {
-    const [maps,notes,nextFolders]=await Promise.all([listMindMaps(),listNotes(),listFolders()]);
-    const linked=linkedNotes(maps);
-    const next:LibraryItem[]=[
+    const [maps,notes,nextFolders]=await Promise.all([listarMapasMentais(),listarAnotacoes(),listarPastas()]);
+    const linked=anotacoesVinculadas(maps);
+    const next:ItemBiblioteca[]=[
       ...nextFolders.map(f=>({id:f.id,type:'Pasta' as const,title:f.nome,folder:f.pai})),
       ...maps.map(m=>({id:m.id,type:'Mapa mental' as const,title:m.titulo,folder:m.pasta,updatedAt:m.data_atualizacao})),
       ...notes.filter(n=>!linked.has(n.id)).map(n=>({id:n.id,type:'Anotação' as const,title:n.titulo,folder:n.pasta,updatedAt:n.data_atualizacao})),
@@ -64,13 +57,12 @@ export default function HomeMenu({folderId,onFolderChange,onOpenAccount,onOpenQu
   }
   useEffect(()=>{
     refresh().catch(()=>{setError('Não foi possível carregar a biblioteca. Verifique a conexão e as migrações do backend.');setStatus('');});
-    getCurrentUser().then(u=>setAccountName(u.username || u.email)).catch(()=>{});
   },[]);
 
-  const path=folderPath(folderId,folders);
+  const path=caminhoPasta(folderId,folders);
   const visible=useMemo(()=>items.filter(i=>i.folder===folderId && i.title.toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR'))),[items,folderId,search]);
-  function navigate(id:number|null) {onFolderChange(id);setSearch('');setError('');}
-  function open(item:LibraryItem) {
+  function navigate(id:number|null) {onFolderChange(id);setError('');}
+  function open(item:ItemBiblioteca) {
     if(item.type==='Pasta')navigate(item.id);
     else if(item.type==='Mapa mental')onOpenMindMap(item.id,item.title);
     else onOpenNote(item.id,item.title);
@@ -81,49 +73,26 @@ export default function HomeMenu({folderId,onFolderChange,onOpenAccount,onOpenQu
     catch(e) {setError(e instanceof Error?e.message:'Não foi possível concluir a operação.');}
     finally {setBusy(false);}
   }
-  async function rename(item:LibraryItem) {
+  async function rename(item:ItemBiblioteca) {
     const name=window.prompt('Novo nome:',item.title);if(name===null || !name.trim())return;
-    await run(()=>item.type==='Pasta'?renameFolder(item.id,name.trim()):item.type==='Mapa mental'?renameMindMap(item.id,name.trim()):renameNote(item.id,name.trim()));
+    await run(()=>item.type==='Pasta'?renomearPasta(item.id,name.trim()):item.type==='Mapa mental'?renomearMapaMental(item.id,name.trim()):renomearAnotacao(item.id,name.trim()));
   }
   async function addFolder() {
     const name=window.prompt('Nome da pasta:');if(!name?.trim())return;
-    await run(()=>createFolder(name.trim(),folderId));
+    await run(()=>criarPasta(name.trim(),folderId));
   }
   async function remove(mode?:'excluir_tudo'|'manter_anotacoes') {
     const item=deleting;if(!item)return;
     await run(async()=>{
-      if(item.type==='Mapa mental') {if(!mode)return;await deleteMindMap(item.id,mode);}
-      else if(item.type==='Pasta')await deleteFolder(item.id);
-      else await deleteNote(item.id);
+      if(item.type==='Mapa mental') {if(!mode)return;await excluirMapaMental(item.id,mode);}
+      else if(item.type==='Pasta')await excluirPasta(item.id);
+      else await excluirAnotacao(item.id);
       setDeleting(null);
     });
   }
 
-  const destinations=folders.filter(f=>!moving || moving.type!=='Pasta' || !folderPath(f.id,folders).some(parent=>parent.id===moving.id));
-  return <div className="home-layout">
-
-    <aside className="home-sidebar">
-
-      <div className="home-brand"><div className="home-brand__logo">L</div><strong>Locus</strong></div>
-      <button className="home-nav-button" type="button" onClick={()=>navigate(null)}>Biblioteca</button>
-      <button className="home-nav-button" type="button" onClick={onOpenQuestionnaire}>Questionário</button>
-      <div className="home-sidebar__bottom">
-
-        <button className="home-nav-button" type="button" onClick={onOpenTerms}>Termos de Uso</button>
-        <button className="home-nav-button" type="button" onClick={onOpenPrivacy}>Política de Privacidade</button>
-        <button className="home-nav-button home-nav-button--logout" type="button" onClick={onLogout}>Sair</button>
-
-      </div>
-
-    </aside>
-
-    <main className="home-main">
-
-      <PageHeader title="Biblioteca" actions={<>
-        <input className="home-search" type="search" placeholder="Buscar nesta pasta" aria-label="Buscar nesta pasta" value={search} onChange={e=>setSearch(e.target.value)} />
-        <button type="button" className="home-account" title="Minha conta" aria-label={`Minha conta: ${accountName}`} onClick={onOpenAccount}><CircleUserRound size={19}/><span>{accountName}</span></button>
-      </>} />
-      
+  const destinations=folders.filter(f=>!moving || moving.type!=='Pasta' || !caminhoPasta(f.id,folders).some(parent=>parent.id===moving.id));
+  return <>
       <div className="home-content">
         <section><span className="home-eyebrow">NOVO CONTEÚDO</span><h1>O que deseja criar?</h1>
           <p className="home-description">Crie conteúdos na pasta atual e conecte seus materiais de estudo.</p>
@@ -161,7 +130,6 @@ export default function HomeMenu({folderId,onFolderChange,onOpenAccount,onOpenQu
           {!status && !visible.length && <p className="home-library__status">{search?'Nenhum resultado nesta pasta.':'Esta pasta ainda não possui conteúdos.'}</p>}
         </section>
       </div>
-    </main>
 
     {deleting && <Modal title={`Excluir “${deleting.title}”`} busy={busy} onClose={()=>setDeleting(null)}>
       {deleting.type==='Mapa mental'?<>
@@ -181,10 +149,10 @@ export default function HomeMenu({folderId,onFolderChange,onOpenAccount,onOpenQu
       <label htmlFor="folder-destination">Pasta de destino</label>
       <select id="folder-destination" value={destination} onChange={e=>setDestination(e.target.value)}>
         <option value="">Início</option>
-        {destinations.map(f=><option key={f.id} value={f.id}>{folderPath(f.id,folders).map(p=>p.nome).join(' / ')}</option>)}
+        {destinations.map(f=><option key={f.id} value={f.id}>{caminhoPasta(f.id,folders).map(p=>p.nome).join(' / ')}</option>)}
       </select>
-      <div className="locus-modal__actions"><button className="page-action is-primary" type="button" disabled={busy} onClick={()=>void run(async()=>{await moveContent(moving.type,moving.id,destination?Number(destination):null);setMoving(null);})}>Mover</button></div>
+      <div className="locus-modal__actions"><button className="page-action is-primary" type="button" disabled={busy} onClick={()=>void run(async()=>{await moverConteudo(moving.type,moving.id,destination?Number(destination):null);setMoving(null);})}>Mover</button></div>
       {error && <p role="alert">{error}</p>}
     </Modal>}
-  </div>;
+  </>;
 }

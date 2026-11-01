@@ -1,0 +1,13 @@
+.home-layout--shared { height:100vh; height:100dvh; min-height:0; overflow:hidden; }
+.home-layout--shared .home-main { min-height:0; overflow-y:auto; }
+.home-view { min-width:0; }
+.home-nav-button[aria-current="page"] { background:#5e402b; color:#fff; }
+.home-nav-button:focus-visible,.home-account:focus-visible { outline:2px solid #9d6a2e; outline-offset:3px; }
+.home-view .account-page.is-embedded,.home-view .quiz-page.is-embedded { min-height:0; overflow:visible; }
+.home-view .legal-page.is-embedded { height:auto; min-height:0; overflow:visible; }
+@media(max-width:540px) {
+  .home-layout--shared { grid-template-rows:auto minmax(0,1fr); }
+  .home-layout--shared .home-sidebar__bottom { margin:0; }
+  .home-layout--shared .home-sidebar nav { display:flex; flex-wrap:wrap; gap:6px; }
+  .home-layout--shared .home-account { min-width:34px; min-height:34px; justify-content:center; }
+}

@@ -7,6 +7,15 @@ from .models import Anotacao
 class AnotacaoSerializer(PastaConteudoMixin, serializers.ModelSerializer):
     conteudo = serializers.JSONField()
 
+    def validate_conteudo(self, value):
+        from .validation import validate_document
+        return validate_document(value)
+
+    def validate_titulo(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('Informe um título para a anotação.')
+        return value.strip()
+
     class Meta:
         model = Anotacao
         fields = [

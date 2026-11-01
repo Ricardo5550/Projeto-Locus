@@ -4,7 +4,9 @@ import logging
 
 from django.core.cache import cache
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from core.throttling import ReferenceThrottle
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -15,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([AnonRateThrottle, UserRateThrottle, ReferenceThrottle])
 def buscar_referencias(request):
     termo = request.query_params.get('q', '').strip()
     if not 2 <= len(termo) <= 200:

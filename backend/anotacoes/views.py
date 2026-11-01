@@ -1,4 +1,6 @@
 from django.db import transaction
+from django.contrib.auth import get_user_model
+from mapas.titles import sincronizar_titulo_anotacao
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
@@ -24,7 +26,9 @@ class AnotacaoViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def perform_update(self, serializer):
+        get_user_model().objects.select_for_update().get(pk=self.request.user.pk)
         anotacao = serializer.save()
+        sincronizar_titulo_anotacao(anotacao)
         registrar_atividade(self.request, 'editar', 'anotacao', anotacao.pk)
 
     @transaction.atomic

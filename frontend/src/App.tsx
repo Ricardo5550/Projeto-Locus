@@ -1,23 +1,27 @@
 import { useEffect, useState } from 'react';
 import HomeMenu from './features/home/HomeMenu';
-import AccountSettings from './features/users/AccountSettings';
-import MindMap from './features/mindmaps/MindMap';
-import NoteEditor, {
-  type NoteRelationshipContext,
-  type NoteRelationshipTarget,
-} from './features/notes/NoteEditor';
-import UserRegister from './features/users/UserRegister';
-import UserLogin from './features/users/UserLogin';
-import ForgotPassword from './features/users/ForgotPassword';
-import ResetPassword from './features/users/ResetPassword';
-import VerifyEmail from './features/users/VerifyEmail';
-import UserTerms from './features/users/UserTerms';
-import UserPrivacyPolicy from './features/users/UserPrivacyPolicy';
-import Questionnaire from './features/reviews/Questionnaire';
-import { hasStoredSession, logout } from './services/apiClient';
+import HomeLayout, { type SecaoHome } from './features/home/HomeLayout';
+import ConfiguracoesConta from './features/usuarios/ConfiguracoesConta';
+import MapaMental from './features/mapas/MapaMental';
+import AnotacaoEditor, {
+  type ContextoRelacionamentoAnotacao,
+  type DestinoRelacionamentoAnotacao,
+} from './features/anotacoes/AnotacaoEditor';
+import Cadastro from './features/cadastro/Cadastro';
+import Login from './features/login/Login';
+import RecuperarSenha from './features/login/RecuperarSenha';
+import RedefinirSenha from './features/login/RedefinirSenha';
+import VerificarEmail from './features/cadastro/VerificarEmail';
+import TermosUso from './features/usuarios/TermosUso';
+import PoliticaPrivacidade from './features/usuarios/PoliticaPrivacidade';
+import ConfirmarAlteracaoEmail from './features/usuarios/ConfirmarAlteracaoEmail';
+import Questionario from './features/revisoes/Questionario';
+import { restaurarSessao, encerrarSessao } from './services/apiClient';
 import './App.css';
 
-type Screen =
+type Tela =
+  | 'checking'
+  | 'change-email'
   | 'account'
   | 'home'
   | 'mindmap'
@@ -31,41 +35,45 @@ type Screen =
   | 'privacy'
   | 'questionnaire';
 
-type HistoryEntry = {
+type EntradaHistorico = {
   screen: 'mindmap' | 'annotation';
   id: number | null;
   breadcrumb: string[];
   mapViewStack?: string[];
 };
 
-function initialScreen(): Screen {
+function telaInicial(): Tela {
   const params = new URLSearchParams(window.location.search);
+  if (params.has('change_email')) return 'change-email';
   if (params.has('verify_email')) return 'verify-email';
   if (params.has('reset_uid') && params.has('reset_token')) return 'reset-password';
-  return hasStoredSession() ? 'home' : 'login';
+  return 'checking';
 }
 
-function clearAuthLinkParams() {
+function limparParametrosAutenticacao() {
   window.history.replaceState({}, '', '/');
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>(initialScreen);
+  const [screen, setScreen] = useState<Tela>(telaInicial);
   const [libraryFolderId, setLibraryFolderId] = useState<number | null>(null);
   const [loginNotice, setLoginNotice] = useState('');
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [accountVersion, setAccountVersion] = useState(0);
   const [currentMapId, setCurrentMapId] = useState<number | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
   const [currentMapViewStack, setCurrentMapViewStack] = useState<string[]>();
   const [currentMapSelectedNodeId, setCurrentMapSelectedNodeId] = useState<string>();
   const [breadcrumb, setBreadcrumb] = useState<string[]>(['Início']);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [history, setHistory] = useState<EntradaHistorico[]>([]);
   const [noteRelationshipContext, setNoteRelationshipContext] =
-    useState<NoteRelationshipContext | null>(null);
+    useState<ContextoRelacionamentoAnotacao | null>(null);
 
   useEffect(() => {
     function handleSessionEnd() {
       setScreen('login');
       setLibraryFolderId(null);
+      setLibrarySearch('');
       setHistory([]);
       setCurrentMapId(null);
       setCurrentNoteId(null);
@@ -79,8 +87,16 @@ export default function App() {
     return () => window.removeEventListener('auth:logout', handleSessionEnd);
   }, []);
 
+  useEffect(() => {
+    if (screen !== 'checking') return;
+    let active = true;
+    restaurarSessao().then(ok => { if (active) setScreen(ok ? 'home' : 'login'); });
+    return () => { active = false; };
+  }, [screen]);
+
   async function handleLogout() {
-    await logout();
+    try { await encerrarSessao(); }
+    catch { window.alert('Não foi possível encerrar a sessão no servidor. Verifique a conexão e tente novamente.'); }
   }
 
   function openNewMindMap() {
@@ -157,7 +173,7 @@ export default function App() {
     setScreen('annotation');
   }
 
-  function navigateFromAnnotation(target: NoteRelationshipTarget) {
+  function navigateFromAnnotation(target: DestinoRelacionamentoAnotacao) {
     const parentHistory = history[history.length - 1];
     const parentBreadcrumb =
       parentHistory?.screen === 'mindmap'
@@ -206,6 +222,25 @@ export default function App() {
     setScreen('mindmap');
   }
 
+  function goHome() {
+    setHistory([]);
+    setLibraryFolderId(null);
+    setLibrarySearch('');
+    setCurrentMapId(null);
+    setCurrentNoteId(null);
+    setCurrentMapViewStack(undefined);
+    setCurrentMapSelectedNodeId(undefined);
+    setNoteRelationshipContext(null);
+    setBreadcrumb(['Início']);
+    setScreen('home');
+  }
+
+  function openHomeSection(section: SecaoHome) {
+    if (section === 'home') { goHome(); return; }
+    setHistory([]);
+    setScreen(section);
+  }
+
   function goBack() {
     const previous = history[history.length - 1];
 
@@ -246,11 +281,19 @@ export default function App() {
     });
   }
 
+  if (screen === 'checking') return <p role="status">Verificando sessão...</p>;
+
+  if (screen === 'change-email') return <ConfirmarAlteracaoEmail onBackToLogin={() => {
+    limparParametrosAutenticacao();
+    setLoginNotice('Entre com o endereço de e-mail atual da sua conta.');
+    setScreen('login');
+  }} />;
+
   if (screen === 'verify-email') {
     return (
-      <VerifyEmail
+      <VerificarEmail
         onBackToLogin={() => {
-          clearAuthLinkParams();
+          limparParametrosAutenticacao();
           setLoginNotice('E-mail confirmado. Entre com sua conta.');
           setScreen('login');
         }}
@@ -260,9 +303,9 @@ export default function App() {
 
   if (screen === 'reset-password') {
     return (
-      <ResetPassword
+      <RedefinirSenha
         onBackToLogin={() => {
-          clearAuthLinkParams();
+          limparParametrosAutenticacao();
           setLoginNotice('Use sua nova senha para entrar.');
           setScreen('login');
         }}
@@ -271,59 +314,43 @@ export default function App() {
   }
 
   if (screen === 'forgot-password') {
-    return <ForgotPassword onBackToLogin={() => setScreen('login')} />;
+    return <RecuperarSenha onBackToLogin={() => setScreen('login')} />;
   }
 
-  if (screen === 'terms') {
-    return <UserTerms onBack={() => setScreen('home')} />;
-  }
-
-  if (screen === 'privacy') {
-    return <UserPrivacyPolicy onBack={() => setScreen('home')} />;
-  }
-
-  if (screen === 'questionnaire') {
-    return <Questionnaire onBack={goBack} />;
-  }
-
-  if (screen === 'account') {
-    return (
-      <AccountSettings
-        onBack={() => setScreen('home')}
-        onAccountDeleted={() => {
-          window.dispatchEvent(new Event('auth:logout'));
-          setLoginNotice('Conta excluída com sucesso.');
-        }}
-      />
-    );
-  }
-
-  if (screen === 'home') {
-    return (
-      <HomeMenu
+  if (screen === 'home' || screen === 'questionnaire' || screen === 'account' || screen === 'terms' || screen === 'privacy') {
+    return <HomeLayout active={screen} onNavigate={openHomeSection} onLogout={() => void handleLogout()}
+      search={librarySearch} onSearchChange={setLibrarySearch} accountVersion={accountVersion}>
+      {screen === 'home' && <HomeMenu
         folderId={libraryFolderId}
-        onFolderChange={setLibraryFolderId}
-        onOpenAccount={() => setScreen('account')}
-        onOpenQuestionnaire={() => { setHistory([]); setBreadcrumb(['Início', 'Questionário']); setScreen('questionnaire'); }}
+        search={librarySearch}
+        onFolderChange={id => { setLibraryFolderId(id); setLibrarySearch(''); }}
         onCreateMindMap={openNewMindMap}
         onCreateNote={openNewNote}
         onOpenMindMap={openSavedMindMap}
         onOpenNote={openSavedNote}
-        onOpenTerms={() => setScreen('terms')}
-        onOpenPrivacy={() => setScreen('privacy')}
-        onLogout={() => void handleLogout()}
-      />
-    );
+      />}
+      {screen === 'questionnaire' && <Questionario embedded onBack={goHome} />}
+      {screen === 'account' && <ConfiguracoesConta embedded onBack={goHome}
+        onAccountUpdated={() => setAccountVersion(current => current + 1)}
+        onAccountDeleted={() => {
+          window.dispatchEvent(new Event('auth:logout'));
+          setLoginNotice('Conta excluída com sucesso.');
+        }}
+      />}
+      {screen === 'terms' && <TermosUso embedded onBack={goHome} />}
+      {screen === 'privacy' && <PoliticaPrivacidade embedded onBack={goHome} />}
+    </HomeLayout>;
   }
 
   if (screen === 'annotation') {
     return (
-      <NoteEditor
+      <AnotacaoEditor
         noteId={currentNoteId}
         initialFolderId={libraryFolderId}
         initialTitle={breadcrumb[breadcrumb.length - 1] || 'Nova anotação'}
         breadcrumb={breadcrumb}
         onBack={goBack}
+        onHome={goHome}
         relationshipContext={noteRelationshipContext}
         onNavigateRelationship={navigateFromAnnotation}
         onCreated={(id, title) => {
@@ -336,7 +363,7 @@ export default function App() {
 
   if (screen === 'register') {
     return (
-      <UserRegister
+      <Cadastro
         onNavigateToLogin={() => setScreen('login')}
         onRegistrationSuccess={() => {
           setLoginNotice('Conta criada. Confira seu e-mail para confirmar o cadastro antes de entrar.');
@@ -348,7 +375,7 @@ export default function App() {
 
   if (screen === 'login') {
     return (
-      <UserLogin
+      <Login
         notice={loginNotice}
         onLoginSuccess={() => {
           setLoginNotice('');
@@ -367,13 +394,14 @@ export default function App() {
   }
 
   return (
-    <MindMap
+    <MapaMental
       mapId={currentMapId}
       initialFolderId={libraryFolderId}
       breadcrumb={breadcrumb}
       initialViewStack={currentMapViewStack}
       initialSelectedNodeId={currentMapSelectedNodeId}
       onBack={goBack}
+      onHome={goHome}
       onMapCreated={(id, title) => {
         setCurrentMapId(id);
         updateLastBreadcrumb(title);

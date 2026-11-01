@@ -5,12 +5,21 @@ from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.views import View
+from django.middleware.csrf import get_token, rotate_token
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from .authentication import exigir_csrf, versao_sessao
+from .cookies import definir_cookies, limpar_cookies
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.views import APIView
+from rest_framework import serializers
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
+from core.throttling import LoginPairThrottle
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -20,11 +29,22 @@ from .services import anonimizar_e_desativar_conta
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_scope = 'login'
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle, LoginPairThrottle]
 
     def post(self, request):
-        email = (request.data.get('email') or '').strip()
-        password = request.data.get('password') or ''
-        captcha_token = request.data.get('captcha_token')
+        exigir_csrf(request)
+        class Credentials(serializers.Serializer):
+            email = serializers.EmailField(max_length=254)
+            password = serializers.CharField(max_length=1024, trim_whitespace=False)
+            captcha_token = serializers.CharField(max_length=8192, required=False)
+
+        credentials = Credentials(data=request.data)
+        credentials.is_valid(raise_exception=True)
+        email = credentials.validated_data['email']
+        password = credentials.validated_data['password']
+        captcha_token = credentials.validated_data.get('captcha_token')
 
         if not email or not password:
             return Response(
@@ -62,6 +82,7 @@ class LoginView(APIView):
             )
 
         if not resultado_google.get('success'):
+            registrar_atividade(request, 'login_captcha_falha', 'conta', resultado='falha')
             return Response(
                 {'error': 'Falha na verificação do reCAPTCHA.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -76,6 +97,7 @@ class LoginView(APIView):
         )
 
         if email_record is None:
+            registrar_atividade(request, 'login_falha', 'conta', resultado='falha', descricao='Credenciais inválidas.')
             return Response(
                 {'error': 'E-mail ou senha inválidos.'},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -89,43 +111,83 @@ class LoginView(APIView):
         )
 
         if user is None:
+            registrar_atividade(request, 'login_falha', 'conta', user_record.pk, resultado='falha', descricao='Credenciais inválidas.')
             return Response(
                 {'error': 'E-mail ou senha inválidos.'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
         if not email_record.verified:
+            registrar_atividade(request, 'login_bloqueado', 'conta', user.pk, resultado='bloqueado', descricao='E-mail não confirmado.')
             return Response(
-                {'error': 'Confirme seu e-mail antes de entrar.'},
+                {'error': 'Confirme seu e-mail antes de entrar.', 'code': 'email_not_verified'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        refresh = RefreshToken.for_user(user)
+        from . import mfa
+        if mfa.exigir_segundo_fator(user):
+            challenge = mfa.criar_desafio(user, 'api')
+            registrar_atividade(request, 'login_primeira_etapa', 'conta', user.pk, usuario=user)
+            response = Response({'mfa_required': True, 'setup_required': not mfa.ativo(user), 'challenge': challenge})
+            response['Cache-Control'] = 'no-store'
+            return limpar_cookies(response)
         registrar_atividade(request, 'login', 'conta', user.pk, usuario=user)
+        return mfa.emitir_sessao(request, user)
 
-        return Response(
-            {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
-            status=status.HTTP_200_OK,
-        )
+
+class CsrfView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        response = Response({'csrf_token': get_token(request)})
+        response['Cache-Control'] = 'no-store'
+        return response
+
+
+class CookieRefreshView(APIView):
+    throttle_scope = 'refresh'
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        exigir_csrf(request)
+        raw = request.COOKIES.get(settings.JWT_REFRESH_COOKIE)
+        if not raw:
+            return limpar_cookies(Response({'detail': 'Sessão ausente.'}, status=401))
+        try:
+            old = RefreshToken(raw)
+            user = JWTAuthentication().get_user(old)
+            from .mfa import exigir_segundo_fator
+            if exigir_segundo_fator(user) and old.get('mfa_verified') is not True:
+                raise TokenError('Segundo fator obrigatório.')
+            if old.get('session_version') != versao_sessao(user):
+                raise TokenError('Sessão encerrada.')
+            serializer = TokenRefreshSerializer(data={'refresh': raw})
+            serializer.is_valid(raise_exception=True)
+            refreshed = RefreshToken(serializer.validated_data['refresh'])
+        except (TokenError, AuthenticationFailed, ValidationError, get_user_model().DoesNotExist):
+            return limpar_cookies(Response({'detail': 'Sessão expirada.'}, status=401))
+        return definir_cookies(Response({'detail': 'Sessão renovada.'}), refreshed)
 
 
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
-        refresh_token = request.data.get('refresh')
-
-        if refresh_token:
+        exigir_csrf(request)
+        raw = request.COOKIES.get(settings.JWT_REFRESH_COOKIE)
+        if raw:
             try:
-                RefreshToken(refresh_token).blacklist()
+                token = RefreshToken(raw)
+                user = get_user_model().objects.filter(pk=token['user_id']).first()
+                token.blacklist()
+                if user:
+                    registrar_atividade(request, 'logout', 'conta', user.pk, usuario=user)
             except TokenError:
                 pass
-
-        registrar_atividade(request, 'logout', 'conta', request.user.pk)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return limpar_cookies(Response(status=status.HTTP_204_NO_CONTENT))
 
 
 class EmailConfirmationRedirectView(View):
@@ -148,14 +210,25 @@ class AccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from .models import AlteracaoEmail
+        from django.utils import timezone
+        from datetime import timedelta
+        pending = AlteracaoEmail.objects.filter(usuario=request.user, criado_em__gte=timezone.now()-timedelta(seconds=settings.EMAIL_CHANGE_MAX_AGE)).first()
         return Response({
+            'pending_email': pending.email if pending else None,
+            'is_staff': request.user.is_staff,
             'pk': request.user.pk,
             'username': request.user.username,
             'email': request.user.email,
         })
 
     def patch(self, request):
-        username = (request.data.get('username') or '').strip()
+        class AccountInput(serializers.Serializer):
+            username = serializers.CharField(max_length=150)
+
+        data = AccountInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        username = data.validated_data['username']
 
         if not username:
             return Response(
@@ -185,19 +258,25 @@ class AccountView(APIView):
             'pk': request.user.pk,
             'username': request.user.username,
             'email': request.user.email,
+            'is_staff': request.user.is_staff,
         })
 
     @transaction.atomic
     def delete(self, request):
-        password = request.data.get('password') or ''
+        user = get_object_or_404(get_user_model().objects.select_for_update(), pk=request.user.pk, is_active=True)
+        class DeleteInput(serializers.Serializer):
+            password = serializers.CharField(max_length=1024, trim_whitespace=False)
 
-        if not password or not request.user.check_password(password):
+        data = DeleteInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        password = data.validated_data['password']
+
+        if not password or not user.check_password(password):
             return Response(
                 {'password': ['Senha atual inválida.']},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = request.user
         registrar_atividade(request, 'excluir', 'conta', user.pk)
         anonimizar_e_desativar_conta(user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return limpar_cookies(Response(status=status.HTTP_204_NO_CONTENT))

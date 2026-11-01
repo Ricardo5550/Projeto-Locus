@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 from allauth.account.models import EmailAddress
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
@@ -11,6 +12,7 @@ from .models import AceiteLegal
 @override_settings(RECAPTCHA_SECRET_KEY='segredo-teste')
 class LoginSecurityTests(TestCase):
     def setUp(self):
+        cache.clear()
         User = get_user_model()
         self.user = User.objects.create_user(
             username='teste', email='teste@example.com', password='senha123'
@@ -31,7 +33,7 @@ class LoginSecurityTests(TestCase):
         self.assertEqual(resposta.status_code, 400)
 
     @patch('usuarios.views.requests.post')
-    def test_login_valido_retorna_tokens(self, post):
+    def test_login_valido_define_cookies_sem_expor_tokens(self, post):
         resposta_google = Mock()
         resposta_google.raise_for_status.return_value = None
         resposta_google.json.return_value = {'success': True}
@@ -44,8 +46,10 @@ class LoginSecurityTests(TestCase):
         }, format='json')
 
         self.assertEqual(resposta.status_code, 200)
-        self.assertIn('access', resposta.data)
-        self.assertIn('refresh', resposta.data)
+        self.assertNotIn('access', resposta.data)
+        self.assertNotIn('refresh', resposta.data)
+        self.assertTrue(resposta.cookies['locus_access']['httponly'])
+        self.assertTrue(resposta.cookies['locus_refresh']['httponly'])
 
     @patch('usuarios.views.requests.post')
     def test_captcha_invalido_bloqueia_login(self, post):
@@ -66,6 +70,7 @@ class LoginSecurityTests(TestCase):
 
 class RegistrationLegalAcceptanceTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.payload = {
             'username': 'novo_usuario',

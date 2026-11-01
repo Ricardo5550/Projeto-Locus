@@ -2,14 +2,18 @@ from django.conf import settings
 from django.views.generic import RedirectView
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
-from dj_rest_auth.registration.views import (
+from django.urls import include, path, re_path
+from usuarios.auth_endpoints import (
     RegisterView,
     ResendEmailVerificationView,
     VerifyEmailView,
+    PasswordResetView,
+    PasswordResetConfirmView,
+    PasswordChangeView,
 )
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
+from usuarios.email_views import EmailChangeView, EmailChangeRedirectView, ConfirmEmailChangeView
+from usuarios.mfa_views import MFAChallengeView, MFAEnrollmentView, MFAManagementView
 
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
@@ -18,6 +22,8 @@ from referencias.views import buscar_referencias
 from revisoes.views import PerguntaViewSet, TentativaViewSet
 from usuarios.views import (
     AccountView,
+    CsrfView,
+    CookieRefreshView,
     EmailConfirmationRedirectView,
     LoginView,
     LogoutView,
@@ -54,10 +60,17 @@ urlpatterns = [
     ),
 
     # Endpoints explícitos da autenticação do Locus.
-    path('api/auth/login/', LoginView.as_view(), name='login'),
+    path('api/auth/csrf/', CsrfView.as_view(), name='csrf'),
+    path('api/auth/mfa/verify/', MFAChallengeView.as_view(), name='mfa-verify'),
+    path('api/auth/mfa/enroll/', MFAEnrollmentView.as_view(), name='mfa-enroll'),
+    path('api/auth/mfa/', MFAManagementView.as_view(), name='mfa-manage'),
+    path('api/auth/account/email/', EmailChangeView.as_view(), name='change-email'),
+    path('api/auth/account/email/link/', EmailChangeRedirectView.as_view(), name='change-email-link'),
+    path('api/auth/account/email/confirm/', ConfirmEmailChangeView.as_view(), name='confirm-email-change'),
+    re_path(r'^api/auth/login/?$', LoginView.as_view(), name='login'),
     path('api/auth/account/', AccountView.as_view(), name='account'),
-    path('api/auth/logout/', LogoutView.as_view(), name='logout'),
-    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    re_path(r'^api/auth/logout/?$', LogoutView.as_view(), name='logout'),
+    re_path(r'^api/auth/token/refresh/?$', CookieRefreshView.as_view(), name='token-refresh'),
     path('api/auth/registro/', RegisterView.as_view(), name='rest_register'),
     path('api/auth/verify-email/', VerifyEmailView.as_view(), name='rest_verify_email'),
     path(
@@ -66,7 +79,11 @@ urlpatterns = [
         name='rest_resend_email',
     ),
 
-    path('api/auth/', include('dj_rest_auth.urls')),
+    # Exponha somente as operações utilizadas. A inclusão genérica também
+    # publicava outro login sem barra, fora dos controles do Locus.
+    path('api/auth/password/reset/', PasswordResetView.as_view(), name='rest_password_reset'),
+    path('api/auth/password/reset/confirm/', PasswordResetConfirmView.as_view(), name='rest_password_reset_confirm'),
+    path('api/auth/password/change/', PasswordChangeView.as_view(), name='rest_password_change'),
 ]
 
 if settings.DEBUG:

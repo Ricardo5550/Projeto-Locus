@@ -125,10 +125,10 @@ class ExclusaoMapaTests(TestCase):
 
     def test_api_aceita_mapa_valido_e_mantem_pasta_no_put(self):
         parent = Pasta.objects.create(nome='Projetos', autor=self.user)
-        data = {'rootViewId': 'r', 'views': {'r': view('Teste', block(linkedAnnotationId=self.note.pk))}}
+        data = {'rootViewId': 'r', 'views': {'r': view('Teste', block(label='Vida', linkedAnnotationId=self.note.pk))}}
         created = self.client.post('/api/mapas-mentais/', {'titulo': 'Teste', 'dados': data, 'pasta': parent.pk}, format='json')
         self.assertEqual(created.status_code, 201)
-        response = self.client.put(f"/api/mapas-mentais/{created.data['id']}/", {'titulo': 'Editado', 'dados': data}, format='json')
+        response = self.client.put(f"/api/mapas-mentais/{created.data['id']}/", {'titulo': 'Editado', 'dados': data, 'versao': created.data['data_atualizacao']}, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['pasta'], parent.pk)
 

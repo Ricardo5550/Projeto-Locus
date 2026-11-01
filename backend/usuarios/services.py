@@ -1,4 +1,5 @@
 from uuid import uuid4
+from .models import AlteracaoEmail
 
 from allauth.account.models import EmailAddress
 from django.db import transaction
@@ -26,6 +27,10 @@ def anonimizar_e_desativar_conta(user):
 
     # Registros técnicos de verificação não precisam permanecer após anonimização.
     EmailAddress.objects.filter(user=user).delete()
+    AlteracaoEmail.objects.filter(usuario=user).delete()
+    from .models import SegundoFator, DesafioAutenticacao
+    SegundoFator.objects.filter(usuario=user).delete()
+    DesafioAutenticacao.objects.filter(usuario=user).delete()
 
     suffix = uuid4().hex
     user.username = f'usuario_excluido_{user.pk}_{suffix[:8]}'
