@@ -5,9 +5,9 @@ import { obterUsuarioAtual } from '../usuarios/apiUsuarios';
 import './HomeMenu.css';
 import './HomeLayout.css';
 
-export type SecaoHome = 'home' | 'questionnaire' | 'account' | 'terms' | 'privacy';
+export type SecaoHome = 'home' | 'questionnaire' | 'acompanhamento' | 'account' | 'terms' | 'privacy';
 const titulos: Record<SecaoHome, string> = {
-  home: 'Biblioteca', questionnaire: 'Questionário', account: 'Minha conta',
+  home: 'Biblioteca', questionnaire: 'Questionário', acompanhamento: 'Acompanhamento', account: 'Minha conta',
   terms: 'Termos de Uso', privacy: 'Política de Privacidade',
 };
 
@@ -30,7 +30,7 @@ export default function HomeLayout({ active, children, onNavigate, onLogout, sea
   return <div className="home-layout home-layout--shared">
     <aside className="home-sidebar" aria-label="Menu principal">
       <div className="home-brand"><div className="home-brand__logo">L</div><strong>Locus</strong></div>
-      <nav aria-label="Conteúdos">{nav('home')}{nav('questionnaire')}</nav>
+      <nav aria-label="Conteúdos">{nav('home')}{nav('questionnaire')}{nav('acompanhamento')}</nav>
       <nav className="home-sidebar__bottom" aria-label="Informações e sessão">
         {nav('terms')}{nav('privacy')}
         <button className="home-nav-button home-nav-button--logout" type="button" onClick={onLogout}>Sair</button>

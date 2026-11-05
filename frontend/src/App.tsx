@@ -17,6 +17,7 @@ import PoliticaPrivacidade from './features/usuarios/PoliticaPrivacidade';
 import ConfirmarAlteracaoEmail from './features/usuarios/ConfirmarAlteracaoEmail';
 import Questionario from './features/revisoes/Questionario';
 import { restaurarSessao, encerrarSessao } from './services/apiClient';
+import Acompanhamento from './features/acompanhamento/Acompanhamento';
 import './App.css';
 
 type Tela =
@@ -33,6 +34,7 @@ type Tela =
   | 'verify-email'
   | 'terms'
   | 'privacy'
+  | 'acompanhamento'
   | 'questionnaire';
 
 type EntradaHistorico = {
@@ -317,7 +319,7 @@ export default function App() {
     return <RecuperarSenha onBackToLogin={() => setScreen('login')} />;
   }
 
-  if (screen === 'home' || screen === 'questionnaire' || screen === 'account' || screen === 'terms' || screen === 'privacy') {
+  if (screen === 'home' || screen === 'questionnaire' || screen == 'acompanhamento' || screen === 'account' || screen === 'terms' || screen === 'privacy') {
     return <HomeLayout active={screen} onNavigate={openHomeSection} onLogout={() => void handleLogout()}
       search={librarySearch} onSearchChange={setLibrarySearch} accountVersion={accountVersion}>
       {screen === 'home' && <HomeMenu
@@ -330,6 +332,7 @@ export default function App() {
         onOpenNote={openSavedNote}
       />}
       {screen === 'questionnaire' && <Questionario embedded onBack={goHome} />}
+      {screen === 'acompanhamento' && <Acompanhamento />}
       {screen === 'account' && <ConfiguracoesConta embedded onBack={goHome}
         onAccountUpdated={() => setAccountVersion(current => current + 1)}
         onAccountDeleted={() => {
