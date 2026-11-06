@@ -33,6 +33,7 @@ from acompanhamento.views import (
     CompartilharMapaView,
     EspacosTutorView,
     MateriaisCompartilhadosEspacoView,
+    TutoresDisponiveisView,
 )
 from usuarios.views import (
     AccountView,
@@ -131,6 +132,12 @@ urlpatterns = [
         'api/acompanhamento/espacos/<int:pk>/materiais/',
         MateriaisCompartilhadosEspacoView.as_view(),
         name='acompanhamento-espaco-materiais'
+    ),
+
+    path(
+        'api/acompanhamento/tutores/disponiveis/',
+        TutoresDisponiveisView.as_view(),
+        name='acompanhamento-tutores-disponiveis'
     ),
 
     path('api/referencias/', buscar_referencias, name='buscar-referencias'),

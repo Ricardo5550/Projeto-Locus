@@ -408,3 +408,29 @@ class MateriaisCompartilhadosEspacoView(APIView):
         }
 
         return Response(dados)
+
+class TutoresDisponiveisView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        busca = request.query_params.get('busca', '').strip()
+
+        if len(busca) < 2:
+            return Response([])
+
+        tutores = PerfilTutor.objects.filter(
+            ativo=True,
+            visibilidade='publico',
+            usuario__is_active=True,
+            nome_apresentacao__icontains=busca[:100]
+        ).exclude(
+            usuario=request.user
+        ).order_by(
+            'nome_apresentacao',
+            'pk'
+        ).values(
+            'id',
+            'nome_apresentacao'
+        )[:20]
+
+        return Response(list(tutores))

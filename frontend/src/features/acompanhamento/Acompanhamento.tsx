@@ -1,5 +1,6 @@
 import { useEffect, useState, type SubmitEvent } from 'react';
-
+import ConvidarTutor from './ConvidarTutor';
+import CompartilharMateriais from './CompartilharMateriais';
 import {
   listarMeusEspacos,
   listarEspacosComoTutor,
@@ -9,6 +10,7 @@ import {
   aceitarConvite,
   recusarConvite,
   listarTutoresEspaco,
+  removerTutorEspaco,
   type EspacoAcompanhamento,
   type EspacoParticipando,
   type MateriaisEspaco,
@@ -30,6 +32,7 @@ export default function Acompanhamento() {
 
   const [espacoSelecionado, setEspacoSelecionado] = useState<number | null>(null);
   const [materiais, setMateriais] = useState<MateriaisEspaco | null>(null);
+  const [versaoMateriais, setVersaoMateriais] = useState(0);
   const [carregandoMateriais, setCarregandoMateriais] = useState(false);
   const [erroMateriais, setErroMateriais] = useState('');
 
@@ -39,6 +42,9 @@ export default function Acompanhamento() {
   const [tutores, setTutores] = useState<TutorEspaco[]>([]);
   const [carregandoTutores, setCarregandoTutores] = useState(false);
   const [erroTutores, setErroTutores] = useState('');
+
+  const [removendoTutorId, setRemovendoTutorId] = useState<number | null>(null);
+  const [erroRemocaoTutor, setErroRemocaoTutor] = useState('');
 
   const ehProprietarioDoEspaco = meusEspacos.some(
     (espaco) => espaco.id === espacoSelecionado
@@ -109,13 +115,14 @@ export default function Acompanhamento() {
     return () => {
       ativo = false;
     };
-  }, [espacoSelecionado]);
+  }, [espacoSelecionado, versaoMateriais]);
 
   useEffect(() => {
     let ativo = true;
 
     setTutores([]);
     setErroTutores('');
+    setErroRemocaoTutor('');
 
     if (espacoSelecionado === null || !ehProprietarioDoEspaco) {
       setCarregandoTutores(false);
@@ -150,6 +157,7 @@ export default function Acompanhamento() {
     event.preventDefault();
 
     const nome = nomeEspaco.trim();
+
     if (!nome || nome.length > 100 || criando) return;
 
     setCriando(true);
@@ -157,6 +165,7 @@ export default function Acompanhamento() {
 
     try {
       const novoEspaco = await criarEspaco(nome);
+
       setMeusEspacos((atuais) => [novoEspaco, ...atuais]);
       setNomeEspaco('');
     } catch (error) {
@@ -211,6 +220,43 @@ export default function Acompanhamento() {
     }
   }
 
+  async function handleRemoverTutor(tutorId: number) {
+    if (
+      espacoSelecionado === null ||
+      !ehProprietarioDoEspaco ||
+      removendoTutorId !== null
+    ) {
+      return;
+    }
+
+    const confirmado = window.confirm(
+      'Tem certeza de que deseja remover este tutor do espaço?'
+    );
+
+    if (!confirmado) return;
+
+    const espacoId = espacoSelecionado;
+
+    setRemovendoTutorId(tutorId);
+    setErroRemocaoTutor('');
+
+    try {
+      await removerTutorEspaco(espacoId, tutorId);
+
+      setTutores((atuais) =>
+        atuais.filter((tutor) => tutor.tutor_id !== tutorId)
+      );
+    } catch (error) {
+      setErroRemocaoTutor(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível remover o tutor.'
+      );
+    } finally {
+      setRemovendoTutorId(null);
+    }
+  }
+
   if (carregando) {
     return <p>Carregando acompanhamento...</p>;
   }
@@ -252,6 +298,7 @@ export default function Acompanhamento() {
               <button
                 type="button"
                 onClick={() => setEspacoSelecionado(espaco.id)}
+                aria-pressed={espacoSelecionado === espaco.id}
               >
                 {espaco.nome}
               </button>
@@ -271,6 +318,7 @@ export default function Acompanhamento() {
               <button
                 type="button"
                 onClick={() => setEspacoSelecionado(espaco.id)}
+                aria-pressed={espacoSelecionado === espaco.id}
               >
                 {espaco.nome}
               </button>
@@ -321,10 +369,32 @@ export default function Acompanhamento() {
         <section>
           {ehProprietarioDoEspaco && (
             <>
+              <ConvidarTutor
+                key={espacoSelecionado}
+                espacoId={espacoSelecionado}
+              />
+
+              <CompartilharMateriais
+                key={espacoSelecionado}
+                espacoId={espacoSelecionado}
+                onCompartilhado={() =>
+                  setVersaoMateriais((atual) => atual + 1)
+                }
+              />
+
               <h2>Tutores do espaço</h2>
 
-              {carregandoTutores && <p>Carregando tutores...</p>}
-              {erroTutores && <p role="alert">{erroTutores}</p>}
+              {carregandoTutores && (
+                <p>Carregando tutores...</p>
+              )}
+
+              {erroTutores && (
+                <p role="alert">{erroTutores}</p>
+              )}
+
+              {erroRemocaoTutor && (
+                <p role="alert">{erroRemocaoTutor}</p>
+              )}
 
               {!carregandoTutores && !erroTutores && (
                 tutores.length === 0 ? (
@@ -334,6 +404,18 @@ export default function Acompanhamento() {
                     {tutores.map((tutor) => (
                       <li key={tutor.participacao_id}>
                         {tutor.nome_apresentacao}
+
+                        <button
+                          type="button"
+                          disabled={removendoTutorId !== null}
+                          onClick={() =>
+                            handleRemoverTutor(tutor.tutor_id)
+                          }
+                        >
+                          {removendoTutorId === tutor.tutor_id
+                            ? 'Removendo...'
+                            : 'Remover tutor'}
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -344,8 +426,13 @@ export default function Acompanhamento() {
 
           <h2>Materiais compartilhados</h2>
 
-          {carregandoMateriais && <p>Carregando materiais...</p>}
-          {erroMateriais && <p role="alert">{erroMateriais}</p>}
+          {carregandoMateriais && (
+            <p>Carregando materiais...</p>
+          )}
+
+          {erroMateriais && (
+            <p role="alert">{erroMateriais}</p>
+          )}
 
           {materiais && (
             <>
