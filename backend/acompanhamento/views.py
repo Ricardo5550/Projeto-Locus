@@ -24,7 +24,11 @@ from acompanhamento.services import (
 )
 from mapas.models import MapaMental
 from anotacoes.models import Anotacao
-from .serializers import AnotacaoCompartilhadaLeituraSerializer, MapaCompartilhadoLeituraSerializer
+from .serializers import (
+    AnotacaoCompartilhadaLeituraSerializer, 
+    MapaCompartilhadoLeituraSerializer,
+    PerfilTutorSerializer,
+)
 
 # Create your views here.
 class AnotacaoCompartilhadaDetalheView(APIView):
@@ -434,3 +438,61 @@ class TutoresDisponiveisView(APIView):
         )[:20]
 
         return Response(list(tutores))
+
+class PerfilTutorView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        perfil = get_object_or_404(
+            PerfilTutor,
+            usuario=request.user
+        )
+
+        serializer = PerfilTutorSerializer(perfil)
+
+        return Response(
+            serializer.data,
+            status=200
+        )
+
+    def post(self, request):
+        if PerfilTutor.objects.filter(
+            usuario=request.user
+        ).exists():
+            raise DRFValidationError({'detail': 'Você já possui um perfil de tutor.'})
+
+        serializer = PerfilTutorSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        perfil = serializer.save(
+            usuario=request.user
+        )
+
+        return Response(
+            PerfilTutorSerializer(perfil).data,
+            status=201
+        )
+
+    def patch(self, request):
+        perfil = get_object_or_404(
+            PerfilTutor,
+            usuario=request.user
+        )
+
+        serializer = PerfilTutorSerializer(
+            perfil,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        return Response(
+            serializer.data,
+            status=200
+        )

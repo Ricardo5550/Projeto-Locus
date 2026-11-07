@@ -34,6 +34,7 @@ from acompanhamento.views import (
     EspacosTutorView,
     MateriaisCompartilhadosEspacoView,
     TutoresDisponiveisView,
+    PerfilTutorView,
 )
 from usuarios.views import (
     AccountView,
@@ -138,6 +139,12 @@ urlpatterns = [
         'api/acompanhamento/tutores/disponiveis/',
         TutoresDisponiveisView.as_view(),
         name='acompanhamento-tutores-disponiveis'
+    ),
+
+    path(
+        'api/acompanhamento/tutores/perfil/',
+        PerfilTutorView.as_view(),
+        name='acompanhamento-perfil-tutor'
     ),
 
     path('api/referencias/', buscar_referencias, name='buscar-referencias'),

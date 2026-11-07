@@ -1,5 +1,4 @@
-import { apiJson } from '../../services/apiClient';
-import { apiSemRetorno } from '../../services/apiClient';
+import { apiJson, apiSemRetorno } from '../../services/apiClient';
 
 export type EspacoAcompanhamento = {
   id: number;
@@ -177,5 +176,79 @@ export function compartilharMapa(
   return apiJson<CompartilhamentoMapa>(
     `/acompanhamento/espacos/${espacoId}/mapas/${mapaId}/compartilhar/`,
     { method: 'POST' }
+  );
+}
+
+export type PerfilTutor = {
+  id: number;
+  nome_apresentacao: string;
+  descricao: string;
+  visibilidade: 'publico' | 'privado';
+  ativo: boolean;
+  criado_em: string;
+};
+
+export type DadosPerfilTutor = {
+  nome_apresentacao: string;
+  descricao: string;
+  visibilidade: 'publico' | 'privado';
+  ativo: boolean;
+};
+
+export function obterMeuPerfilTutor(): Promise<PerfilTutor> {
+  return apiJson<PerfilTutor>(
+    '/acompanhamento/tutores/perfil/'
+  );
+}
+
+export function criarPerfilTutor(
+  dados: DadosPerfilTutor
+): Promise<PerfilTutor> {
+  return apiJson<PerfilTutor>(
+    '/acompanhamento/tutores/perfil/',
+    {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    }
+  );
+}
+
+export function atualizarPerfilTutor(
+  dados: Partial<DadosPerfilTutor>
+): Promise<PerfilTutor> {
+  return apiJson<PerfilTutor>(
+    '/acompanhamento/tutores/perfil/',
+    {
+      method: 'PATCH',
+      body: JSON.stringify(dados),
+    }
+  );
+}
+
+export type AnotacaoCompartilhadaDetalhe = {
+  id: number;
+  titulo: string;
+  conteudo: unknown;
+};
+
+export type MapaCompartilhadoDetalhe = {
+  id: number;
+  titulo: string;
+  dados: unknown;
+};
+
+export function obterAnotacaoCompartilhada(
+  anotacaoId: number
+): Promise<AnotacaoCompartilhadaDetalhe> {
+  return apiJson<AnotacaoCompartilhadaDetalhe>(
+    `/acompanhamento/anotacoes/${anotacaoId}/`
+  );
+}
+
+export function obterMapaCompartilhado(
+  mapaId: number
+): Promise<MapaCompartilhadoDetalhe> {
+  return apiJson<MapaCompartilhadoDetalhe>(
+    `/acompanhamento/mapas/${mapaId}/`
   );
 }
