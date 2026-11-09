@@ -1,0 +1,13 @@
+import {useEffect,useRef,useState} from 'react';
+import {Bell} from 'lucide-react';
+import {apiJson} from '../../services/apiClient';
+import './SinoNotificacoes.css';
+type Aviso={id:number;tipo:string;texto:string;destino:string;recurso_id:number;lida:boolean};
+export default function SinoNotificacoes({onOpen}:{onOpen:(destino:string,id:number)=>void}){
+ const [avisos,setAvisos]=useState<Aviso[]>([]),[aberto,setAberto]=useState(false),[erro,setErro]=useState('');const ref=useRef<HTMLDivElement>(null);
+ useEffect(()=>{let ativo=true;async function carregar(){if(document.hidden)return;try{const a=await apiJson<Aviso[]>('/notificacoes/');if(ativo){setAvisos(a);setErro('');}}catch{if(ativo)setErro('Não foi possível consultar os avisos.');}}void carregar();const timer=window.setInterval(()=>void carregar(),60000);const atualizar=()=>void carregar();window.addEventListener('revisoes:atualizadas',atualizar);document.addEventListener('visibilitychange',atualizar);return()=>{ativo=false;clearInterval(timer);window.removeEventListener('revisoes:atualizadas',atualizar);document.removeEventListener('visibilitychange',atualizar);};},[]);
+ useEffect(()=>{if(!aberto)return;const fechar=(e:PointerEvent)=>{if(!ref.current?.contains(e.target as Node))setAberto(false);};const tecla=(e:KeyboardEvent)=>{if(e.key==='Escape')setAberto(false);};document.addEventListener('pointerdown',fechar);document.addEventListener('keydown',tecla);return()=>{document.removeEventListener('pointerdown',fechar);document.removeEventListener('keydown',tecla);};},[aberto]);
+ async function ler(a:Aviso,abrir:boolean){try{await apiJson(`/notificacoes/${a.id}/ler/`,{method:'POST'});setAvisos(v=>v.map(x=>x.id===a.id?{...x,lida:true}:x));if(abrir){setAberto(false);onOpen(a.destino,a.recurso_id);}}catch{setErro('Não foi possível abrir este aviso.');}}
+ const naoLidas=avisos.filter(a=>!a.lida).length;
+ return <div className="sino-notificacoes" ref={ref}><button className="page-action sino-botao" aria-label={`Notificações: ${naoLidas} não lidas`} aria-expanded={aberto} onClick={()=>setAberto(a=>!a)}><Bell size={19}/>{naoLidas>0&&<span>{naoLidas}</span>}</button>{aberto&&<section className="sino-painel" aria-label="Notificações"><h2>Notificações</h2>{erro&&<p role="alert">{erro}</p>}{!avisos.length&&!erro&&<p>Nenhuma notificação.</p>}{avisos.map(a=><article key={a.id}><button onClick={()=>void ler(a,true)}>{!a.lida&&<strong>Não lida — </strong>}{a.texto}</button>{!a.lida&&<button onClick={()=>void ler(a,false)}>Marcar como lida</button>}</article>)}</section>}</div>;
+}
