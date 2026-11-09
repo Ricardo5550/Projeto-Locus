@@ -1,278 +1,118 @@
 # Projeto Locus
 
-O **Locus** é uma plataforma web para criação, organização e revisão de conteúdos de estudo por meio de anotações, mapas mentais interativos e questionários de revisão.
+O **Locus** é uma plataforma web para criação, organização e revisão de conteúdos de estudo. A aplicação reúne anotações formatadas, mapas mentais interativos, questionários com repetição espaçada e acompanhamento por tutores.
 
-A aplicação permite criar e editar anotações formatadas, construir mapas mentais com blocos e conexões, relacionar conteúdos, gerar perguntas de revisão e consultar referências acadêmicas por meio da API Crossref.
+- [Como executar](#como-executar)
 
-## Funcionalidades principais
+## Funcionalidades
 
-- Cadastro e autenticação de usuários;
-- confirmação obrigatória de e-mail;
-- recuperação e redefinição de senha por e-mail;
-- proteção do login com Google reCAPTCHA;
-- autenticação por JWT;
-- controle de acesso para que cada usuário visualize apenas os próprios conteúdos;
-- criação e edição de anotações com Tiptap;
-- criação de mapas mentais interativos com React Flow;
-- criação de perguntas e tentativas de revisão;
-- integração com a API Crossref para busca de referências acadêmicas;
-- registro de ações em logs de auditoria;
-- Termos de Uso e Política de Privacidade acessíveis pelo sistema;
-- registro de aceite dos Termos e ciência da Política de Privacidade;
-- criptografia em repouso de conteúdos sensíveis;
-- exclusão lógica (soft-delete) de conteúdos da aplicação.
-
-## Arquitetura
-
-O Back-End é organizado como um **monólito modular**, com os principais domínios separados em aplicações Django:
-
-```text
-backend/
-├── anotacoes/
-├── auditoria/
-├── core/
-├── locus/
-├── mapas/
-├── referencias/
-├── revisoes/
-└── usuarios/
-```
-
-O diretório `core` concentra apenas recursos compartilhados de infraestrutura, como campos e funções de criptografia.
+- **Biblioteca:** organização de anotações e mapas mentais em pastas.
+- **Anotações e mapas mentais:** edição de textos formatados, criação de blocos e conexões, vínculo entre conteúdos e busca de referências acadêmicas pela Crossref.
+- **Questionários e revisões:** criação de perguntas a partir das anotações, devolutiva após finalizar a revisão e agendamento com uma adaptação do algoritmo SuperMemo SM-2.
+- **Resultados:** painel com revisões para hoje, revisões atrasadas, revisões concluídas e percentual de acertos. Inclui gráficos de acertos por questionário e de evolução ao longo do tempo, com filtros por questionário e período.
+- **Notificações:** avisos de revisão e de atividades nos canais de acompanhamento.
+- **Tutoria:** convite e aceite de tutores, compartilhamento de anotações e mapas para leitura e troca de dúvidas e comentários. Ao abrir um mapa compartilhado, o tutor também pode consultar as anotações vinculadas aos blocos do mapa.
+- **Conta e segurança:** cadastro com confirmação por e-mail, recuperação de senha, alteração de e-mail, verificação em duas etapas, exclusão de conta e registros de auditoria. Os Termos de Uso e a Política de Privacidade estão disponíveis na interface.
 
 ## Tecnologias
 
 ### Front-End
 
-- **React - 19.2.8:** construção da interface por meio de componentes reutilizáveis;
-- **TypeScript - 6.0.3:** tipagem e organização do código;
-- **Node.js - 24.21.0:** ambiente utilizado pelas ferramentas do Front-End;
-- **Vite - 8.2.2:** servidor e ferramenta de build do Front-End;
-- **Tiptap - 3.31.3:** editor de anotações com conteúdo estruturado;
-- **React Flow - 12.11.6:** criação e manipulação dos mapas mentais;
-- **Lucide React - 1.45.0:** biblioteca de ícones;
-- **CSS:** estilização da interface.
+- **React 19.2.8** para a interface e seus componentes.
+- **TypeScript 6.0.3** para a tipagem do código.
+- **Node.js 24.21.0 e npm** para executar as ferramentas e gerenciar dependências.
+- **Vite 8.2.2** para o servidor de desenvolvimento e a compilação.
+- **Tiptap 3.31.3** para o editor de anotações.
+- **React Flow 12.11.6** para os blocos e conexões dos mapas mentais.
+- **Lucide React 1.45.0 e CSS** para ícones e estilos da interface.
 
 ### Back-End
 
-- **Python - 3.11:** linguagem utilizada no servidor;
-- **Django - 5.2.17:** framework principal do Back-End;
-- **Django REST Framework - 3.18.1:** criação da API REST;
-- **dj-rest-auth:** endpoints de autenticação, recuperação de senha e integração com o fluxo de registro;
-- **django-allauth:** cadastro, confirmação de e-mail e gerenciamento de endereços de e-mail;
-- **Simple JWT:** autenticação por access token e refresh token;
-- **django-cors-headers - 4.9.0:** configuração de CORS;
-- **psycopg2-binary - 2.9.12:** integração com PostgreSQL;
-- **python-dotenv - 1.2.3:** carregamento das variáveis de ambiente;
-- **cryptography:** criptografia de campos sensíveis utilizando Fernet.
+- **Python 3.11, Django 5.2.17 e Django REST Framework 3.18.1** para o servidor e a API REST.
+- **django-allauth, dj-rest-auth e Simple JWT** para cadastro, autenticação e recuperação de conta. Os tokens JWT são enviados em cookies `HttpOnly`, com proteção CSRF nas operações aplicáveis.
+- **cryptography** para criptografia Fernet dos campos de conteúdo protegidos.
+- **pyotp** para a verificação em duas etapas com aplicativo autenticador (TOTP).
+- **django-cors-headers 4.9.0** para a configuração de CORS.
+- **psycopg2-binary 2.9.12** para a conexão com o PostgreSQL.
+- **python-dotenv 1.2.3** para carregar as variáveis de ambiente.
 
-### Banco de Dados
+### Banco de dados
 
-- **PostgreSQL:** persistência dos dados da aplicação.
+O **PostgreSQL** armazena os dados da aplicação. Cada anotação e cada mapa mental principal possui um registro próprio. Os campos de conteúdo representam em JSON o texto estruturado do editor e os blocos, posições, propriedades, conexões e visualizações internas dos mapas.
 
-Cada anotação e cada mapa mental principal são armazenados como registros próprios. As anotações utilizam conteúdo estruturado em JSON e os mapas mentais armazenam blocos, posições, propriedades, conexões e visualizações internas.
+### Arquitetura
 
-## Segurança e controle de acesso
-
-O Locus utiliza autenticação JWT. O access token possui validade curta e o refresh token é utilizado para renovação da sessão.
-
-As APIs protegidas exigem autenticação, e os dados são filtrados pelo usuário autenticado para impedir que uma conta consulte ou altere conteúdos pertencentes a outra.
-
-As senhas não são armazenadas de forma reversível: o Django utiliza hash seguro para proteção das credenciais.
-
-Conteúdos sensíveis armazenados no banco utilizam criptografia Fernet. A chave de criptografia é mantida em variável de ambiente e não deve ser versionada no repositório.
-
-O login também utiliza Google reCAPTCHA, cuja validação é realizada pelo Back-End.
-
-## Auditoria
-
-O sistema registra ações relevantes para permitir rastreabilidade, incluindo operações como:
-
-- login e logout;
-- criação, edição e exclusão de conteúdos;
-- criação e alteração de perguntas;
-- registro de tentativas de revisão.
-
-Os registros de auditoria podem ser consultados por usuários administrativos pelo Django Admin.
-
-## Integração com a Crossref
-
-O Locus utiliza a API pública da **Crossref** para localizar referências acadêmicas relacionadas ao conteúdo pesquisado pelo usuário.
-
-Endpoint interno:
-
-```text
-GET /api/referencias/?q=termo
-```
-
-A integração:
-
-- utiliza o endpoint `/works` da Crossref;
-- envia a consulta bibliográfica pelo parâmetro `query.bibliographic`;
-- limita a quantidade de resultados retornados;
-- normaliza título, autores, ano, publicação, DOI, URL e tipo;
-- utiliza timeout para chamadas externas;
-- utiliza cache temporário;
-- trata indisponibilidade da API sem interromper a aplicação.
-
-## LGPD e privacidade
-
-O sistema disponibiliza **Termos de Uso** e **Política de Privacidade** diretamente pela interface.
-
-Durante o cadastro, o usuário deve:
-
-- aceitar os Termos de Uso;
-- declarar ciência da Política de Privacidade.
-
-O sistema registra a manifestação do usuário, incluindo versão do documento, data e hora e demais informações utilizadas para rastreabilidade.
-
-A Política de Privacidade descreve os dados efetivamente tratados pelo Locus, suas finalidades, serviços externos utilizados, medidas de segurança, retenção e direitos dos titulares.
-
-O contato para assuntos relacionados a privacidade e proteção de dados é disponibilizado na própria Política de Privacidade.
+O back-end é um **monólito modular** organizado em aplicações Django, com módulos para usuários, anotações, mapas, pastas, referências, revisões, acompanhamento, notificações e auditoria. O front-end React consome a API REST.
 
 ## Como executar
 
 ### Pré-requisitos
 
-- Python 3.11;
-- PostgreSQL;
-- Node.js e npm;
-- Git.
+- Python 3.11
+- PostgreSQL em execução
+- Node.js 24.21.0 e npm
+- Git
+- Chaves pública e secreta do Google reCAPTCHA v2 configuradas para o ambiente local
 
-### Banco de Dados
+### Banco de dados
 
-Com o PostgreSQL em execução, crie um banco de dados para a aplicação. Exemplo:
-
-```text
-locus
-```
+No PostgreSQL, crie um banco chamado `locus` e use um usuário com permissão para aplicar as migrações nesse banco. Nos exemplos abaixo, o usuário é `postgres`.
 
 ### Back-End
 
-Acesse a pasta:
+A partir da raiz do repositório, crie um ambiente virtual e instale as dependências. Exemplo para PowerShell:
 
-```bash
+```powershell
 cd backend
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Crie e ative um ambiente virtual.
+Crie o arquivo `backend/.env` com os dados do seu ambiente. Use a chave gerada acima em `DATA_ENCRYPTION_KEY` para um **banco novo**. Se o banco já contiver dados criptografados, use a chave original.
 
-Windows:
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-Instale as dependências:
-
-```bash
-pip install -r requirements.txt
-```
-
-Crie o arquivo:
-
-```text
-backend/.env
-```
-
-Exemplo de configuração local:
-
-```env
+```dotenv
+DEBUG=True
 DB_NAME=locus
 DB_USER=postgres
-DB_PASSWORD=sua_senha
+DB_PASSWORD=sua_senha_do_postgresql
 DB_HOST=localhost
+DB_PORT=5432
 
-DEBUG=True
-
-RECAPTCHA_SECRET_KEY=sua_chave_secreta_recaptcha
 DATA_ENCRYPTION_KEY=sua_chave_fernet
-
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=seu_email@gmail.com
-EMAIL_HOST_PASSWORD=sua_senha_de_app
-DEFAULT_FROM_EMAIL="Locus <seu_email@gmail.com>"
-
+RECAPTCHA_SECRET_KEY=sua_chave_secreta_recaptcha
 FRONTEND_URL=http://localhost:5173
-CROSSREF_EMAIL=seu_email@example.com
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 ```
 
+Com essa configuração local, os e-mails de confirmação, recuperação de senha e alteração de endereço são exibidos no terminal do Django. Para enviá-los por um provedor, configure o backend SMTP e preencha `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` e `DEFAULT_FROM_EMAIL` conforme o serviço utilizado. Mantenha os arquivos `.env` fora do Git.
 
-Para gerar uma chave Fernet:
+No mesmo terminal, aplique as migrações e inicie o Django.
 
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```powershell
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py check
+.\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Aplique as migrações:
-
-```bash
-python manage.py migrate
-```
-
-Valide a configuração:
-
-```bash
-python manage.py check
-```
-
-Inicie o servidor:
-
-```bash
-python manage.py runserver
-```
-
-O Back-End ficará disponível em:
-
-```text
-http://127.0.0.1:8000/
-```
-
-A API utiliza como endereço base:
-
-```text
-http://127.0.0.1:8000/api/
-```
+O Django ficará acessível em `http://localhost:8000/` e a API em `http://localhost:8000/api/`.
 
 ### Front-End
 
-Em outro terminal:
+Crie o arquivo `frontend/.env`. Use a chave pública do mesmo reCAPTCHA configurado no back-end.
 
-```bash
-cd frontend
-```
-
-Instale as dependências:
-
-```bash
-npm install
-```
-
-Crie o arquivo:
-
-```text
-frontend/.env
-```
-
-Exemplo:
-
-```env
-VITE_API_URL=http://127.0.0.1:8000/api
+```dotenv
+VITE_API_URL=http://localhost:8000/api
 VITE_RECAPTCHA_SITE_KEY=sua_chave_publica_recaptcha
 ```
 
-Inicie o Vite:
+Em outro terminal, a partir da raiz do repositório, execute:
 
-```bash
+```powershell
+cd frontend
+npm ci
 npm run dev
 ```
 
-O endereço local normalmente será:
+Abra `http://localhost:5173/` no navegador. Se estiver usando o e-mail no console, copie do terminal do Django o link de confirmação da conta após o cadastro.
 
-```text
-http://localhost:5173/
-```

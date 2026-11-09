@@ -1,662 +1,221 @@
-import { useEffect, useState, type SubmitEvent } from 'react';
-import ConvidarTutor from './ConvidarTutor';
-import CompartilharMateriais from './CompartilharMateriais';
+import { useEffect, useImperativeHandle, useState, type Ref, type SubmitEvent } from 'react';
+import Modal from '../../components/Modal';
+import DetalheEspaco from './DetalheEspaco';
 import PerfilTutor from './PerfilTutor';
-import VisualizarAnotacaoCompartilhada from './VisualizarAnotacaoCompartilhada';
 import {
-  listarMeusEspacos,
-  listarEspacosComoTutor,
-  criarEspaco,
-  listarMateriaisEspaco,
-  listarConvitesRecebidos,
-  aceitarConvite,
-  recusarConvite,
-  listarTutoresEspaco,
-  removerTutorEspaco,
-  type EspacoAcompanhamento,
-  type EspacoParticipando,
-  type MateriaisEspaco,
-  type ConviteRecebido,
-  type TutorEspaco,
+  aceitarConvite, criarEspaco, excluirCanal, listarConvitesRecebidos, listarEspacosComoTutor,
+  listarMeusEspacos, obterMeuPerfilTutor, recusarConvite, renomearCanal,
+  type ConviteRecebido, type EspacoAcompanhamento, type MaterialSelecionado,
 } from './apiAcompanhamento';
+import { ErroApi } from '../../services/apiClient';
 import './Acompanhamento.css';
 
-export default function Acompanhamento() {
-  const [mostrarPerfilTutor, setMostrarPerfilTutor] = useState(false);
+type Tela = { tipo: 'lista' | 'perfil' } |
+  { tipo: 'espaco'; espaco: EspacoAcompanhamento; proprietario: boolean; material?: MaterialSelecionado; abaInicial?: 'duvidas' | 'materiais' };
 
-  const [meusEspacos, setMeusEspacos] =
-    useState<EspacoAcompanhamento[]>([]);
+type AcaoCanal = { tipo: 'criar' } | { tipo: 'editar' | 'excluir'; canal: EspacoAcompanhamento };
 
-  const [participando, setParticipando] =
-    useState<EspacoParticipando[]>([]);
+const titulosCanal = { criar: 'Criar canal', editar: 'Editar canal', excluir: 'Excluir canal' };
 
-  const [convites, setConvites] =
-    useState<ConviteRecebido[]>([]);
+export type NavegacaoAcompanhamento = { voltar: () => void };
 
+export default function Acompanhamento({ ref, onDetalheChange, avisoCanal }: {
+  ref?: Ref<NavegacaoAcompanhamento>;
+  onDetalheChange: (aberto: boolean) => void;
+  avisoCanal?: { id: number; aba: 'duvidas' | 'materiais' };
+}) {
+  const [tela, setTela] = useState<Tela>({ tipo: 'lista' });
+  const [meus, setMeus] = useState<EspacoAcompanhamento[]>([]);
+  const [comoTutor, setComoTutor] = useState<EspacoAcompanhamento[]>([]);
+  const [convites, setConvites] = useState<ConviteRecebido[]>([]);
+  const [perfilExiste, setPerfilExiste] = useState<boolean | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
-
-  const [nomeEspaco, setNomeEspaco] = useState('');
-  const [criando, setCriando] = useState(false);
-  const [erroCriacao, setErroCriacao] = useState('');
-
-  const [espacoSelecionado, setEspacoSelecionado] =
-    useState<number | null>(null);
-
-  const [materiais, setMateriais] =
-    useState<MateriaisEspaco | null>(null);
-
-  const [versaoMateriais, setVersaoMateriais] = useState(0);
-
-  const [carregandoMateriais, setCarregandoMateriais] =
-    useState(false);
-
-  const [erroMateriais, setErroMateriais] = useState('');
-
-  const [anotacaoVisualizadaId, setAnotacaoVisualizadaId] =
-    useState<number | null>(null);
-
-  const [processandoConvite, setProcessandoConvite] =
-    useState<number | null>(null);
-
-  const [erroConvites, setErroConvites] = useState('');
-
-  const [tutores, setTutores] = useState<TutorEspaco[]>([]);
-
-  const [carregandoTutores, setCarregandoTutores] =
-    useState(false);
-
-  const [erroTutores, setErroTutores] = useState('');
-
-  const [removendoTutorId, setRemovendoTutorId] =
-    useState<number | null>(null);
-
-  const [erroRemocaoTutor, setErroRemocaoTutor] = useState('');
-
-  const ehProprietarioDoEspaco = meusEspacos.some(
-    (espaco) => espaco.id === espacoSelecionado
-  );
+  const [tentarNovamente, setTentarNovamente] = useState(0);
+  const [acaoCanal, setAcaoCanal] = useState<AcaoCanal | null>(null);
+  const [nome, setNome] = useState('');
+  const [salvandoCanal, setSalvandoCanal] = useState(false);
+  const [erroCanal, setErroCanal] = useState('');
+  const [canalIndisponivel, setCanalIndisponivel] = useState(false);
+  const [mensagemPerfil, setMensagemPerfil] = useState('');
+  const [respondendo, setRespondendo] = useState(false);
+  const [erroConvite, setErroConvite] = useState('');
+  const emDetalhe = tela.tipo !== 'lista';
 
   useEffect(() => {
-    let ativo = true;
+    onDetalheChange(emDetalhe);
+    return () => onDetalheChange(false);
+  }, [emDetalhe, onDetalheChange]);
 
-    Promise.all([
-      listarMeusEspacos(),
-      listarEspacosComoTutor(),
-      listarConvitesRecebidos(),
-    ])
-      .then(([meus, outros, recebidos]) => {
-        if (!ativo) return;
-
-        setMeusEspacos(meus);
-        setParticipando(outros);
-        setConvites(recebidos);
-      })
-      .catch((error) => {
-        if (ativo) {
-          setErro(
-            error instanceof Error
-              ? error.message
-              : 'Não foi possível carregar o acompanhamento.'
-          );
-        }
-      })
-      .finally(() => {
-        if (ativo) {
-          setCarregando(false);
-        }
-      });
-
-    return () => {
-      ativo = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (espacoSelecionado === null) {
-      setMateriais(null);
-      return;
-    }
-
-    let ativo = true;
-
-    setCarregandoMateriais(true);
-    setMateriais(null);
-    setErroMateriais('');
-
-    listarMateriaisEspaco(espacoSelecionado)
-      .then((dados) => {
-        if (ativo) {
-          setMateriais(dados);
-        }
-      })
-      .catch((error) => {
-        if (ativo) {
-          setErroMateriais(
-            error instanceof Error
-              ? error.message
-              : 'Não foi possível carregar os materiais.'
-          );
-        }
-      })
-      .finally(() => {
-        if (ativo) {
-          setCarregandoMateriais(false);
-        }
-      });
-
-    return () => {
-      ativo = false;
-    };
-  }, [espacoSelecionado, versaoMateriais]);
-
-  useEffect(() => {
-    let ativo = true;
-
-    setTutores([]);
-    setErroTutores('');
-    setErroRemocaoTutor('');
-
-    if (
-      espacoSelecionado === null ||
-      !ehProprietarioDoEspaco
-    ) {
-      setCarregandoTutores(false);
-      return;
-    }
-
-    setCarregandoTutores(true);
-
-    listarTutoresEspaco(espacoSelecionado)
-      .then((dados) => {
-        if (ativo) {
-          setTutores(dados);
-        }
-      })
-      .catch((error) => {
-        if (ativo) {
-          setErroTutores(
-            error instanceof Error
-              ? error.message
-              : 'Não foi possível carregar os tutores.'
-          );
-        }
-      })
-      .finally(() => {
-        if (ativo) {
-          setCarregandoTutores(false);
-        }
-      });
-
-    return () => {
-      ativo = false;
-    };
-  }, [espacoSelecionado, ehProprietarioDoEspaco]);
-
-  function selecionarEspaco(espacoId: number) {
-    setAnotacaoVisualizadaId(null);
-    setEspacoSelecionado(espacoId);
-  }
-
-  async function handleCriarEspaco(
-    event: SubmitEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    const nome = nomeEspaco.trim();
-
-    if (!nome || nome.length > 100 || criando) {
-      return;
-    }
-
-    setCriando(true);
-    setErroCriacao('');
-
-    try {
-      const novoEspaco = await criarEspaco(nome);
-
-      setMeusEspacos((atuais) => [
-        novoEspaco,
-        ...atuais,
-      ]);
-
-      setNomeEspaco('');
-    } catch (error) {
-      setErroCriacao(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível criar o espaço.'
-      );
-    } finally {
-      setCriando(false);
-    }
-  }
-
-  async function handleResponderConvite(
-    conviteId: number,
-    acao: 'aceitar' | 'recusar'
-  ) {
-    if (processandoConvite !== null) {
-      return;
-    }
-
-    setProcessandoConvite(conviteId);
-    setErroConvites('');
-
-    try {
-      if (acao === 'aceitar') {
-        await aceitarConvite(conviteId);
+  useImperativeHandle(ref, () => ({
+    voltar() {
+      if (tela.tipo === 'espaco' && tela.material) {
+        setTela({ ...tela, material: undefined });
       } else {
-        await recusarConvite(conviteId);
+        setTela({ tipo: 'lista' });
       }
+    },
+  }));
 
-      setConvites((atuais) =>
-        atuais.filter(
-          (convite) => convite.id !== conviteId
-        )
-      );
-
-      if (acao === 'aceitar') {
-        try {
-          const atualizados =
-            await listarEspacosComoTutor();
-
-          setParticipando(atualizados);
-        } catch {
-          setErroConvites(
-            'Convite aceito, mas não foi possível atualizar os espaços.'
-          );
+  useEffect(() => {
+    let ativo = true;
+    setCarregando(true);
+    setErro('');
+    const perfil = obterMeuPerfilTutor().then(() => true).catch(erro => {
+      if (erro instanceof ErroApi && erro.status === 404) return false;
+      throw erro;
+    });
+    Promise.all([listarMeusEspacos(), listarEspacosComoTutor(), listarConvitesRecebidos(), perfil])
+      .then(([espacos, acompanhados, recebidos, temPerfil]) => {
+        if (!ativo) return;
+        setMeus(espacos);
+        setComoTutor(acompanhados);
+        setConvites(recebidos);
+        setPerfilExiste(temPerfil);
+        if (avisoCanal) {
+          const canalProprio = espacos.find(canal => canal.id === avisoCanal.id);
+          const canal = canalProprio ?? acompanhados.find(canal => canal.id === avisoCanal.id);
+          setCanalIndisponivel(!canal);
+          if (canal) setTela({
+            tipo: 'espaco', espaco: canal, proprietario: !!canalProprio, abaInicial: avisoCanal.aba,
+          });
         }
-      }
-    } catch (error) {
-      setErroConvites(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível responder ao convite.'
-      );
-    } finally {
-      setProcessandoConvite(null);
-    }
+      })
+      .catch((erro: Error) => { if (ativo) setErro(erro.message); })
+      .finally(() => { if (ativo) setCarregando(false); });
+    return () => { ativo = false; };
+  }, [tentarNovamente, avisoCanal]);
+
+  function abrirAcaoCanal(acao: AcaoCanal) {
+    setNome(acao.tipo === 'criar' ? '' : acao.canal.nome);
+    setErroCanal('');
+    setAcaoCanal(acao);
   }
 
-  async function handleRemoverTutor(tutorId: number) {
-    if (
-      espacoSelecionado === null ||
-      !ehProprietarioDoEspaco ||
-      removendoTutorId !== null
-    ) {
-      return;
-    }
-
-    const confirmado = window.confirm(
-      'Tem certeza de que deseja remover este tutor do espaço?'
-    );
-
-    if (!confirmado) {
-      return;
-    }
-
-    const espacoId = espacoSelecionado;
-
-    setRemovendoTutorId(tutorId);
-    setErroRemocaoTutor('');
-
+  async function confirmarAcaoCanal(evento: SubmitEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (!acaoCanal || salvandoCanal || (acaoCanal.tipo !== 'excluir' && !nome.trim())) return;
+    setSalvandoCanal(true);
+    setErroCanal('');
     try {
-      await removerTutorEspaco(espacoId, tutorId);
-
-      setTutores((atuais) =>
-        atuais.filter(
-          (tutor) => tutor.tutor_id !== tutorId
-        )
-      );
-    } catch (error) {
-      setErroRemocaoTutor(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível remover o tutor.'
-      );
+      if (acaoCanal.tipo === 'criar') {
+        const canal = await criarEspaco(nome.trim());
+        setMeus(atuais => [canal, ...atuais]);
+        setTela({ tipo: 'espaco', espaco: canal, proprietario: true });
+      } else if (acaoCanal.tipo === 'editar') {
+        const canal = await renomearCanal(acaoCanal.canal.id, nome.trim());
+        setMeus(atuais => atuais.map(item => item.id === canal.id ? canal : item));
+      } else {
+        await excluirCanal(acaoCanal.canal.id);
+        setMeus(atuais => atuais.filter(item => item.id !== acaoCanal.canal.id));
+      }
+      setAcaoCanal(null);
+    } catch (erro) {
+      setErroCanal(erro instanceof Error ? erro.message : 'Não foi possível concluir a ação.');
     } finally {
-      setRemovendoTutorId(null);
+      setSalvandoCanal(false);
     }
   }
 
-  if (carregando) {
-    return (
-      <section className="acompanhamento-page">
-        <p role="status">
-          Carregando acompanhamento...
-        </p>
-      </section>
-    );
+  async function responder(id: number, aceitar: boolean) {
+    if (respondendo) return;
+    setRespondendo(true);
+    setErroConvite('');
+    try {
+      await (aceitar ? aceitarConvite(id) : recusarConvite(id));
+      setConvites(atuais => atuais.filter(convite => convite.id !== id));
+      if (aceitar) setComoTutor(await listarEspacosComoTutor());
+    } catch (erro) {
+      setErroConvite(erro instanceof Error ? erro.message : 'Não foi possível atualizar os convites.');
+    } finally {
+      setRespondendo(false);
+    }
   }
 
-  if (erro) {
-    return (
-      <section className="acompanhamento-page">
-        <p role="alert">{erro}</p>
-      </section>
-    );
+  function listarEspacos(espacos: EspacoAcompanhamento[], proprietario: boolean) {
+    return <div className="acompanhamento-grade">
+      {espacos.map(espaco => (
+        <article className="acompanhamento-card" key={espaco.id}>
+          <h3>{espaco.nome}</h3>
+          <div className="acompanhamento-acoes">
+            <button type="button" onClick={() => setTela({ tipo: 'espaco', espaco, proprietario })}>Abrir</button>
+            {proprietario && <>
+              <button type="button" onClick={() => abrirAcaoCanal({ tipo: 'editar', canal: espaco })}>Editar</button>
+              <button type="button" className="is-danger"
+                onClick={() => abrirAcaoCanal({ tipo: 'excluir', canal: espaco })}>Excluir</button>
+            </>}
+          </div>
+        </article>
+      ))}
+    </div>;
   }
 
-  if (mostrarPerfilTutor) {
-    return (
-      <div className="perfil-tutor-visualizacao">
-        <button
-          type="button"
-          className="perfil-tutor-voltar"
-          onClick={() => setMostrarPerfilTutor(false)}
-        >
-          ← Voltar ao acompanhamento
-        </button>
+  if (tela.tipo === 'perfil') {
+    return <PerfilTutor onSalvo={() => {
+      setPerfilExiste(true);
+      setMensagemPerfil('Perfil de tutor salvo.');
+      setTela(atual => atual.tipo === 'perfil' ? { tipo: 'lista' } : atual);
+    }} />;
+  }
 
-        <PerfilTutor />
+  if (tela.tipo === 'espaco') {
+    return <DetalheEspaco key={tela.espaco.id} espaco={tela.espaco} proprietario={tela.proprietario}
+      material={tela.material} abaInicial={tela.abaInicial} onAbrirMaterial={material => setTela({ ...tela, material })} />;
+  }
+
+  return <section className="acompanhamento-page" aria-label="Acompanhamento">
+    <div className="acompanhamento-acoes acompanhamento-titulo">
+      <h2>Meus canais</h2>
+      <div className="acompanhamento-acoes">
+        <button type="button" className="is-primary" disabled={carregando || !!erro}
+          onClick={() => abrirAcaoCanal({ tipo: 'criar' })}>Criar canal</button>
+        {perfilExiste !== null && <button type="button" onClick={() => { setMensagemPerfil(''); setTela({ tipo: 'perfil' }); }}>
+          {perfilExiste ? 'Meu perfil de tutor' : 'Tornar-se tutor'}
+        </button>}
       </div>
-    );
-  }
-
-  return (
-    <section className="acompanhamento-page">
-      <button
-        type="button"
-        className="acompanhamento-abrir-perfil"
-        onClick={() => setMostrarPerfilTutor(true)}
-      >
-        Meu perfil de tutor
-      </button>
-
-      <h2>Criar espaço de acompanhamento</h2>
-
-      <form onSubmit={handleCriarEspaco}>
-        <input
-          type="text"
-          value={nomeEspaco}
-          onChange={(event) =>
-            setNomeEspaco(event.target.value)
-          }
-          placeholder="Nome do espaço"
-          maxLength={100}
-          required
-          aria-label="Nome do espaço"
-        />
-
-        <button
-          type="submit"
-          disabled={criando}
-        >
-          {criando ? 'Criando...' : 'Criar espaço'}
+    </div>
+    {canalIndisponivel && <p role="status">O canal desta notificação não está mais disponível.</p>}
+    {mensagemPerfil && <p role="status">{mensagemPerfil}</p>}
+    {carregando && <p role="status">Carregando acompanhamento…</p>}
+    {erro && <p role="alert">{erro} <button type="button" onClick={() => setTentarNovamente(n => n + 1)}>Tentar novamente</button></p>}
+    {!carregando && !erro && <>
+      {meus.length ? listarEspacos(meus, true) : <p>Nenhum vínculo com tutor atualmente. Crie um canal para convidar um tutor.</p>}
+      {(perfilExiste || comoTutor.length > 0 || convites.length > 0) && <>
+        <h2>Canais que acompanho</h2>
+        {comoTutor.length ? listarEspacos(comoTutor, false) : <p>Você ainda não acompanha estudantes.</p>}
+        <h2>Convites recebidos</h2>
+        {erroConvite && <p role="alert">{erroConvite}</p>}
+        {convites.length === 0 ? <p>Nenhum convite pendente.</p> : <div className="acompanhamento-grade">
+          {convites.map(convite => <article className="acompanhamento-card" key={convite.id}>
+            <h3>{convite.espaco_nome}</h3>
+            <div className="acompanhamento-acoes">
+              <button type="button" disabled={respondendo} onClick={() => void responder(convite.id, true)}>Aceitar</button>
+              <button type="button" disabled={respondendo} onClick={() => void responder(convite.id, false)}>Recusar</button>
+            </div>
+          </article>)}
+        </div>}
+      </>}
+    </>}
+    {acaoCanal && <Modal title={titulosCanal[acaoCanal.tipo]} onClose={() => setAcaoCanal(null)} busy={salvandoCanal} actions={
+      <div className="acompanhamento-acoes">
+        <button type="submit" form="acao-canal-acompanhamento" disabled={salvandoCanal}
+          className={acaoCanal.tipo === 'excluir' ? 'is-danger' : 'is-primary'}>
+          {acaoCanal.tipo === 'editar' ? 'Salvar alterações' : titulosCanal[acaoCanal.tipo]}
         </button>
+        <button type="button" onClick={() => setAcaoCanal(null)} disabled={salvandoCanal}>Cancelar</button>
+      </div>
+    }>
+      <form id="acao-canal-acompanhamento" onSubmit={confirmarAcaoCanal}>
+        {acaoCanal.tipo === 'excluir' ? <p>
+          Excluir <strong>{acaoCanal.canal.nome}</strong> apaga as conversas e encerra o acesso dos tutores.
+          As anotações e os mapas originais continuam na sua biblioteca.
+        </p> : <>
+          {acaoCanal.tipo === 'criar' && <p>Apenas você e os tutores que aceitarem seu convite terão acesso ao canal.</p>}
+          <label>Nome do canal<input value={nome} onChange={e => setNome(e.target.value)}
+            required maxLength={100} disabled={salvandoCanal} /></label>
+        </>}
       </form>
-
-      {erroCriacao && (
-        <p role="alert">
-          {erroCriacao}
-        </p>
-      )}
-
-      <h2>Meus espaços</h2>
-
-      {meusEspacos.length === 0 ? (
-        <p>
-          Você ainda não criou espaços de acompanhamento.
-        </p>
-      ) : (
-        <ul>
-          {meusEspacos.map((espaco) => (
-            <li key={espaco.id}>
-              <button
-                type="button"
-                onClick={() =>
-                  selecionarEspaco(espaco.id)
-                }
-                aria-pressed={
-                  espacoSelecionado === espaco.id
-                }
-              >
-                {espaco.nome}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h2>Espaços que acompanho</h2>
-
-      {participando.length === 0 ? (
-        <p>
-          Você ainda não participa de nenhum espaço.
-        </p>
-      ) : (
-        <ul>
-          {participando.map((espaco) => (
-            <li key={espaco.id}>
-              <button
-                type="button"
-                onClick={() =>
-                  selecionarEspaco(espaco.id)
-                }
-                aria-pressed={
-                  espacoSelecionado === espaco.id
-                }
-              >
-                {espaco.nome}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h2>Convites recebidos</h2>
-
-      {convites.length === 0 ? (
-        <p>
-          Você não possui convites pendentes.
-        </p>
-      ) : (
-        <ul>
-          {convites.map((convite) => (
-            <li key={convite.id}>
-              <p>
-                Espaço: {convite.espaco_nome}
-              </p>
-
-              <button
-                type="button"
-                disabled={processandoConvite !== null}
-                onClick={() =>
-                  handleResponderConvite(
-                    convite.id,
-                    'aceitar'
-                  )
-                }
-              >
-                {processandoConvite === convite.id
-                  ? 'Processando...'
-                  : 'Aceitar'}
-              </button>
-
-              <button
-                type="button"
-                disabled={processandoConvite !== null}
-                onClick={() =>
-                  handleResponderConvite(
-                    convite.id,
-                    'recusar'
-                  )
-                }
-              >
-                Recusar
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {erroConvites && (
-        <p role="alert">
-          {erroConvites}
-        </p>
-      )}
-
-      {espacoSelecionado !== null && (
-        <section>
-          {ehProprietarioDoEspaco && (
-            <>
-              <div className="acompanhamento-convite-aprimorado">
-                <ConvidarTutor
-                  key={`convidar-${espacoSelecionado}`}
-                  espacoId={espacoSelecionado}
-                />
-              </div>
-
-              <CompartilharMateriais
-                key={`compartilhar-${espacoSelecionado}`}
-                espacoId={espacoSelecionado}
-                onCompartilhado={() =>
-                  setVersaoMateriais(
-                    (atual) => atual + 1
-                  )
-                }
-              />
-
-              <h2>Tutores do espaço</h2>
-
-              {carregandoTutores && (
-                <p role="status">
-                  Carregando tutores...
-                </p>
-              )}
-
-              {erroTutores && (
-                <p role="alert">
-                  {erroTutores}
-                </p>
-              )}
-
-              {erroRemocaoTutor && (
-                <p role="alert">
-                  {erroRemocaoTutor}
-                </p>
-              )}
-
-              {!carregandoTutores &&
-                !erroTutores &&
-                (
-                  tutores.length === 0 ? (
-                    <p>
-                      Este espaço ainda não possui tutores ativos.
-                    </p>
-                  ) : (
-                    <ul>
-                      {tutores.map((tutor) => (
-                        <li key={tutor.participacao_id}>
-                          <span>
-                            {tutor.nome_apresentacao}
-                          </span>
-
-                          <button
-                            type="button"
-                            disabled={removendoTutorId !== null}
-                            onClick={() =>
-                              handleRemoverTutor(
-                                tutor.tutor_id
-                              )
-                            }
-                          >
-                            {removendoTutorId === tutor.tutor_id
-                              ? 'Removendo...'
-                              : 'Remover tutor'}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )
-                )}
-            </>
-          )}
-
-          <h2>Materiais compartilhados</h2>
-
-          {carregandoMateriais && (
-            <p role="status">
-              Carregando materiais...
-            </p>
-          )}
-
-          {erroMateriais && (
-            <p role="alert">
-              {erroMateriais}
-            </p>
-          )}
-
-          {materiais && (
-            <>
-              <h3>Anotações</h3>
-
-              {materiais.anotacoes.length === 0 ? (
-                <p>
-                  Nenhuma anotação compartilhada.
-                </p>
-              ) : (
-                <ul>
-                  {materiais.anotacoes.map((anotacao) => (
-                    <li
-                      key={anotacao.id}
-                      className="acompanhamento-material-item"
-                    >
-                      <span className="acompanhamento-material-titulo">
-                        {anotacao.titulo}
-                      </span>
-
-                      <button
-                        type="button"
-                        className="acompanhamento-material-visualizar"
-                        onClick={() =>
-                          setAnotacaoVisualizadaId(
-                            anotacao.id
-                          )
-                        }
-                      >
-                        Visualizar
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {anotacaoVisualizadaId !== null && (
-                <VisualizarAnotacaoCompartilhada
-                  key={anotacaoVisualizadaId}
-                  anotacaoId={anotacaoVisualizadaId}
-                  onFechar={() =>
-                    setAnotacaoVisualizadaId(null)
-                  }
-                />
-              )}
-
-              <h3>Mapas mentais</h3>
-
-              {materiais.mapas.length === 0 ? (
-                <p>
-                  Nenhum mapa mental compartilhado.
-                </p>
-              ) : (
-                <ul>
-                  {materiais.mapas.map((mapa) => (
-                    <li
-                      key={mapa.id}
-                      className="acompanhamento-material-item"
-                    >
-                      <span className="acompanhamento-material-titulo">
-                        {mapa.titulo}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </section>
-      )}
-    </section>
-  );
+      {erroCanal && <p role="alert">{erroCanal}</p>}
+    </Modal>}
+  </section>;
 }

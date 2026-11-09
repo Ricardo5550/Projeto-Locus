@@ -2,20 +2,24 @@ import { useEffect, useState, type SubmitEvent } from 'react';
 import { ErroApi } from '../../services/apiClient';
 import {
   obterMeuPerfilTutor,
+  areasTutor,
   criarPerfilTutor,
   atualizarPerfilTutor,
   type DadosPerfilTutor,
+  type FormacaoTutor,
 } from './apiAcompanhamento';
 import './PerfilTutor.css';
 
 const dadosIniciais: DadosPerfilTutor = {
   nome_apresentacao: '',
   descricao: '',
+  area: '',
+  formacoes: [],
   visibilidade: 'privado',
-  ativo: false,
+  ativo: true,
 };
 
-export default function PerfilTutor() {
+export default function PerfilTutor({ onSalvo }: { onSalvo: () => void }) {
   const [dados, setDados] = useState<DadosPerfilTutor>(
     dadosIniciais
   );
@@ -25,7 +29,6 @@ export default function PerfilTutor() {
   const [salvando, setSalvando] = useState(false);
 
   const [erro, setErro] = useState('');
-  const [mensagem, setMensagem] = useState('');
 
   useEffect(() => {
     let ativo = true;
@@ -39,6 +42,8 @@ export default function PerfilTutor() {
         setDados({
           nome_apresentacao: perfil.nome_apresentacao,
           descricao: perfil.descricao ?? '',
+          area: perfil.area ?? '',
+          formacoes: perfil.formacoes,
           visibilidade: perfil.visibilidade,
           ativo: perfil.ativo,
         });
@@ -77,8 +82,13 @@ export default function PerfilTutor() {
       [campo]: valor,
     }));
 
-    setMensagem('');
     setErro('');
+  }
+
+  function atualizarFormacao(indice: number, campo: keyof FormacaoTutor, valor: string) {
+    atualizarCampo('formacoes', dados.formacoes.map((formacao, posicao) =>
+      posicao === indice ? { ...formacao, [campo]: valor } : formacao
+    ));
   }
 
   async function salvarPerfil(
@@ -97,33 +107,25 @@ export default function PerfilTutor() {
 
     setSalvando(true);
     setErro('');
-    setMensagem('');
 
     const dadosEnviar: DadosPerfilTutor = {
       ...dados,
       nome_apresentacao: nome,
       descricao: dados.descricao.trim(),
+      formacoes: dados.formacoes.map(formacao => ({
+        titulo: formacao.titulo.trim(),
+        instituicao: formacao.instituicao.trim(),
+        link_comprovante: formacao.link_comprovante.trim(),
+      })),
     };
 
     try {
-      const perfil = possuiPerfil
-        ? await atualizarPerfilTutor(dadosEnviar)
-        : await criarPerfilTutor(dadosEnviar);
-
-      setDados({
-        nome_apresentacao: perfil.nome_apresentacao,
-        descricao: perfil.descricao ?? '',
-        visibilidade: perfil.visibilidade,
-        ativo: perfil.ativo,
-      });
-
-      setPossuiPerfil(true);
-
-      setMensagem(
-        possuiPerfil
-          ? 'Perfil de tutor atualizado com sucesso.'
-          : 'Perfil de tutor criado com sucesso.'
-      );
+      if (possuiPerfil) {
+        await atualizarPerfilTutor(dadosEnviar);
+      } else {
+        await criarPerfilTutor(dadosEnviar);
+      }
+      onSalvo();
     } catch (error) {
       setErro(
         error instanceof Error
@@ -146,7 +148,7 @@ export default function PerfilTutor() {
   return (
     <section className="perfil-tutor-page">
       <header className="perfil-tutor-header">
-        <h2>Meu perfil de tutor</h2>
+        <h2>{possuiPerfil ? 'Meu perfil de tutor' : 'Tornar-se tutor'}</h2>
 
         <p>
           Configure como seu perfil será apresentado
@@ -157,12 +159,6 @@ export default function PerfilTutor() {
       {erro && (
         <p className="perfil-tutor-erro" role="alert">
           {erro}
-        </p>
-      )}
-
-      {mensagem && (
-        <p className="perfil-tutor-sucesso" role="status">
-          {mensagem}
         </p>
       )}
 
@@ -206,9 +202,53 @@ export default function PerfilTutor() {
               )
             }
             placeholder="Conte um pouco sobre sua experiência e suas áreas de conhecimento."
+            maxLength={1000}
             rows={5}
           />
         </div>
+
+        <div className="perfil-tutor-campo">
+          <label htmlFor="tutor-area">Área de proficiência</label>
+          <select id="tutor-area" value={dados.area}
+            onChange={event => atualizarCampo('area', event.target.value as DadosPerfilTutor['area'])}>
+            <option value="">Selecionar área</option>
+            {Object.entries(areasTutor).map(([valor, rotulo]) => <option key={valor} value={valor}>{rotulo}</option>)}
+          </select>
+        </div>
+
+        <section className="perfil-tutor-formacoes" aria-labelledby="tutor-formacoes">
+          <h3 id="tutor-formacoes">Formação e cursos (opcional)</h3>
+          <p>Adicione uma entrada para cada formação ou curso que quiser exibir no seu perfil.</p>
+          {dados.formacoes.map((formacao, indice) => (
+            <fieldset className="perfil-tutor-formacao" key={indice} disabled={salvando}>
+              <legend>Formação ou curso {indice + 1}</legend>
+              <div className="perfil-tutor-campo">
+                <label htmlFor={`tutor-formacao-${indice}`}>Nome da formação ou curso</label>
+                <input id={`tutor-formacao-${indice}`} value={formacao.titulo} maxLength={200} required
+                  onChange={event => atualizarFormacao(indice, 'titulo', event.target.value)} />
+              </div>
+              <div className="perfil-tutor-campo">
+                <label htmlFor={`tutor-instituicao-${indice}`}>Instituição (opcional)</label>
+                <input id={`tutor-instituicao-${indice}`} value={formacao.instituicao} maxLength={200}
+                  onChange={event => atualizarFormacao(indice, 'instituicao', event.target.value)} />
+              </div>
+              <div className="perfil-tutor-campo">
+                <label htmlFor={`tutor-link-${indice}`}>Link do diploma ou certificado (opcional)</label>
+                <input id={`tutor-link-${indice}`} type="url" value={formacao.link_comprovante} maxLength={500}
+                  onChange={event => atualizarFormacao(indice, 'link_comprovante', event.target.value)} />
+              </div>
+              <button type="button" className="perfil-tutor-acao-secundaria" aria-label={`Remover formação ou curso ${indice + 1}`}
+                onClick={() => atualizarCampo('formacoes', dados.formacoes.filter((_, posicao) => posicao !== indice))}>
+                Remover
+              </button>
+            </fieldset>
+          ))}
+          <button type="button" className="perfil-tutor-acao-secundaria" disabled={salvando || dados.formacoes.length >= 20}
+            onClick={() => atualizarCampo('formacoes', [...dados.formacoes, { titulo: '', instituicao: '', link_comprovante: '' }])}>
+            Adicionar formação ou curso
+          </button>
+          {dados.formacoes.length >= 20 && <p>Limite de 20 entradas atingido.</p>}
+        </section>
 
         <div className="perfil-tutor-campo">
           <label htmlFor="tutor-visibilidade">
@@ -235,8 +275,7 @@ export default function PerfilTutor() {
           </select>
 
           <small>
-            Perfis públicos e ativos podem aparecer
-            na pesquisa de tutores do Locus.
+            Perfis públicos aparecem na pesquisa quando ativos. Para convidar um perfil privado, o estudante precisa saber o nome de usuário exato.
           </small>
         </div>
 

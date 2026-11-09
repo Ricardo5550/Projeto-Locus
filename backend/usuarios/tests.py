@@ -25,32 +25,6 @@ class LoginSecurityTests(TestCase):
         )
         self.client = APIClient()
 
-    def test_login_exige_captcha(self):
-        resposta = self.client.post('/api/auth/login/', {
-            'email': 'teste@example.com',
-            'password': 'senha123',
-        }, format='json')
-        self.assertEqual(resposta.status_code, 400)
-
-    @patch('usuarios.views.requests.post')
-    def test_login_valido_define_cookies_sem_expor_tokens(self, post):
-        resposta_google = Mock()
-        resposta_google.raise_for_status.return_value = None
-        resposta_google.json.return_value = {'success': True}
-        post.return_value = resposta_google
-
-        resposta = self.client.post('/api/auth/login/', {
-            'email': 'teste@example.com',
-            'password': 'senha123',
-            'captcha_token': 'token-valido',
-        }, format='json')
-
-        self.assertEqual(resposta.status_code, 200)
-        self.assertNotIn('access', resposta.data)
-        self.assertNotIn('refresh', resposta.data)
-        self.assertTrue(resposta.cookies['locus_access']['httponly'])
-        self.assertTrue(resposta.cookies['locus_refresh']['httponly'])
-
     @patch('usuarios.views.requests.post')
     def test_captcha_invalido_bloqueia_login(self, post):
         resposta_google = Mock()

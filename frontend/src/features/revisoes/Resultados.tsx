@@ -243,32 +243,6 @@ export default function Resultados() {
                   O gráfico liga os dias em que houve revisão. Nos dias sem
                   revisão, não há valor registrado.
                 </p>
-
-                <details>
-                  <summary>Consultar valores da linha do tempo</summary>
-
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Data</th>
-                        <th>Acertos</th>
-                        <th>Respostas</th>
-                        <th>Taxa</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {linha.map(ponto => (
-                        <tr key={ponto.data}>
-                          <td>{ponto.data}</td>
-                          <td>{ponto.acertos}</td>
-                          <td>{ponto.total}</td>
-                          <td>{pct(ponto.acertos, ponto.total).toFixed(1)}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </details>
               </>
             )}
           </article>

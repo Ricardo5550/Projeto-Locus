@@ -1,134 +1,46 @@
 import { useEffect, useState } from 'react';
-import {
-  obterAnotacaoCompartilhada,
-  type AnotacaoCompartilhadaDetalhe,
-} from './apiAcompanhamento';
+import { EditorContent, useEditor } from '@tiptap/react';
+import type { JSONContent } from '@tiptap/core';
+import { extensoesAnotacao } from '../anotacoes/extensoesAnotacao';
+import { obterAnotacaoCompartilhada, obterAnotacaoDoMapa, type AnotacaoCompartilhadaDetalhe } from './apiAcompanhamento';
 
-type Props = {
-  anotacaoId: number;
-  onFechar: () => void;
-};
+function AnotacaoLeitura({ conteudo }: { conteudo: unknown }) {
+  const [invalida, setInvalida] = useState(false);
+  const editor = useEditor({
+    extensions: extensoesAnotacao(),
+    editable: false,
+    enableContentCheck: true,
+    content: conteudo as JSONContent,
+    onContentError: () => setInvalida(true),
+  });
 
-type NoAnotacao = {
-  type?: string;
-  text?: string;
-  content?: NoAnotacao[];
-};
-
-function extrairTexto(conteudo: unknown): string {
-  if (!conteudo || typeof conteudo !== 'object') {
-    return '';
-  }
-
-  const no = conteudo as NoAnotacao;
-
-  if (no.type === 'text') {
-    return no.text ?? '';
-  }
-
-  if (no.type === 'hardBreak') {
-    return '\n';
-  }
-
-  const filhos = Array.isArray(no.content)
-    ? no.content
-    : [];
-
-  const texto = filhos
-    .map((filho) => extrairTexto(filho))
-    .join('');
-
-  if (
-    no.type === 'paragraph' ||
-    no.type === 'heading' ||
-    no.type === 'listItem'
-  ) {
-    return `${texto}\n`;
-  }
-
-  return texto;
+  if (invalida) return <p role="alert">Esta anotação contém formatação que não pode ser exibida.</p>;
+  if (editor?.isEmpty) return <p>Esta anotação está vazia.</p>;
+  return <EditorContent editor={editor} className="acompanhamento-anotacao" />;
 }
 
-export default function VisualizarAnotacaoCompartilhada({
-  anotacaoId,
-  onFechar,
-}: Props) {
-  const [anotacao, setAnotacao] =
-    useState<AnotacaoCompartilhadaDetalhe | null>(null);
-
-  const [carregando, setCarregando] = useState(true);
+export default function VisualizarAnotacaoCompartilhada({ anotacaoId, espacoId, mapaId }: {
+  anotacaoId: number;
+  espacoId?: number;
+  mapaId?: number;
+}) {
+  const [anotacao, setAnotacao] = useState<AnotacaoCompartilhadaDetalhe | null>(null);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
     let ativo = true;
+    const pedido = espacoId !== undefined && mapaId !== undefined
+      ? obterAnotacaoDoMapa(espacoId, mapaId, anotacaoId)
+      : obterAnotacaoCompartilhada(anotacaoId);
+    pedido
+      .then(dados => { if (ativo) setAnotacao(dados); })
+      .catch((erro: Error) => { if (ativo) setErro(erro.message); });
+    return () => { ativo = false; };
+  }, [anotacaoId, espacoId, mapaId]);
 
-    setCarregando(true);
-    setErro('');
-    setAnotacao(null);
-
-    obterAnotacaoCompartilhada(anotacaoId)
-      .then((dados) => {
-        if (ativo) {
-          setAnotacao(dados);
-        }
-      })
-      .catch((error) => {
-        if (ativo) {
-          setErro(
-            error instanceof Error
-              ? error.message
-              : 'Não foi possível carregar a anotação.'
-          );
-        }
-      })
-      .finally(() => {
-        if (ativo) {
-          setCarregando(false);
-        }
-      });
-
-    return () => {
-      ativo = false;
-    };
-  }, [anotacaoId]);
-
-  return (
-    <section className="visualizar-anotacao-compartilhada">
-      <header className="visualizar-anotacao-cabecalho">
-        <h2>Visualizar anotação</h2>
-
-        <button
-          type="button"
-          onClick={onFechar}
-        >
-          Voltar aos materiais
-        </button>
-      </header>
-
-      {carregando && (
-        <p role="status">
-          Carregando anotação...
-        </p>
-      )}
-
-      {erro && (
-        <p role="alert">
-          {erro}
-        </p>
-      )}
-
-      {!carregando && !erro && anotacao && (
-        <article className="visualizar-anotacao-conteudo">
-          <h3>{anotacao.titulo}</h3>
-
-          <div className="visualizar-anotacao-texto">
-            <p style={{ whiteSpace: 'pre-wrap' }}>
-              {extrairTexto(anotacao.conteudo).trim() ||
-                'Esta anotação não possui conteúdo textual.'}
-            </p>
-          </div>
-        </article>
-      )}
-    </section>
-  );
+  return <section className="visualizar-anotacao-compartilhada" aria-label="Anotação em modo de leitura">
+    {erro && <p role="alert">{erro}</p>}
+    {!anotacao && !erro && <p role="status">Carregando anotação…</p>}
+    {anotacao && <AnotacaoLeitura conteudo={anotacao.conteudo} />}
+  </section>;
 }

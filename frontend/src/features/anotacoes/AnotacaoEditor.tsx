@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import Image from '@tiptap/extension-image';
-import Typography from '@tiptap/extension-typography';
-import { TextStyle } from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
-import FontFamily from '@tiptap/extension-font-family';
-import TextAlign from '@tiptap/extension-text-align';
+import { extensoesAnotacao } from './extensoesAnotacao';
 
 import AnotacaoHeader from './AnotacaoHeader';
 import AnotacaoToolbar from './AnotacaoToolbar';
@@ -83,16 +76,7 @@ export default function AnotacaoEditor({
   const [relationshipTitle, setRelationshipTitle] = useState('');
 
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Image.configure({ allowBase64: true }),
-      Typography,
-      TextStyle,
-      Color,
-      FontFamily,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    ],
+    extensions: extensoesAnotacao(),
     content: CONTEUDO_ANOTACAO_VAZIA,
     onUpdate: () => setDirty(true),
     onSelectionUpdate: ({ editor: activeEditor }) => {

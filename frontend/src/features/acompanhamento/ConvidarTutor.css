@@ -1,0 +1,100 @@
+.convite-tutor {
+  overflow-wrap: anywhere;
+}
+
+.locus-modal .convite-tutor__busca {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.convite-tutor__busca input {
+  width: 100%;
+  min-width: 0;
+}
+
+.convite-tutor__resultados,
+.convite-tutor__formacoes ul {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.convite-tutor__cartao {
+  padding: 16px;
+  border: 1px solid #ded5ca;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.convite-tutor__cartao h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.convite-tutor__area {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #f1e3d3;
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.convite-tutor__descricao {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+}
+
+.convite-tutor__formacoes h4 {
+  margin: 14px 0 8px;
+  font-size: .9rem;
+}
+
+.convite-tutor__formacoes ul {
+  margin: 0;
+}
+
+.convite-tutor__formacoes li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f5efe7;
+  font-size: .875rem;
+}
+
+.convite-tutor__formacoes span {
+  color: #685646;
+}
+
+.convite-tutor__formacoes a {
+  justify-self: start;
+  color: #5e402b;
+  text-decoration: underline;
+}
+
+.locus-modal button.convite-tutor__convidar {
+  width: 100%;
+  margin-top: 14px;
+  border-color: #5e402b;
+  background: #5e402b;
+  color: #fff;
+  font-weight: 600;
+}
+
+.convite-tutor__direto {
+  margin: 16px 0 12px;
+}
+
+.convite-tutor__direto summary {
+  cursor: pointer;
+}
+
+@media (max-width: 400px) {
+  .locus-modal .convite-tutor__busca {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,3 +1,7 @@
+from collections.abc import Mapping
+
+from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.views import APIView
@@ -5,29 +9,36 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
 from acompanhamento.models import (
-    Convite, 
+    Convite,
     EspacoAcompanhamento,
     PerfilTutor,
     Participacao,
     AnotacaoCompartilhada,
     MapaCompartilhado,
+    MensagemAcompanhamento,
 )
 from acompanhamento.services import (
-    pode_visualizar_anotacao, 
-    pode_visualizar_mapa, 
-    aceitar_convite, 
-    criar_convite, 
-    recusar_convite, 
-    remover_tutor, 
-    compartilhar_anotacao, 
+    pode_visualizar_anotacao,
+    avisar_no_canal,
+    pode_visualizar_mapa,
+    aceitar_convite,
+    criar_convite,
+    recusar_convite,
+    remover_tutor,
+    compartilhar_anotacao,
     compartilhar_mapa,
 )
 from mapas.models import MapaMental
+from mapas.services import anotacoes_vinculadas, blocos
 from anotacoes.models import Anotacao
 from .serializers import (
-    AnotacaoCompartilhadaLeituraSerializer, 
+    CriarConviteSerializer,
+    AnotacaoCompartilhadaLeituraSerializer,
     MapaCompartilhadoLeituraSerializer,
     PerfilTutorSerializer,
+    MensagemAcompanhamentoSerializer,
+    PublicarMensagemSerializer,
+    TextoMensagemSerializer,
 )
 
 # Create your views here.
@@ -50,6 +61,31 @@ class AnotacaoCompartilhadaDetalheView(APIView):
         )
 
         return Response(serializer.data)
+
+class AnotacaoVinculadaAoMapaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk, mapa_id, anotacao_id):
+        canal = get_object_or_404(EspacoAcompanhamento, pk=pk)
+        exigir_acesso_espaco(canal, request.user)
+        compartilhamento = get_object_or_404(
+            MapaCompartilhado.objects.select_related('mapa'),
+            espaco=canal, mapa_id=mapa_id, mapa__autor_id=canal.proprietario_id,
+            mapa__deletado_em__isnull=True,
+        )
+        dados = compartilhamento.mapa.dados
+        ids = anotacoes_vinculadas(dados)
+        if isinstance(dados, dict) and 'views' not in dados:
+            ids.update(
+                bloco['linkedAnnotationId'] for bloco in blocos(dados)
+                if type(bloco.get('linkedAnnotationId')) is int
+            )
+        anotacao = get_object_or_404(
+            Anotacao, pk=anotacao_id, pk__in=ids, autor_id=canal.proprietario_id,
+            deletado_em__isnull=True,
+        )
+        return Response(AnotacaoCompartilhadaLeituraSerializer(anotacao).data)
+
 
 class MapaCompartilhadoDetalheView(APIView):
     permission_classes = [IsAuthenticated]
@@ -94,21 +130,17 @@ class CriarConviteView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        espaco_id = request.data.get('espaco_id')
-        tutor_id = request.data.get('tutor_id')
-
-        if not espaco_id or not tutor_id:
-            raise DRFValidationError("Informe o espaço e o tutor.")
-
-        espaco = get_object_or_404(
-            EspacoAcompanhamento,
-            pk=espaco_id
-        )
-
-        tutor = get_object_or_404(
-            PerfilTutor,
-            pk=tutor_id
-        )
+        serializer = CriarConviteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+        espaco = get_object_or_404(EspacoAcompanhamento, pk=dados['espaco_id'])
+        if espaco.proprietario_id != request.user.pk:
+            raise PermissionDenied("Somente o proprietário pode convidar um tutor.")
+        if 'usuario_tutor' in dados:
+            tutor = get_object_or_404(PerfilTutor, usuario__username=dados['usuario_tutor'],
+                                      ativo=True, usuario__is_active=True)
+        else:
+            tutor = get_object_or_404(PerfilTutor, pk=dados['tutor_id'])
 
         try:
             convite = criar_convite(
@@ -133,6 +165,8 @@ class ConvitesRecebidosView(APIView):
     def get(self, request):
         convites = Convite.objects.filter(
             tutor__usuario=request.user,
+            tutor__ativo=True,
+            espaco__proprietario__is_active=True,
             status='pendente'
         ).select_related(
             'espaco',
@@ -196,28 +230,42 @@ class EspacosAcompanhamentoView(APIView):
         return Response(dados)
 
     def post(self, request):
-        nome = request.data.get('nome')
-
-        if not isinstance(nome, str) or not nome.strip():
-            raise DRFValidationError("Informe um nome válido para o espaco.")
-
-        nome = nome.strip()
-
-        if len(nome) > 100:
-            raise DRFValidationError("O nome deve ter no máximo 100 caracteres.")
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=request.user,
-            nome=nome
+        canal = EspacoAcompanhamento.objects.create(
+            proprietario=request.user, nome=validar_nome_canal(request.data),
         )
+        return Response({'id': canal.pk, 'nome': canal.nome}, status=201)
 
-        return Response(
-            {
-                'id': espaco.pk,
-                'nome': espaco.nome
-            },
-            status=201
+
+def validar_nome_canal(dados):
+    nome = dados.get('nome') if isinstance(dados, Mapping) else None
+    if not isinstance(nome, str) or not nome.strip():
+        raise DRFValidationError("Informe um nome válido para o canal.")
+    nome = nome.strip()
+    if len(nome) > 100:
+        raise DRFValidationError("O nome deve ter no máximo 100 caracteres.")
+    return nome
+
+
+class CanalAcompanhamentoDetalheView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        canal = get_object_or_404(
+            EspacoAcompanhamento.objects.select_for_update(), pk=pk, proprietario=request.user,
         )
+        canal.nome = validar_nome_canal(request.data)
+        canal.save(update_fields=['nome'])
+        return Response({'id': canal.pk, 'nome': canal.nome})
+
+    @transaction.atomic
+    def delete(self, request, pk):
+        canal = get_object_or_404(
+            EspacoAcompanhamento.objects.select_for_update(), pk=pk, proprietario=request.user,
+        )
+        canal.delete()
+        return Response(status=204)
+
 
 class TutoresEspacoView(APIView):
     permission_classes = [IsAuthenticated]
@@ -348,6 +396,8 @@ class EspacosTutorView(APIView):
     def get(self, request):
         participacoes = Participacao.objects.filter(
             tutor__usuario=request.user,
+            tutor__ativo=True,
+            espaco__proprietario__is_active=True,
             ativo=True,
             saiu_em__isnull=True
         ).select_related('espaco').order_by('-entrou_em')
@@ -372,17 +422,7 @@ class MateriaisCompartilhadosEspacoView(APIView):
             pk=pk
         )
 
-        eh_proprietario = espaco.proprietario_id == request.user.pk
-
-        eh_tutor = Participacao.objects.filter(
-            espaco=espaco,
-            tutor__usuario=request.user,
-            ativo=True,
-            saiu_em__isnull=True
-        ).exists()
-
-        if not (eh_proprietario or eh_tutor):
-            raise PermissionDenied("Você não tem permissão para acessar este espaço.")
+        exigir_acesso_espaco(espaco, request.user)
 
         anotacoes = AnotacaoCompartilhada.objects.filter(
             espaco=espaco,
@@ -426,7 +466,9 @@ class TutoresDisponiveisView(APIView):
             ativo=True,
             visibilidade='publico',
             usuario__is_active=True,
-            nome_apresentacao__icontains=busca[:100]
+        ).filter(
+            Q(nome_apresentacao__icontains=busca[:100]) |
+            Q(area__in=[area.value for area in PerfilTutor.Area if busca.casefold() in area.label.casefold()])
         ).exclude(
             usuario=request.user
         ).order_by(
@@ -434,7 +476,10 @@ class TutoresDisponiveisView(APIView):
             'pk'
         ).values(
             'id',
-            'nome_apresentacao'
+            'nome_apresentacao',
+            'descricao',
+            'area',
+            'formacoes',
         )[:20]
 
         return Response(list(tutores))
@@ -467,9 +512,12 @@ class PerfilTutorView(APIView):
 
         serializer.is_valid(raise_exception=True)
 
-        perfil = serializer.save(
-            usuario=request.user
+        perfil, criado = PerfilTutor.objects.get_or_create(
+            usuario=request.user,
+            defaults=serializer.validated_data,
         )
+        if not criado:
+            raise DRFValidationError({'detail': 'Você já possui um perfil de tutor.'})
 
         return Response(
             PerfilTutorSerializer(perfil).data,
@@ -496,3 +544,101 @@ class PerfilTutorView(APIView):
             serializer.data,
             status=200
         )
+
+
+def exigir_acesso_espaco(espaco, usuario):
+    if usuario.is_active and espaco.proprietario.is_active and (
+        espaco.proprietario_id == usuario.pk or Participacao.objects.filter(
+            espaco=espaco, tutor__usuario=usuario, tutor__ativo=True,
+            ativo=True, saiu_em__isnull=True,
+        ).exists()
+    ):
+        return
+    raise PermissionDenied("Você não tem permissão para acessar este canal.")
+
+
+class MensagensAcompanhamentoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def contexto(self, request, pk, tipo_material='', material_id=None, *, bloquear=False):
+        espacos = EspacoAcompanhamento.objects.all()
+        if bloquear:
+            espacos = espacos.select_for_update()
+        espaco = get_object_or_404(espacos, pk=pk)
+        exigir_acesso_espaco(espaco, request.user)
+
+        if tipo_material == MensagemAcompanhamento.Material.ANOTACAO:
+            get_object_or_404(AnotacaoCompartilhada, espaco=espaco, anotacao_id=material_id,
+                              anotacao__deletado_em__isnull=True)
+        elif tipo_material == MensagemAcompanhamento.Material.MAPA:
+            get_object_or_404(MapaCompartilhado, espaco=espaco, mapa_id=material_id,
+                              mapa__deletado_em__isnull=True)
+        elif tipo_material:
+            raise DRFValidationError('Tipo de material inválido.')
+
+        return espaco, MensagemAcompanhamento.objects.filter(
+            espaco=espaco, tipo_material=tipo_material, material_id=material_id,
+        )
+
+    def get(self, request, pk, **material):
+        _, mensagens = self.contexto(request, pk, **material)
+        return Response(MensagemAcompanhamentoSerializer(
+            mensagens.select_related('autor').order_by('id'), many=True, context={'request': request},
+        ).data)
+
+    @transaction.atomic
+    def post(self, request, pk, tipo_material='', material_id=None):
+        espaco, mensagens = self.contexto(request, pk, tipo_material, material_id, bloquear=True)
+        serializer = PublicarMensagemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = serializer.validated_data
+        resposta_a = None
+        if 'resposta_a' in dados:
+            resposta_a = get_object_or_404(mensagens, pk=dados['resposta_a'], resposta_a__isnull=True)
+            if not resposta_a.texto:
+                raise DRFValidationError('Este comentário foi excluído.')
+        elif not tipo_material and espaco.proprietario_id != request.user.pk:
+            raise PermissionDenied('Somente o estudante pode publicar uma dúvida.')
+        mensagem = mensagens.create(
+            espaco=espaco, autor=request.user, tipo_material=tipo_material, material_id=material_id,
+            texto=dados['texto'], resposta_a=resposta_a,
+        )
+        if not tipo_material or request.user.pk != espaco.proprietario_id:
+            if tipo_material:
+                texto_aviso = 'O tutor deixou um comentário em um material do canal.'
+            elif resposta_a:
+                texto_aviso = 'Há uma nova resposta a uma dúvida no canal.'
+            else:
+                texto_aviso = 'O estudante publicou uma dúvida no canal.'
+            avisar_no_canal(espaco, request.user, f'mensagem:{mensagem.pk}', texto_aviso, duvida=not tipo_material)
+        return Response(MensagemAcompanhamentoSerializer(mensagem, context={'request': request}).data, status=201)
+
+
+class ComentarioAcompanhamentoDetalheView(MensagensAcompanhamentoView):
+    http_method_names = ['patch', 'delete', 'options']
+
+    def comentario_do_autor(self, request, pk, tipo_material, material_id, mensagem_id):
+        _, mensagens = self.contexto(request, pk, tipo_material, material_id, bloquear=True)
+        comentario = get_object_or_404(mensagens, pk=mensagem_id, autor=request.user)
+        if not comentario.texto:
+            raise DRFValidationError('Este comentário foi excluído.')
+        return comentario
+
+    @transaction.atomic
+    def patch(self, request, pk, tipo_material, material_id, mensagem_id):
+        comentario = self.comentario_do_autor(request, pk, tipo_material, material_id, mensagem_id)
+        serializer = TextoMensagemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comentario.texto = serializer.validated_data['texto']
+        comentario.save(update_fields=['texto'])
+        return Response(MensagemAcompanhamentoSerializer(comentario, context={'request': request}).data)
+
+    @transaction.atomic
+    def delete(self, request, pk, tipo_material, material_id, mensagem_id):
+        comentario = self.comentario_do_autor(request, pk, tipo_material, material_id, mensagem_id)
+        if comentario.mensagemacompanhamento_set.exists():
+            comentario.texto = ''
+            comentario.save(update_fields=['texto'])
+        else:
+            comentario.delete()
+        return Response(status=204)

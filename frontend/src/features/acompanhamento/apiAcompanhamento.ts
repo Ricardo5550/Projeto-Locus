@@ -33,6 +33,17 @@ export function criarEspaco(
   );
 }
 
+export function renomearCanal(id: number, nome: string): Promise<EspacoAcompanhamento> {
+  return apiJson<EspacoAcompanhamento>(`/acompanhamento/espacos/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ nome }),
+  });
+}
+
+export function excluirCanal(id: number): Promise<void> {
+  return apiSemRetorno(`/acompanhamento/espacos/${id}/`, { method: 'DELETE' });
+}
+
 export type MaterialCompartilhado = {
   id: number;
   titulo: string;
@@ -114,7 +125,7 @@ export type ConviteCriado = {
 
 export function criarConvite(
   espacoId: number,
-  tutorId: number
+  tutor: number | string
 ): Promise<ConviteCriado> {
   return apiJson<ConviteCriado>(
     '/acompanhamento/convites/',
@@ -122,13 +133,14 @@ export function criarConvite(
       method: 'POST',
       body: JSON.stringify({
         espaco_id: espacoId,
-        tutor_id: tutorId,
+        ...(typeof tutor === 'number' ? { tutor_id: tutor } : { usuario_tutor: tutor }),
       }),
     }
   );
 }
 
-export type TutorDisponivel = {
+export type TutorDisponivel = QualificacaoTutor & {
+  descricao: string;
   id: number;
   nome_apresentacao: string;
 };
@@ -179,16 +191,12 @@ export function compartilharMapa(
   );
 }
 
-export type PerfilTutor = {
+export type PerfilTutor = DadosPerfilTutor & {
   id: number;
-  nome_apresentacao: string;
-  descricao: string;
-  visibilidade: 'publico' | 'privado';
-  ativo: boolean;
   criado_em: string;
 };
 
-export type DadosPerfilTutor = {
+export type DadosPerfilTutor = QualificacaoTutor & {
   nome_apresentacao: string;
   descricao: string;
   visibilidade: 'publico' | 'privado';
@@ -245,10 +253,70 @@ export function obterAnotacaoCompartilhada(
   );
 }
 
+export function obterAnotacaoDoMapa(espacoId: number, mapaId: number, anotacaoId: number) {
+  return apiJson<AnotacaoCompartilhadaDetalhe>(
+    `/acompanhamento/espacos/${espacoId}/mapas/${mapaId}/anotacoes/${anotacaoId}/`
+  );
+}
+
 export function obterMapaCompartilhado(
   mapaId: number
 ): Promise<MapaCompartilhadoDetalhe> {
   return apiJson<MapaCompartilhadoDetalhe>(
     `/acompanhamento/mapas/${mapaId}/`
   );
+}
+export type MaterialSelecionado = MaterialCompartilhado & { tipo: 'anotacao' | 'mapa' };
+
+export type MensagemAcompanhamento = {
+  id: number;
+  autor_nome: string;
+  texto: string;
+  criada_em: string;
+  resposta_a: number | null;
+  pode_gerenciar: boolean;
+};
+
+function enderecoMensagens(espacoId: number, material?: MaterialSelecionado) {
+  const base = `/acompanhamento/espacos/${espacoId}/`;
+  return material ? `${base}materiais/${material.tipo}/${material.id}/comentarios/` : `${base}duvidas/`;
+}
+
+export function listarMensagens(espacoId: number, material?: MaterialSelecionado) {
+  return apiJson<MensagemAcompanhamento[]>(enderecoMensagens(espacoId, material));
+}
+
+export function publicarMensagem(espacoId: number, texto: string, resposta_a?: number, material?: MaterialSelecionado) {
+  return apiJson<MensagemAcompanhamento>(enderecoMensagens(espacoId, material), {
+    method: 'POST',
+    body: JSON.stringify({ texto, resposta_a }),
+  });
+}
+
+export const areasTutor = {
+  linguagens: 'Linguagens', matematica: 'Matemática', natureza: 'Ciências da Natureza',
+  humanas: 'Ciências Humanas', educacao: 'Educação', tecnologia: 'Tecnologia',
+  saude: 'Saúde', outras: 'Outras áreas',
+} as const;
+
+type QualificacaoTutor = {
+  area: keyof typeof areasTutor | '';
+  formacoes: FormacaoTutor[];
+};
+
+export type FormacaoTutor = {
+  titulo: string;
+  instituicao: string;
+  link_comprovante: string;
+};
+
+
+export function editarComentario(espacoId: number, material: MaterialSelecionado, id: number, texto: string) {
+  return apiJson<MensagemAcompanhamento>(`${enderecoMensagens(espacoId, material)}${id}/`, {
+    method: 'PATCH', body: JSON.stringify({ texto }),
+  });
+}
+
+export function excluirComentario(espacoId: number, material: MaterialSelecionado, id: number) {
+  return apiSemRetorno(`${enderecoMensagens(espacoId, material)}${id}/`, { method: 'DELETE' });
 }

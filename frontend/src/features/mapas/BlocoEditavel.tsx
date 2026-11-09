@@ -10,6 +10,7 @@ import type { CSSProperties } from 'react';
 import type { DadosBloco, FormatoBloco } from './tiposMapa';
 
 type NoEditavel = Node<DadosBloco, 'editable'>;
+type DadosBlocoLeitura = DadosBloco & { abrirConteudo?: () => void };
 
 type Ponto = {
   x: number;
@@ -176,12 +177,31 @@ function Forma({
   );
 }
 
-export default function BlocoEditavel({
-  id,
-  data,
-  selected,
-}: NodeProps<NoEditavel>) {
+export default function BlocoEditavel({ id, data, selected }: NodeProps<NoEditavel>) {
   const { updateNodeData } = useReactFlow();
+  return <Bloco data={data} selected={selected} onChange={label => updateNodeData(id, { label })} />;
+}
+
+export function BlocoLeitura({ data }: NodeProps<Node<DadosBlocoLeitura, 'leitura'>>) {
+  return <Bloco data={{
+    ...data,
+    shape: data.shape ?? 'square',
+    backgroundColor: data.backgroundColor ?? '#ffffff',
+    borderColor: data.borderColor ?? '#5e402b',
+    borderWidth: data.borderWidth ?? 1,
+    borderRadius: data.borderRadius ?? 0,
+    fontSize: data.fontSize ?? 16,
+    verticalAlign: data.verticalAlign ?? 'center',
+    textAlign: data.textAlign ?? 'center',
+  }} abrirConteudo={data.abrirConteudo} />;
+}
+
+function Bloco({ data, selected = false, onChange, abrirConteudo }: {
+  data: DadosBloco;
+  selected?: boolean;
+  onChange?: (label: string) => void;
+  abrirConteudo?: () => void;
+}) {
   const isText = data.elementKind === 'text';
 
   const textStyle: CSSProperties = {
@@ -198,29 +218,33 @@ export default function BlocoEditavel({
 
   return (
     <div className={`mindmap-block ${isText ? 'is-text' : ''}`}>
-      <NodeResizer
+      {onChange && <NodeResizer
         isVisible={selected}
         minWidth={isText ? 120 : 70}
         minHeight={isText ? 60 : 70}
         keepAspectRatio={false}
         lineClassName="mindmap-resizer__line"
         handleClassName="mindmap-resizer__handle"
-      />
+      />}
 
       {!isText && <Forma data={data} />}
 
       <div className={`mindmap-block__text is-${data.verticalAlign}`}>
-        <textarea
+        {onChange && <textarea
           className="nodrag"
           value={data.label}
-          onChange={(event) =>
-            updateNodeData(id, { label: event.target.value })
-          }
+          onChange={event => onChange(event.target.value)}
           style={textStyle}
           rows={1}
           aria-label="Texto do bloco"
-        />
+        />}
+        <span className="mindmap-block__rotulo" style={textStyle} aria-hidden={onChange ? true : undefined}>
+          {data.label}
+        </span>
       </div>
+
+      {abrirConteudo && <button type="button" className="mindmap-block__abrir nodrag nopan"
+        aria-label={`Abrir ${data.label || 'conteúdo do bloco'}`} onClick={abrirConteudo} />}
 
       {!isText && (
         <Handle
@@ -228,10 +252,10 @@ export default function BlocoEditavel({
           type="source"
           position={Position.Right}
           className="mindmap-block__handle"
-          isConnectable={data.connectionMode}
+          isConnectable={!!onChange && data.connectionMode}
           style={{
-            opacity: data.connectionMode ? 1 : 0,
-            pointerEvents: data.connectionMode ? 'all' : 'none',
+            opacity: onChange && data.connectionMode ? 1 : 0,
+            pointerEvents: onChange && data.connectionMode ? 'all' : 'none',
           }}
         />
       )}

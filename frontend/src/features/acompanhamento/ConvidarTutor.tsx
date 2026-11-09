@@ -1,9 +1,12 @@
 import { useState, type SubmitEvent } from 'react';
 import {
   buscarTutoresDisponiveis,
+  areasTutor,
   criarConvite,
   type TutorDisponivel,
 } from './apiAcompanhamento';
+
+import './ConvidarTutor.css';
 
 type Props = {
   espacoId: number;
@@ -11,9 +14,11 @@ type Props = {
 
 export default function ConvidarTutor({ espacoId }: Props) {
   const [busca, setBusca] = useState('');
+  const [buscaFeita, setBuscaFeita] = useState(false);
+  const [usuario, setUsuario] = useState('');
   const [tutores, setTutores] = useState<TutorDisponivel[]>([]);
   const [buscando, setBuscando] = useState(false);
-  const [convidandoId, setConvidandoId] = useState<number | null>(null);
+  const [convidandoId, setConvidandoId] = useState<number | string | null>(null);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
 
@@ -36,6 +41,7 @@ export default function ConvidarTutor({ espacoId }: Props) {
     try {
       const resultado = await buscarTutoresDisponiveis(busca);
       setTutores(resultado);
+      setBuscaFeita(true);
     } catch (error) {
       setErro(
         error instanceof Error
@@ -47,7 +53,7 @@ export default function ConvidarTutor({ espacoId }: Props) {
     }
   }
 
-  async function handleConvidar(tutorId: number) {
+  async function handleConvidar(tutorId: number | string) {
     if (convidandoId !== null || buscando) return;
 
     setConvidandoId(tutorId);
@@ -61,7 +67,8 @@ export default function ConvidarTutor({ espacoId }: Props) {
         atuais.filter((tutor) => tutor.id !== tutorId)
       );
 
-      setMensagem('Convite enviado com sucesso.');
+      setMensagem('Convite enviado. O acesso será liberado após o aceite.');
+      setUsuario('');
     } catch (error) {
       setErro(
         error instanceof Error
@@ -74,15 +81,15 @@ export default function ConvidarTutor({ espacoId }: Props) {
   }
 
   return (
-    <section>
-      <h2>Convidar tutor</h2>
+    <section className="convite-tutor">
+      <p>Pesquise tutores públicos pelo nome de apresentação ou pela área.</p>
 
-      <form onSubmit={handleBuscar}>
+      <form className="convite-tutor__busca" onSubmit={handleBuscar}>
         <input
           type="search"
           value={busca}
-          onChange={(event) => setBusca(event.target.value)}
-          placeholder="Pesquisar tutor pelo nome"
+          onChange={(event) => { setBusca(event.target.value); setBuscaFeita(false); }}
+          placeholder="Nome ou área de proficiência"
           maxLength={100}
           aria-label="Pesquisar tutor"
           disabled={buscando || convidandoId !== null}
@@ -100,13 +107,27 @@ export default function ConvidarTutor({ espacoId }: Props) {
       {mensagem && <p role="status">{mensagem}</p>}
 
       {tutores.length > 0 && (
-        <ul>
+        <ul className="convite-tutor__resultados" aria-label="Tutores encontrados">
           {tutores.map((tutor) => (
-            <li key={tutor.id}>
-              <span>{tutor.nome_apresentacao}</span>
+            <li className="convite-tutor__cartao" key={tutor.id}>
+              <h3>{tutor.nome_apresentacao}</h3>
+              {tutor.area && <span className="convite-tutor__area">{areasTutor[tutor.area]}</span>}
+              {tutor.descricao && <p className="convite-tutor__descricao">{tutor.descricao}</p>}
+              {tutor.formacoes.length > 0 && <section className="convite-tutor__formacoes">
+                <h4>Formação e cursos</h4>
+                <ul>
+                  {tutor.formacoes.map((formacao, indice) => <li key={indice}>
+                    <strong>{formacao.titulo}</strong>
+                    {formacao.instituicao && <span>{formacao.instituicao}</span>}
+                    {/^https?:\/\//i.test(formacao.link_comprovante) && <a href={formacao.link_comprovante}
+                      target="_blank" rel="noreferrer">Ver diploma ou certificado</a>}
+                  </li>)}
+                </ul>
+              </section>}
 
               <button
                 type="button"
+                className="convite-tutor__convidar"
                 disabled={convidandoId !== null || buscando}
                 onClick={() => handleConvidar(tutor.id)}
               >
@@ -120,12 +141,25 @@ export default function ConvidarTutor({ espacoId }: Props) {
       )}
 
       {!buscando &&
-        busca.trim().length >= 2 &&
+        buscaFeita &&
         tutores.length === 0 &&
         !erro &&
         !mensagem && (
           <p>Nenhum tutor encontrado.</p>
         )}
+
+      <details className="convite-tutor__direto">
+        <summary>Convidar pelo nome de usuário</summary>
+        <form onSubmit={event => {
+          event.preventDefault();
+          if (usuario.trim()) void handleConvidar(usuario.trim());
+        }}>
+          <label>Nome de usuário exato
+            <input value={usuario} onChange={event => setUsuario(event.target.value)} maxLength={150} required />
+          </label>
+          <button type="submit" disabled={buscando || convidandoId !== null}>Enviar convite</button>
+        </form>
+      </details>
     </section>
   );
 }

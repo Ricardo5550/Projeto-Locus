@@ -195,7 +195,7 @@ function BlocoEditor({
               })
             }
           />
-          Riscado
+          Tachado
         </label>
       </div>
 

@@ -115,7 +115,6 @@ export default function CompartilharMateriais({
 
   return (
     <section>
-      <h2>Compartilhar materiais</h2>
 
       {carregando ? (
         <p>Carregando seus materiais...</p>
@@ -163,6 +162,8 @@ export default function CompartilharMateriais({
               </option>
             ))}
           </select>
+
+          {tipo === 'mapa' && <p>Os tutores deste canal também poderão ler as anotações vinculadas ao mapa.</p>}
 
           {materiaisDisponiveis.length === 0 && (
             <p>

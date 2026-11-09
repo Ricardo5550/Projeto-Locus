@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from mapas.models import MapaMental
@@ -11,7 +13,6 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
-# Create your tests here.
 class AceitacaoConviteTests(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -142,1215 +143,237 @@ class AceitacaoConviteTests(TestCase):
         self.assertTrue(participacao.ativo)
         self.assertIsNone(participacao.saiu_em)
 
-class CompartilhamentoAnotacaoTests(TestCase):
+@dataclass(frozen=True)
+class TipoMaterial:
+    modelo: type
+    vinculo: type
+    compartilhar: object
+    pode_visualizar: object
+    campo_conteudo: str
+
+
+MATERIAIS = {
+    'anotacao': TipoMaterial(
+        Anotacao, AnotacaoCompartilhada, compartilhar_anotacao, pode_visualizar_anotacao, 'conteudo',
+    ),
+    'mapa': TipoMaterial(
+        MapaMental, MapaCompartilhado, compartilhar_mapa, pode_visualizar_mapa, 'dados',
+    ),
+}
+
+
+class MateriaisTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        usuarios = get_user_model().objects
+        cls.proprietaria = usuarios.create_user(username='proprietaria')
+        cls.usuario_tutor = usuarios.create_user(username='tutor')
+        cls.externo = usuarios.create_user(username='externo')
+        cls.tutor = PerfilTutor.objects.create(usuario=cls.usuario_tutor, nome_apresentacao='Tutor')
+
+    def criar_canal(self):
+        return EspacoAcompanhamento.objects.create(proprietario=self.proprietaria, nome='Estudos')
+
+    def casos_materiais(self):
+        for nome, tipo in MATERIAIS.items():
+            material = tipo.modelo.objects.create(autor=self.proprietaria, titulo='Material de estudo')
+            yield nome, tipo, material, self.criar_canal()
+
+
+class CompartilhamentoMateriaisTests(MateriaisTestCase):
+    def test_proprietaria_compartilha_material(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                vinculo = tipo.compartilhar(canal, material, self.proprietaria)
+                self.assertEqual(vinculo.espaco, canal)
+                self.assertEqual(getattr(vinculo, nome), material)
+                self.assertEqual(tipo.vinculo.objects.filter(espaco=canal, **{nome: material}).count(), 1)
+
+    def test_usuario_externo_nao_compartilha_material(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                with self.assertRaises(PermissionDenied):
+                    tipo.compartilhar(canal, material, self.externo)
+                self.assertFalse(tipo.vinculo.objects.filter(espaco=canal, **{nome: material}).exists())
+
+    def test_proprietaria_nao_compartilha_material_alheio(self):
+        for nome, tipo, _, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                material = tipo.modelo.objects.create(autor=self.externo, titulo='Material alheio')
+                with self.assertRaises(PermissionDenied):
+                    tipo.compartilhar(canal, material, self.proprietaria)
+                self.assertFalse(tipo.vinculo.objects.filter(espaco=canal, **{nome: material}).exists())
+
+    def test_nao_compartilha_material_excluido(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                material.deletado_em = timezone.now()
+                material.save(update_fields=['deletado_em'])
+                with self.assertRaises(ValidationError):
+                    tipo.compartilhar(canal, material, self.proprietaria)
+                self.assertFalse(tipo.vinculo.objects.filter(espaco=canal, **{nome: material}).exists())
+
+    def test_compartilhar_mesmo_material_nao_duplica(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                primeiro = tipo.compartilhar(canal, material, self.proprietaria)
+                segundo = tipo.compartilhar(canal, material, self.proprietaria)
+                self.assertEqual(primeiro.pk, segundo.pk)
+                self.assertEqual(tipo.vinculo.objects.filter(espaco=canal, **{nome: material}).count(), 1)
+
+
+class PermissaoLeituraMateriaisTests(MateriaisTestCase):
+    def test_proprietaria_visualiza_proprio_material(self):
+        for nome, tipo, material, _ in self.casos_materiais():
+            with self.subTest(material=nome):
+                self.assertTrue(tipo.pode_visualizar(material, self.proprietaria))
+
+    def test_tutor_ativo_visualiza_material_compartilhado(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                Participacao.objects.create(espaco=canal, tutor=self.tutor, ativo=True)
+                tipo.vinculo.objects.create(espaco=canal, **{nome: material})
+                self.assertTrue(tipo.pode_visualizar(material, self.usuario_tutor))
+
+    def test_tutor_com_convite_pendente_nao_visualiza_material(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                Convite.objects.create(
+                    espaco=canal, tutor=self.tutor, solicitado_por=self.proprietaria, status='pendente',
+                )
+                tipo.vinculo.objects.create(espaco=canal, **{nome: material})
+                self.assertFalse(tipo.pode_visualizar(material, self.usuario_tutor))
+                self.assertFalse(Participacao.objects.filter(espaco=canal, tutor=self.tutor, ativo=True).exists())
+
+    def test_tutor_removido_perde_acesso_ao_material(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                participacao = Participacao.objects.create(espaco=canal, tutor=self.tutor, ativo=True)
+                tipo.vinculo.objects.create(espaco=canal, **{nome: material})
+                self.assertTrue(tipo.pode_visualizar(material, self.usuario_tutor))
+
+                remover_tutor(canal, self.tutor, self.proprietaria)
+
+                participacao.refresh_from_db()
+                self.assertFalse(participacao.ativo)
+                self.assertIsNotNone(participacao.saiu_em)
+                self.assertFalse(tipo.pode_visualizar(material, self.usuario_tutor))
+
+    def test_usuario_externo_nao_visualiza_material_compartilhado(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                tipo.vinculo.objects.create(espaco=canal, **{nome: material})
+                self.assertFalse(tipo.pode_visualizar(material, self.externo))
+
+    def test_tutor_ativo_nao_visualiza_material_nao_compartilhado(self):
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                Participacao.objects.create(espaco=canal, tutor=self.tutor, ativo=True)
+                self.assertFalse(tipo.pode_visualizar(material, self.usuario_tutor))
+
+    def test_proprietaria_nao_visualiza_material_excluido(self):
+        for nome, tipo, material, _ in self.casos_materiais():
+            with self.subTest(material=nome):
+                material.deletado_em = timezone.now()
+                material.save(update_fields=['deletado_em'])
+                self.assertFalse(tipo.pode_visualizar(material, self.proprietaria))
+
+
+class APILeituraMateriaisTests(MateriaisTestCase):
     def setUp(self):
-        User = get_user_model()
-
-        self.ana = User.objects.create_user(
-            username='ana_compartilha',
-            password='senha123'
-        )
-
-        self.espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        self.anotacao = Anotacao.objects.create(
-            autor=self.ana,
-            titulo='Equações do Segundo Grau'
-        )
-
-    def test_proprietaria_compartilha_anotacao(self):
-        compartilhamento = compartilhar_anotacao(
-            self.espaco,
-            self.anotacao,
-            self.ana
-        )
-
-        self.assertEqual(compartilhamento.espaco, self.espaco)
-        self.assertEqual(compartilhamento.anotacao, self.anotacao)
-        self.assertEqual(
-            AnotacaoCompartilhada.objects.filter(
-                espaco=self.espaco,
-                anotacao=self.anotacao
-            ).count(),
-            1
-        )
-
-    def test_usuario_nao_proprietario_nao_compartilha(self):
-        outro_usuario = get_user_model().objects.create_user(
-            username='bruno_compartilha',
-            password='senha123'
-        )
-
-        with self.assertRaises(PermissionDenied):
-            compartilhar_anotacao(
-                self.espaco,
-                self.anotacao,
-                outro_usuario
-            )
-
-        self.assertFalse(
-            AnotacaoCompartilhada.objects.filter(
-                espaco=self.espaco,
-                anotacao=self.anotacao
-            ).exists()
-        )
-        
-    def test_proprietaria_nao_compartilha_anotacao_de_terceiro(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_autor',
-            password='senha123'
-        )
-
-        anotacao_bruno = Anotacao.objects.create(
-            autor=bruno,
-            titulo='Anotação do Bruno'
-        )
-
-        with self.assertRaises(PermissionDenied):
-            compartilhar_anotacao(
-                self.espaco,
-                anotacao_bruno,
-                self.ana
-            )
-
-        self.assertFalse(
-            AnotacaoCompartilhada.objects.filter(
-                espaco=self.espaco,
-                anotacao=anotacao_bruno
-            ).exists()
-        )
-
-    def test_nao_compartilha_anotacao_excluida(self):
-        self.anotacao.deletado_em = timezone.now()
-        self.anotacao.save(update_fields=['deletado_em'])
-
-        with self.assertRaises(ValidationError):
-            compartilhar_anotacao(
-                self.espaco,
-                self.anotacao,
-                self.ana
-            )
-
-        self.assertFalse(
-            AnotacaoCompartilhada.objects.filter(
-                espaco=self.espaco,
-                anotacao=self.anotacao
-            ).exists()
-        )
-
-    def test_compartilhar_mesma_anotacao_nao_duplica(self):
-        primeiro = compartilhar_anotacao(
-            self.espaco,
-            self.anotacao,
-            self.ana
-        )
-
-        segundo = compartilhar_anotacao(
-            self.espaco,
-            self.anotacao,
-            self.ana
-        )
-
-        self.assertEqual(primeiro.pk, segundo.pk)
-
-        self.assertEqual(
-            AnotacaoCompartilhada.objects.filter(
-                espaco=self.espaco,
-                anotacao=self.anotacao
-            ).count(),
-            1
-        )
-
-class CompartilhamentoMapaTests(TestCase):
-    def setUp(self):
-        User = get_user_model()
-
-        self.ana = User.objects.create_user(
-            username='ana_compartilha_mapa',
-            password='senha123'
-        )
-
-        self.espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        self.mapa = MapaMental.objects.create(
-            autor=self.ana,
-            titulo='Leis de Newton'
-        )
-
-    def test_proprietaria_compartilha_mapa(self):
-        compartilhamento = compartilhar_mapa(
-            self.espaco,
-            self.mapa,
-            self.ana
-        )
-
-        self.assertEqual(compartilhamento.espaco, self.espaco)
-        self.assertEqual(compartilhamento.mapa, self.mapa)
-        self.assertEqual(
-            MapaCompartilhado.objects.filter(
-                espaco=self.espaco,
-                mapa=self.mapa
-            ).count(),
-            1
-        )
-
-    def test_usuario_nao_proprietario_nao_compartilha_mapa(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_compartilha_mapa',
-            password='senha123'
-        )
-
-        with self.assertRaises(PermissionDenied):
-            compartilhar_mapa(
-                self.espaco,
-                self.mapa,
-                bruno
-            )
-
-        self.assertFalse(
-            MapaCompartilhado.objects.filter(
-                espaco=self.espaco,
-                mapa=self.mapa
-            ).exists()
-        )
-
-    def test_proprietaria_nao_compartilha_mapa_de_terceiro(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_autor_mapa',
-            password='senha123'
-        )
-
-        mapa_bruno = MapaMental.objects.create(
-            autor=bruno,
-            titulo='Mapa do Bruno'
-        )
-
-        with self.assertRaises(PermissionDenied):
-            compartilhar_mapa(
-                self.espaco,
-                mapa_bruno,
-                self.ana
-            )
-
-        self.assertFalse(
-            MapaCompartilhado.objects.filter(
-                espaco=self.espaco,
-                mapa=mapa_bruno
-            ).exists()
-        )
-
-    def test_nao_compartilha_mapa_excluido(self):
-        self.mapa.deletado_em = timezone.now()
-        self.mapa.save(update_fields=['deletado_em'])
-
-        with self.assertRaises(ValidationError):
-            compartilhar_mapa(
-                self.espaco,
-                self.mapa,
-                self.ana
-            )
-
-        self.assertFalse(
-            MapaCompartilhado.objects.filter(
-                espaco=self.espaco,
-                mapa=self.mapa
-            ).exists()
-        )
-
-    def test_compartilhar_mesmo_mapa_nao_duplica(self):
-        primeiro = compartilhar_mapa(
-            self.espaco,
-            self.mapa,
-            self.ana
-        )
-
-        segundo = compartilhar_mapa(
-            self.espaco,
-            self.mapa,
-            self.ana
-        )
-
-        self.assertEqual(primeiro.pk, segundo.pk)
-
-        self.assertEqual(
-            MapaCompartilhado.objects.filter(
-                espaco=self.espaco,
-                mapa=self.mapa
-            ).count(),
-            1
-        )
-
-class PermissaoLeituraAnotacaoTests(TestCase):
-    def setUp(self):
-        User = get_user_model()
-
-        self.ana = User.objects.create_user(
-            username='ana_leitura',
-            password='senha123'
-        )
-
-        self.anotacao = Anotacao.objects.create(
-            autor=self.ana,
-            titulo='Estudo de Matemática'
-        )
-
-    def test_proprietaria_visualiza_propria_anotacao(self):
-        resultado = pode_visualizar_anotacao(
-            self.anotacao,
-            self.ana
-        )
-
-        self.assertTrue(resultado)
-
-    def test_tutor_ativo_visualiza_anotacao_compartilhada(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_tutor_leitura',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        AnotacaoCompartilhada.objects.create(
-            espaco=espaco,
-            anotacao=self.anotacao
-        )
-
-        resultado = pode_visualizar_anotacao(
-            self.anotacao,
-            bruno
-        )
-
-        self.assertTrue(resultado)
-
-    def test_tutor_com_convite_pendente_nao_visualiza_anotacao(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_convite_pendente',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        Convite.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            solicitado_por=self.ana,
-            status='pendente'
-        )
-
-        AnotacaoCompartilhada.objects.create(
-            espaco=espaco,
-            anotacao=self.anotacao
-        )
-
-        resultado = pode_visualizar_anotacao(
-            self.anotacao,
-            bruno
-        )
-
-        self.assertFalse(resultado)
-
-        self.assertFalse(
-            Participacao.objects.filter(
-                espaco=espaco,
-                tutor=tutor,
-                ativo=True
-            ).exists()
-        )
-
-    def test_tutor_removido_nao_visualiza_anotacao(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_tutor_removido',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        participacao = Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        AnotacaoCompartilhada.objects.create(
-            espaco=espaco,
-            anotacao=self.anotacao
-        )
-
-        self.assertTrue(
-            pode_visualizar_anotacao(self.anotacao, bruno)
-        )
-
-        remover_tutor(espaco, tutor, self.ana)
-
-        participacao.refresh_from_db()
-
-        self.assertFalse(participacao.ativo)
-        self.assertIsNotNone(participacao.saiu_em)
-
-        self.assertFalse(
-            pode_visualizar_anotacao(self.anotacao, bruno)
-        )
-
-    def test_usuario_externo_nao_visualiza_anotacao(self):
-        externo = get_user_model().objects.create_user(
-            username='usuario_externo_leitura',
-            password='senha123'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        AnotacaoCompartilhada.objects.create(
-            espaco=espaco,
-            anotacao=self.anotacao
-        )
-
-        resultado = pode_visualizar_anotacao(
-            self.anotacao,
-            externo
-        )
-
-        self.assertFalse(resultado)
-
-    def test_tutor_ativo_nao_visualiza_anotacao_nao_compartilhada(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_sem_compartilhamento',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        resultado = pode_visualizar_anotacao(
-            self.anotacao,
-            bruno
-        )
-
-        self.assertFalse(resultado)
-
-    def test_proprietaria_nao_visualiza_anotacao_excluida(self):
-        self.anotacao.deletado_em = timezone.now()
-        self.anotacao.save(update_fields=['deletado_em'])
-
-        resultado = pode_visualizar_anotacao(
-            self.anotacao,
-            self.ana
-        )
-
-        self.assertFalse(resultado)
-
-class PermissaoLeituraMapaTests(TestCase):
-    def setUp(self):
-        User = get_user_model()
-
-        self.ana = User.objects.create_user(
-            username='ana_leitura_mapa',
-            password='senha123'
-        )
-
-        self.mapa = MapaMental.objects.create(
-            autor=self.ana,
-            titulo='Leis de Newton'
-        )
-
-    def test_proprietaria_visualiza_proprio_mapa(self):
-        resultado = pode_visualizar_mapa(
-            self.mapa,
-            self.ana
-        )
-
-        self.assertTrue(resultado)
-
-    def test_tutor_ativo_visualiza_mapa_compartilhado(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_tutor_mapa',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        MapaCompartilhado.objects.create(
-            espaco=espaco,
-            mapa=self.mapa
-        )
-
-        resultado = pode_visualizar_mapa(
-            self.mapa,
-            bruno
-        )
-
-        self.assertTrue(resultado)
-
-    def test_tutor_com_convite_pendente_nao_visualiza_mapa(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_convite_pendente_mapa',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        Convite.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            solicitado_por=self.ana,
-            status='pendente'
-        )
-
-        MapaCompartilhado.objects.create(
-            espaco=espaco,
-            mapa=self.mapa
-        )
-
-        resultado = pode_visualizar_mapa(
-            self.mapa,
-            bruno
-        )
-
-        self.assertFalse(resultado)
-
-        self.assertFalse(
-            Participacao.objects.filter(
-                espaco=espaco,
-                tutor=tutor,
-                ativo=True
-            ).exists()
-        )
-
-    def test_tutor_removido_nao_visualiza_mapa(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_tutor_removido_mapa',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        participacao = Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        MapaCompartilhado.objects.create(
-            espaco=espaco,
-            mapa=self.mapa
-        )
-
-        self.assertTrue(
-            pode_visualizar_mapa(self.mapa, bruno)
-        )
-
-        remover_tutor(espaco, tutor, self.ana)
-
-        participacao.refresh_from_db()
-
-        self.assertFalse(participacao.ativo)
-        self.assertIsNotNone(participacao.saiu_em)
-
-        self.assertFalse(
-            pode_visualizar_mapa(self.mapa, bruno)
-        )
-        
-    def test_usuario_externo_nao_visualiza_mapa(self):
-        externo = get_user_model().objects.create_user(
-            username='usuario_externo_mapa',
-            password='senha123'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        MapaCompartilhado.objects.create(
-            espaco=espaco,
-            mapa=self.mapa
-        )
-
-        resultado = pode_visualizar_mapa(
-            self.mapa,
-            externo
-        )
-
-        self.assertFalse(resultado)
-        
-    def test_tutor_ativo_nao_visualiza_mapa_nao_compartilhado(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_mapa_nao_compartilhado',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        resultado = pode_visualizar_mapa(
-            self.mapa,
-            bruno
-        )
-
-        self.assertFalse(resultado)
-        
-    def test_proprietaria_nao_visualiza_mapa_excluido(self):
-        self.mapa.deletado_em = timezone.now()
-        self.mapa.save(update_fields=['deletado_em'])
-
-        resultado = pode_visualizar_mapa(
-            self.mapa,
-            self.ana
-        )
-
-        self.assertFalse(resultado)
-
-class APILeituraAnotacaoTests(TestCase):
-    def setUp(self):
-        User = get_user_model()
-
-        self.ana = User.objects.create_user(
-            username='ana_api_leitura',
-            password='senha123'
-        )
-
-        self.anotacao = Anotacao.objects.create(
-            autor=self.ana,
-            titulo='Estudo de Matemática'
-        )
-
         self.client = APIClient()
 
-    def test_proprietaria_consulta_propria_anotacao(self):
-        self.client.force_authenticate(user=self.ana)
+    def url_material(self, nome, material):
+        return reverse(f'acompanhamento-{nome}-detalhe', kwargs={'pk': material.pk})
 
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
+    def test_proprietaria_consulta_proprio_material(self):
+        self.client.force_authenticate(self.proprietaria)
+        for nome, _, material, _ in self.casos_materiais():
+            with self.subTest(material=nome):
+                resposta = self.client.get(self.url_material(nome, material))
+                self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+                self.assertEqual(resposta.data['titulo'], material.titulo)
 
-        resposta = self.client.get(url)
+    def test_tutor_ativo_consulta_material_compartilhado(self):
+        self.client.force_authenticate(self.usuario_tutor)
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                Participacao.objects.create(espaco=canal, tutor=self.tutor, ativo=True)
+                tipo.vinculo.objects.create(espaco=canal, **{nome: material})
+                resposta = self.client.get(self.url_material(nome, material))
+                self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+                self.assertEqual(resposta.data['titulo'], material.titulo)
 
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_200_OK
-        )
+    def test_usuario_externo_nao_consulta_material_compartilhado(self):
+        self.client.force_authenticate(self.externo)
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                tipo.vinculo.objects.create(espaco=canal, **{nome: material})
+                resposta = self.client.get(self.url_material(nome, material))
+                self.assertEqual(resposta.status_code, status.HTTP_403_FORBIDDEN)
 
-        self.assertEqual(
-            resposta.data['titulo'],
-            self.anotacao.titulo
-        )
-    
-    def test_tutor_ativo_consulta_anotacao_compartilhada(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_api_leitura',
-            password='senha123'
-        )
+    def test_usuario_nao_autenticado_nao_consulta_material(self):
+        for nome, _, material, _ in self.casos_materiais():
+            with self.subTest(material=nome):
+                resposta = self.client.get(self.url_material(nome, material))
+                self.assertIn(resposta.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
 
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
+    def test_api_compartilhada_nao_permite_edicao_ou_exclusao(self):
+        self.client.force_authenticate(self.proprietaria)
+        for nome, _, material, _ in self.casos_materiais():
+            for metodo in ('put', 'patch', 'delete'):
+                with self.subTest(material=nome, metodo=metodo):
+                    resposta = getattr(self.client, metodo)(
+                        self.url_material(nome, material), {'titulo': 'Alterado'}, format='json',
+                    )
+                    self.assertEqual(resposta.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+                    material.refresh_from_db()
+                    self.assertEqual(material.titulo, 'Material de estudo')
+                    self.assertIsNone(material.deletado_em)
 
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        AnotacaoCompartilhada.objects.create(
-            espaco=espaco,
-            anotacao=self.anotacao
-        )
-
-        self.client.force_authenticate(user=bruno)
-
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_200_OK
-        )
-
-        self.assertEqual(
-            resposta.data['titulo'],
-            self.anotacao.titulo
-        )
-    
-    def test_usuario_externo_nao_consulta_anotacao(self):
-        externo = get_user_model().objects.create_user(
-            username='externo_api_leitura',
-            password='senha123'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        AnotacaoCompartilhada.objects.create(
-            espaco=espaco,
-            anotacao=self.anotacao
-        )
-
-        self.client.force_authenticate(user=externo)
-
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_403_FORBIDDEN
-        )
-    
-    def test_usuario_nao_autenticado_nao_consulta_anotacao(self):
-        self.client.force_authenticate(user=None)
-
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertIn(
-            resposta.status_code,
-            [
-                status.HTTP_401_UNAUTHORIZED,
-                status.HTTP_403_FORBIDDEN
-            ]
-        )
-    
-    def test_api_nao_permite_edicao_ou_exclusao(self):
-        self.client.force_authenticate(user=self.ana)
-
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
-
-        for metodo in ['put', 'patch', 'delete']:
-            with self.subTest(metodo=metodo):
-                resposta = getattr(self.client, metodo)(
-                    url,
-                    {'titulo': 'Título alterado'},
-                    format='json'
-                )
-
-                self.assertEqual(
-                    resposta.status_code,
-                    status.HTTP_405_METHOD_NOT_ALLOWED
-                )
-
-        self.anotacao.refresh_from_db()
-
-        self.assertEqual(
-            self.anotacao.titulo,
-            'Estudo de Matemática'
-        )
-    
     def test_api_retorna_apenas_campos_permitidos(self):
-        self.client.force_authenticate(user=self.ana)
+        self.client.force_authenticate(self.proprietaria)
+        for nome, tipo, material, _ in self.casos_materiais():
+            with self.subTest(material=nome):
+                resposta = self.client.get(self.url_material(nome, material))
+                self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+                campo = tipo.campo_conteudo
+                self.assertEqual(set(resposta.data), {'id', 'titulo', campo})
+                self.assertEqual(resposta.data[campo], getattr(material, campo))
 
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
+    def test_tutor_removido_nao_consulta_material_pela_api(self):
+        self.client.force_authenticate(self.usuario_tutor)
+        for nome, tipo, material, canal in self.casos_materiais():
+            with self.subTest(material=nome):
+                participacao = Participacao.objects.create(espaco=canal, tutor=self.tutor, ativo=True)
+                tipo.vinculo.objects.create(espaco=canal, **{nome: material})
+                url = self.url_material(nome, material)
+                self.assertEqual(self.client.get(url).status_code, status.HTTP_200_OK)
 
-        resposta = self.client.get(url)
+                remover_tutor(canal, self.tutor, self.proprietaria)
 
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_200_OK
-        )
+                participacao.refresh_from_db()
+                self.assertFalse(participacao.ativo)
+                self.assertIsNotNone(participacao.saiu_em)
+                self.assertEqual(self.client.get(url).status_code, status.HTTP_403_FORBIDDEN)
 
-        self.assertEqual(
-            set(resposta.data.keys()),
-            {'id', 'titulo', 'conteudo'}
-        )
+    def test_api_nao_retorna_material_excluido(self):
+        self.client.force_authenticate(self.proprietaria)
+        for nome, _, material, _ in self.casos_materiais():
+            with self.subTest(material=nome):
+                material.deletado_em = timezone.now()
+                material.save(update_fields=['deletado_em'])
+                resposta = self.client.get(self.url_material(nome, material))
+                self.assertEqual(resposta.status_code, status.HTTP_404_NOT_FOUND)
 
-        self.assertEqual(
-            resposta.data['conteudo'],
-            self.anotacao.conteudo
-        )
-    
-    def test_tutor_removido_nao_consulta_anotacao_pela_api(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_api_removido',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Matemática'
-        )
-
-        Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        AnotacaoCompartilhada.objects.create(
-            espaco=espaco,
-            anotacao=self.anotacao
-        )
-
-        self.client.force_authenticate(user=bruno)
-
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
-
-        resposta_antes = self.client.get(url)
-
-        self.assertEqual(
-            resposta_antes.status_code,
-            status.HTTP_200_OK
-        )
-
-        remover_tutor(espaco, tutor, self.ana)
-
-        resposta_depois = self.client.get(url)
-
-        self.assertEqual(
-            resposta_depois.status_code,
-            status.HTTP_403_FORBIDDEN
-        )
-    
-    def test_api_nao_retorna_anotacao_excluida(self):
-        self.anotacao.deletado_em = timezone.now()
-        self.anotacao.save(update_fields=['deletado_em'])
-
-        self.client.force_authenticate(user=self.ana)
-
-        url = reverse(
-            'acompanhamento-anotacao-detalhe',
-            kwargs={'pk': self.anotacao.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_404_NOT_FOUND
-        )
-        
     def test_tutor_nao_edita_anotacao_pela_api_original(self):
-            bruno = get_user_model().objects.create_user(
-                username='bruno_api_edicao',
-                password='senha123'
-            )
-    
-            tutor = PerfilTutor.objects.create(
-                usuario=bruno,
-                nome_apresentacao='Bruno'
-            )
-    
-            espaco = EspacoAcompanhamento.objects.create(
-                proprietario=self.ana,
-                nome='Estudos de Matemática'
-            )
-    
-            Participacao.objects.create(
-                espaco=espaco,
-                tutor=tutor,
-                ativo=True
-            )
-    
-            AnotacaoCompartilhada.objects.create(
-                espaco=espaco,
-                anotacao=self.anotacao
-            )
-    
-            self.client.force_authenticate(user=bruno)
-    
-            url = reverse(
-                'anotacao-detail',
-                kwargs={'pk': self.anotacao.pk}
-            )
-    
-            resposta = self.client.patch(
-                url,
-                {'titulo': 'Alteração indevida'},
-                format='json'
-            )
-    
-            self.assertEqual(
-                resposta.status_code,
-                status.HTTP_404_NOT_FOUND
-            )
-    
-            self.anotacao.refresh_from_db()
-    
-            self.assertEqual(
-                self.anotacao.titulo,
-                'Estudo de Matemática'
-            )
-
-class APILeituraMapaTests(TestCase):
-    def setUp(self):
-        User = get_user_model()
-
-        self.ana = User.objects.create_user(
-            username='ana_api_mapa',
-            password='senha123'
-        )
-
-        self.mapa = MapaMental.objects.create(
-            autor=self.ana,
-            titulo='Leis de Newton'
-        )
-
-        self.client = APIClient()
-
-    def test_proprietaria_consulta_proprio_mapa(self):
-        self.client.force_authenticate(user=self.ana)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_200_OK
-        )
-
-        self.assertEqual(
-            resposta.data['titulo'],
-            self.mapa.titulo
-        )
-    
-    def test_tutor_ativo_consulta_mapa_compartilhado(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_api_mapa',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        MapaCompartilhado.objects.create(
-            espaco=espaco,
-            mapa=self.mapa
-        )
-
-        self.client.force_authenticate(user=bruno)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_200_OK
-        )
-
-        self.assertEqual(
-            resposta.data['titulo'],
-            self.mapa.titulo
-        )
-    
-    def test_usuario_externo_nao_consulta_mapa(self):
-        externo = get_user_model().objects.create_user(
-            username='externo_api_mapa',
-            password='senha123'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        MapaCompartilhado.objects.create(
-            espaco=espaco,
-            mapa=self.mapa
-        )
-
-        self.client.force_authenticate(user=externo)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_403_FORBIDDEN
-        )
-    
-    def test_usuario_nao_autenticado_nao_consulta_mapa(self):
-        self.client.force_authenticate(user=None)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertIn(
-            resposta.status_code,
-            [
-                status.HTTP_401_UNAUTHORIZED,
-                status.HTTP_403_FORBIDDEN
-            ]
-        )
-    
-    def test_api_nao_permite_edicao_ou_exclusao_mapa(self):
-        self.client.force_authenticate(user=self.ana)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        for metodo in ['put', 'patch', 'delete']:
-            with self.subTest(metodo=metodo):
-                resposta = getattr(self.client, metodo)(
-                    url,
-                    {'titulo': 'Mapa alterado'},
-                    format='json'
-                )
-
-                self.assertEqual(
-                    resposta.status_code,
-                    status.HTTP_405_METHOD_NOT_ALLOWED
-                )
-
-        self.mapa.refresh_from_db()
-
-        self.assertEqual(
-            self.mapa.titulo,
-            'Leis de Newton'
-        )
-
-        self.assertIsNone(self.mapa.deletado_em)
-    
-    def test_api_retorna_apenas_campos_permitidos_mapa(self):
-        self.client.force_authenticate(user=self.ana)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_200_OK
-        )
-
-        self.assertEqual(
-            set(resposta.data.keys()),
-            {'id', 'titulo', 'dados'}
-        )
-
-        self.assertEqual(
-            resposta.data['dados'],
-            self.mapa.dados
-        )
-    
-    def test_tutor_removido_nao_consulta_mapa_pela_api(self):
-        bruno = get_user_model().objects.create_user(
-            username='bruno_api_mapa_removido',
-            password='senha123'
-        )
-
-        tutor = PerfilTutor.objects.create(
-            usuario=bruno,
-            nome_apresentacao='Bruno'
-        )
-
-        espaco = EspacoAcompanhamento.objects.create(
-            proprietario=self.ana,
-            nome='Estudos de Física'
-        )
-
-        participacao = Participacao.objects.create(
-            espaco=espaco,
-            tutor=tutor,
-            ativo=True
-        )
-
-        MapaCompartilhado.objects.create(
-            espaco=espaco,
-            mapa=self.mapa
-        )
-
-        self.client.force_authenticate(user=bruno)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        resposta_antes = self.client.get(url)
-
-        self.assertEqual(
-            resposta_antes.status_code,
-            status.HTTP_200_OK
-        )
-
-        remover_tutor(espaco, tutor, self.ana)
-
-        participacao.refresh_from_db()
-
-        self.assertFalse(participacao.ativo)
-        self.assertIsNotNone(participacao.saiu_em)
-
-        resposta_depois = self.client.get(url)
-
-        self.assertEqual(
-            resposta_depois.status_code,
-            status.HTTP_403_FORBIDDEN
-        )
-    
-    def test_api_nao_retorna_mapa_excluido(self):
-        self.mapa.deletado_em = timezone.now()
-        self.mapa.save(update_fields=['deletado_em'])
-
-        self.client.force_authenticate(user=self.ana)
-
-        url = reverse(
-            'acompanhamento-mapa-detalhe',
-            kwargs={'pk': self.mapa.pk}
-        )
-
-        resposta = self.client.get(url)
-
-        self.assertEqual(
-            resposta.status_code,
-            status.HTTP_404_NOT_FOUND
-        )
+        anotacao = Anotacao.objects.create(autor=self.proprietaria, titulo='Estudo de Matemática')
+        canal = self.criar_canal()
+        Participacao.objects.create(espaco=canal, tutor=self.tutor, ativo=True)
+        AnotacaoCompartilhada.objects.create(espaco=canal, anotacao=anotacao)
+        self.client.force_authenticate(self.usuario_tutor)
+        url = reverse('anotacao-detail', kwargs={'pk': anotacao.pk})
+        resposta = self.client.patch(url, {'titulo': 'Alteração indevida'}, format='json')
+        self.assertEqual(resposta.status_code, status.HTTP_404_NOT_FOUND)
+        anotacao.refresh_from_db()
+        self.assertEqual(anotacao.titulo, 'Estudo de Matemática')

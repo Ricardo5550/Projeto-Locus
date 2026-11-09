@@ -23,13 +23,17 @@ from revisoes.questionarios import MateriaViewSet, QuestionarioViewSet, resultad
 from notificacoes.views import NotificacaoViewSet
 from revisoes.views import PerguntaViewSet, TentativaViewSet
 from acompanhamento.views import (
+    MensagensAcompanhamentoView,
+    ComentarioAcompanhamentoDetalheView,
     AnotacaoCompartilhadaDetalheView,
+    AnotacaoVinculadaAoMapaView,
     MapaCompartilhadoDetalheView,
     AceitarConviteView,
     CriarConviteView,
     ConvitesRecebidosView,
     RecusarConviteView,
     EspacosAcompanhamentoView,
+    CanalAcompanhamentoDetalheView,
     TutoresEspacoView,
     RemoverTutorView,
     CompartilharAnotacaoView,
@@ -108,6 +112,12 @@ urlpatterns = [
     ),
 
     path(
+        'api/acompanhamento/espacos/<int:pk>/',
+        CanalAcompanhamentoDetalheView.as_view(),
+        name='acompanhamento-canal-detalhe',
+    ),
+
+    path(
         'api/acompanhamento/espacos/<int:pk>/tutores/',
         TutoresEspacoView.as_view(),
         name='acompanhamento-espaco-tutores'
@@ -123,6 +133,12 @@ urlpatterns = [
         'api/acompanhamento/espacos/<int:pk>/anotacoes/<int:anotacao_id>/compartilhar/',
         CompartilharAnotacaoView.as_view(),
         name='acompanhamento-compartilhar-anotacao'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/<int:pk>/mapas/<int:mapa_id>/anotacoes/<int:anotacao_id>/',
+        AnotacaoVinculadaAoMapaView.as_view(),
+        name='acompanhamento-anotacao-vinculada',
     ),
 
     path(
@@ -143,6 +159,21 @@ urlpatterns = [
         name='acompanhamento-espaco-materiais'
     ),
 
+    path(
+        'api/acompanhamento/espacos/<int:pk>/duvidas/',
+        MensagensAcompanhamentoView.as_view(),
+        name='acompanhamento-duvidas',
+    ),
+    path(
+        'api/acompanhamento/espacos/<int:pk>/materiais/<str:tipo_material>/<int:material_id>/comentarios/',
+        MensagensAcompanhamentoView.as_view(),
+        name='acompanhamento-comentarios',
+    ),
+    path(
+        'api/acompanhamento/espacos/<int:pk>/materiais/<str:tipo_material>/<int:material_id>/comentarios/<int:mensagem_id>/',
+        ComentarioAcompanhamentoDetalheView.as_view(),
+        name='acompanhamento-comentario-detalhe',
+    ),
     path(
         'api/acompanhamento/tutores/disponiveis/',
         TutoresDisponiveisView.as_view(),

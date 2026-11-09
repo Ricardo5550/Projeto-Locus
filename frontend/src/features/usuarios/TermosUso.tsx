@@ -31,10 +31,10 @@ export default function TermosUso({
 
         <h2>1. Sobre o Locus</h2>
         <p>
-          O Locus é uma plataforma web de apoio aos estudos que permite criar,
-          organizar e relacionar anotações, mapas mentais e conteúdos de revisão.
-          Ao criar uma conta e utilizar a plataforma, o usuário concorda com estes
-          Termos de Uso.
+          O Locus é uma plataforma web de apoio à organização e à revisão de conteúdos de estudo.
+          A plataforma permite criar e relacionar anotações e mapas mentais, organizar materiais em pastas e utilizar questionários com revisões programadas.
+          O usuário também pode compartilhar materiais com tutores e receber comentários nos canais de acompanhamento.
+          No cadastro, o usuário aceita estes Termos de Us9p0o e declara ciência da Política de Privacidade.
         </p>
 
         <h2>2. Conta e segurança</h2>
@@ -63,7 +63,19 @@ export default function TermosUso({
           Política de Privacidade.
         </p>
 
-        <h2>5. Serviços de terceiros</h2>
+        <h2>5. Acompanhamento por tutores</h2>
+         <p>
+            O estudante decide quem convidar para o acompanhamento, e cada tutor decide se aceita o convite.
+            O Locus disponibiliza a busca de perfis, o envio de convites e a troca de comentários.
+            As informações de formação e os links de diplomas ou certificados são fornecidos pelo próprio tutor.
+            O Locus não verifica a autenticidade dessas informações nem garante a disponibilidade do tutor, a qualidade da orientação ou resultados de aprendizagem. 
+            Permanecem aplicáveis os direitos dos usuários e as responsabilidades da plataforma previstas em lei.
+            Ao compartilhar um mapa mental, o estudante permite que os tutores com acesso ativo ao canal consultem 
+            o mapa e as anotações vinculadas aos seus blocos. Os materiais compartilhados ficam disponíveis para leitura. 
+            Os comentários são registrados no canal, sem alterar o material original.
+        </p>
+
+        <h2>6. Serviços de terceiros</h2>
         <p>
           Algumas funcionalidades dependem de serviços externos, como Google reCAPTCHA
           para proteção do acesso, Crossref para busca de referências e um provedor de
@@ -72,7 +84,7 @@ export default function TermosUso({
           execução da funcionalidade.
         </p>
 
-        <h2>6. Disponibilidade e alterações</h2>
+        <h2>7. Disponibilidade e alterações</h2>
         <p>
           O Locus pode passar por manutenções, atualizações ou indisponibilidades
           temporárias. Funcionalidades podem ser corrigidas ou alteradas para melhorar
@@ -81,7 +93,7 @@ export default function TermosUso({
           manifestação do usuário.
         </p>
 
-        <h2>7. Suspensão e encerramento</h2>
+        <h2>8. Suspensão e encerramento</h2>
         <p>
           Contas que violem estes Termos ou sejam utilizadas de forma a comprometer a
           segurança da plataforma poderão ser suspensas ou encerradas, observadas as
@@ -89,7 +101,7 @@ export default function TermosUso({
           conta seguirá a Política de Privacidade e as obrigações legais aplicáveis.
         </p>
 
-        <h2>8. Privacidade</h2>
+        <h2>9. Privacidade</h2>
         <p>
           O tratamento de dados pessoais realizado pelo Locus é descrito na Política de
           Privacidade. A aceitação destes Termos não constitui autorização genérica para

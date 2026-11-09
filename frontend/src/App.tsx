@@ -18,6 +18,7 @@ import ConfirmarAlteracaoEmail from './features/usuarios/ConfirmarAlteracaoEmail
 import Resultados from './features/revisoes/Resultados';
 import Questionario, { type NavegacaoQuestionario } from './features/revisoes/Questionario';
 import { restaurarSessao, encerrarSessao } from './services/apiClient';
+import Acompanhamento, { type NavegacaoAcompanhamento } from './features/acompanhamento/Acompanhamento';
 import './App.css';
 
 type Tela =
@@ -35,6 +36,7 @@ type Tela =
   | 'terms'
   | 'privacy'
   | 'results'
+  | 'acompanhamento'
   | 'questionnaire';
 
 type EntradaHistorico = {
@@ -62,6 +64,10 @@ export default function App() {
   const [loginNotice, setLoginNotice] = useState('');
   const [librarySearch, setLibrarySearch] = useState('');
   const [entradaQuestionario,setEntradaQuestionario]=useState(0);
+  const navegacaoAcompanhamento = useRef<NavegacaoAcompanhamento>(null);
+  const [entradaAcompanhamento, setEntradaAcompanhamento] = useState(0);
+  const [avisoCanal, setAvisoCanal] = useState<{ id: number; aba: 'duvidas' | 'materiais' }>();
+  const [emDetalheAcompanhamento, setEmDetalheAcompanhamento] = useState(false);
   const navegacaoQuestionario = useRef<NavegacaoQuestionario>(null);
   const [emDetalheQuestionario, setEmDetalheQuestionario] = useState(false);
   const [questionarioAberto,setQuestionarioAberto]=useState<number|null>(null);
@@ -253,6 +259,10 @@ export default function App() {
     setQuestionarioAberto(null);
     setAbrirDevolutiva(false);
     if (section === 'home') { goHome(); return; }
+    if (section === 'acompanhamento') {
+      setAvisoCanal(undefined);
+      setEntradaAcompanhamento(n => n + 1);
+    }
     setHistory([]);
     setScreen(section);
   }
@@ -334,14 +344,24 @@ export default function App() {
   }
 
   if (screen === 'home' || screen === 'questionnaire' || screen === 'results' ||
-      screen === 'account' || screen === 'terms' || screen === 'privacy') {
+      screen === 'acompanhamento' || screen === 'account' || screen === 'terms' || screen === 'privacy') {
     return <HomeLayout active={screen} onNavigate={openHomeSection} onLogout={() => void handleLogout()}
       onBack={screen === 'questionnaire' && emDetalheQuestionario
         ? () => navegacaoQuestionario.current?.voltar()
-        : undefined}
+        : screen === 'acompanhamento' && emDetalheAcompanhamento
+          ? () => navegacaoAcompanhamento.current?.voltar()
+          : undefined}
       search={librarySearch} onSearchChange={setLibrarySearch} accountVersion={accountVersion} onNotification={(destino,id)=>{
-        if(destino!=='questionnaire')return;
+        if (destino !== 'questionnaire' && destino !== 'acompanhamento' && destino !== 'acompanhamento-duvidas') return;
         if(revisaoEmAndamento&&!window.confirm('Sair sem finalizar? Esta sessão não será contabilizada.'))return;
+        if (destino !== 'questionnaire') {
+          setRevisaoEmAndamento(false);
+          setAvisoCanal({ id, aba: destino === 'acompanhamento-duvidas' ? 'duvidas' : 'materiais' });
+          setEntradaAcompanhamento(n => n + 1);
+          setHistory([]);
+          setScreen('acompanhamento');
+          return;
+        }
         setRevisaoEmAndamento(false);setEntradaQuestionario(n=>n+1);setQuestionarioAberto(id);setAbrirDevolutiva(false);setScreen('questionnaire');
       }}>
       {screen === 'home' && <HomeMenu
@@ -357,6 +377,8 @@ export default function App() {
       {screen === 'questionnaire' && <Questionario key={`${questionarioAberto??'lista'}-${entradaQuestionario}`} ref={navegacaoQuestionario} initialId={questionarioAberto} initialDevolutiva={abrirDevolutiva} onSessionChange={setRevisaoEmAndamento} onDetalheChange={setEmDetalheQuestionario} onOpenNote={(id,title,qid)=>{
         setRetornoQuestionario(qid);setCurrentNoteId(id);setNoteRelationshipContext(null);setBreadcrumb(['Início','Questionários',title]);setScreen('annotation');
       }} />}
+      {screen === 'acompanhamento' && <Acompanhamento
+        key={entradaAcompanhamento} avisoCanal={avisoCanal} ref={navegacaoAcompanhamento} onDetalheChange={setEmDetalheAcompanhamento} />}
       {screen === 'account' && <ConfiguracoesConta embedded onBack={goHome}
         onAccountUpdated={() => setAccountVersion(current => current + 1)}
         onAccountDeleted={() => {

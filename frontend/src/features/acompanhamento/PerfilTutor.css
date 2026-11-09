@@ -163,8 +163,7 @@
   outline-offset: 3px;
 }
 
-.perfil-tutor-erro,
-.perfil-tutor-sucesso {
+.perfil-tutor-erro {
   padding: 14px 16px;
   margin: 0 0 18px;
   border-radius: 8px;
@@ -175,11 +174,6 @@
 .perfil-tutor-erro {
   background: #fff0ed;
   color: #9b3228;
-}
-
-.perfil-tutor-sucesso {
-  background: #edf6ed;
-  color: #28633b;
 }
 
 @media (max-width: 640px) {
@@ -199,4 +193,46 @@
   .perfil-tutor-acoes button {
     width: 100%;
   }
+}
+.perfil-tutor-formacoes h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.perfil-tutor-formacoes > p {
+  margin: 0 0 12px;
+  color: var(--pt-secundario);
+  font-size: 14px;
+}
+
+.perfil-tutor-formacao {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid var(--pt-borda);
+  border-radius: 8px;
+}
+
+.perfil-tutor-formacao legend {
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.perfil-tutor-acao-secundaria {
+  justify-self: start;
+  padding: 8px 12px;
+  border: 1px solid #d0c3b6;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--pt-marrom);
+  font: inherit;
+  cursor: pointer;
+}
+
+.perfil-tutor-acao-secundaria:disabled {
+  opacity: .55;
+  cursor: not-allowed;
 }

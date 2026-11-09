@@ -3,12 +3,36 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from django.utils import timezone
 from acompanhamento.models import (
     Convite,
-    Participacao, 
-    AnotacaoCompartilhada, 
+    EspacoAcompanhamento,
+    Participacao,
+    AnotacaoCompartilhada,
     MapaCompartilhado,
 )
 from anotacoes.models import Anotacao
 from mapas.models import MapaMental
+from notificacoes.models import Notificacao
+
+def avisar_no_canal(espaco, autor, chave, texto, *, duvida=False):
+    if autor.pk == espaco.proprietario_id:
+        destinatarios = Participacao.objects.filter(
+            espaco=espaco, ativo=True, saiu_em__isnull=True,
+            tutor__ativo=True, tutor__usuario__is_active=True,
+        ).exclude(tutor__usuario=autor).values_list('tutor__usuario_id', flat=True).distinct()
+    else:
+        destinatarios = [espaco.proprietario_id]
+
+    for destinatario_id in destinatarios:
+        Notificacao.all_objects.get_or_create(
+            destinatario_id=destinatario_id,
+            chave=f'acompanhamento:{chave}',
+            defaults={
+                'tipo': 'acompanhamento',
+                'texto': texto,
+                'destino': 'acompanhamento-duvidas' if duvida else 'acompanhamento',
+                'recurso_id': espaco.pk,
+            },
+        )
+
 
 @transaction.atomic
 def criar_convite(espaco, tutor, usuario):
@@ -24,12 +48,15 @@ def criar_convite(espaco, tutor, usuario):
     if tutor.usuario_id == usuario.pk:
         raise ValidationError("Você não pode convidar a si mesmo.")
 
+    # Criação e aceite usam o mesmo bloqueio antes de verificar duplicatas.
+    EspacoAcompanhamento.objects.select_for_update().get(pk=espaco.pk)
+
     if Participacao.objects.filter(
         espaco=espaco,
         tutor=tutor,
         ativo=True
     ).exists():
-        raise ValidationError("Este tutor já participa do espaço.")
+        raise ValidationError("Este tutor já participa do canal.")
 
     if Convite.objects.filter(
         espaco=espaco,
@@ -47,6 +74,9 @@ def criar_convite(espaco, tutor, usuario):
 
 @transaction.atomic
 def aceitar_convite(convite, usuario):
+    EspacoAcompanhamento.objects.select_for_update().get(pk=convite.espaco_id)
+    convite = Convite.objects.select_for_update().get(pk=convite.pk)
+
     if convite.status != 'pendente':
         raise ValidationError("Convite não está pendente.")
 
@@ -71,7 +101,7 @@ def aceitar_convite(convite, usuario):
         raise PermissionDenied("Você não tem permissão para aceitar este convite.")
 
     if Participacao.objects.filter(espaco=convite.espaco, tutor=convite.tutor, ativo=True).exists():
-        raise ValidationError("O tutor já está participando deste espaço.")
+        raise ValidationError("O tutor já está participando deste canal.")
 
     Participacao.objects.create(
         espaco=convite.espaco,
@@ -120,6 +150,7 @@ def remover_tutor(espaco, tutor, usuario):
     if not usuario.is_authenticated or not usuario.is_active or usuario != espaco.proprietario:
         raise PermissionDenied("Você não tem permissão para remover este tutor.")
 
+    EspacoAcompanhamento.objects.select_for_update().get(pk=espaco.pk)
     participacao = Participacao.objects.select_for_update().filter(
         espaco=espaco,
         tutor=tutor,
@@ -127,7 +158,7 @@ def remover_tutor(espaco, tutor, usuario):
     ).first()
 
     if participacao is None:
-        raise ValidationError("Este tutor não possui participação ativa neste espaço.")
+        raise ValidationError("Este tutor não possui participação ativa neste canal.")
 
     participacao.ativo = False
     participacao.saiu_em = timezone.now()
@@ -153,6 +184,8 @@ def compartilhar_anotacao(espaco, anotacao, usuario):
         anotacao=anotacao
     )
 
+    if criado:
+        avisar_no_canal(espaco, usuario, f'anotacao:{compartilhamento.pk}', 'Nova anotação compartilhada no canal.')
     return compartilhamento
 
 @transaction.atomic
@@ -175,6 +208,8 @@ def compartilhar_mapa(espaco, mapa, usuario):
         mapa=mapa
     )
 
+    if criado:
+        avisar_no_canal(espaco, usuario, f'mapa:{compartilhamento.pk}', 'Novo mapa mental compartilhado no canal.')
     return compartilhamento
 
 def pode_visualizar_anotacao(anotacao, usuario):
@@ -192,6 +227,7 @@ def pode_visualizar_anotacao(anotacao, usuario):
 
     return AnotacaoCompartilhada.objects.filter(
         anotacao=anotacao,
+        espaco__proprietario__is_active=True,
         espaco__participacao__tutor__usuario=usuario,
         espaco__participacao__tutor__ativo=True,
         espaco__participacao__ativo=True,
@@ -213,6 +249,7 @@ def pode_visualizar_mapa(mapa, usuario):
 
     return MapaCompartilhado.objects.filter(
         mapa=mapa,
+        espaco__proprietario__is_active=True,
         espaco__participacao__tutor__usuario=usuario,
         espaco__participacao__tutor__ativo=True,
         espaco__participacao__ativo=True,
