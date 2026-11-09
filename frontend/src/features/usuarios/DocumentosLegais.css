@@ -17,6 +17,13 @@
   border-bottom: 1px solid rgba(92, 64, 51, 0.28);
 }
 
+.legal-document__topo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
 .legal-document__header h1 {
   margin: 8px 0;
 }
@@ -64,3 +71,4 @@
 }
 
 .legal-page > .page-header { margin:-24px -20px 24px; position:sticky; top:-24px; z-index:10; }
+

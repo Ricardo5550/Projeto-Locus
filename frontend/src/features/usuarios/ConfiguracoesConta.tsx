@@ -138,7 +138,7 @@ export default function ConfiguracoesConta({ onBack, onAccountDeleted, embedded 
               <label htmlFor="account-email-password">Senha atual para alterar e-mail</label>
               <input id="account-email-password" type="password" autoComplete="current-password" value={emailPassword}
                 onChange={e=>setEmailPassword(e.target.value)} disabled={emailBusy}/>
-              <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginTop:'8px'}}>
+              <div className="account-actions">
                 <button type="button" className="account-primary" disabled={saving || deleting || emailBusy || !newEmail.trim() || !emailPassword}
                   onClick={()=>void handleEmailChange()}>{emailBusy?'Enviando...':'Enviar confirmação'}</button>
                 <button type="button" className="account-primary" disabled={emailBusy} onClick={()=>{setShowEmailForm(false);setEmailPassword('');setNewEmail('');}}>Cancelar</button>
@@ -189,28 +189,29 @@ export default function ConfiguracoesConta({ onBack, onAccountDeleted, embedded 
                     disabled={deleting || saving || emailBusy}
                   />
 
-                  <button
-                    type="button"
-                    className="account-delete"
-                    onClick={() => void handleDelete()}
-                    disabled={deleting || saving || emailBusy || !password}
-                  >
-                    {deleting ? 'Excluindo...' : 'Confirmar exclusão'}
-                  </button>
+                  <div className="account-actions">
+                    <button
+                      type="button"
+                      className="account-delete"
+                      onClick={() => void handleDelete()}
+                      disabled={deleting || saving || emailBusy || !password}
+                    >
+                      {deleting ? 'Excluindo...' : 'Confirmar exclusão'}
+                    </button>
 
-                  <button
-                    type="button"
-                    className="account-primary"
-                    style={{ marginLeft: '8px' }}
-                    disabled={deleting}
-                    onClick={() => {
-                      setShowDeleteForm(false);
-                      setPassword('');
-                      setError('');
-                    }}
-                  >
-                    Cancelar
-                  </button>
+                    <button
+                      type="button"
+                      className="account-primary"
+                      disabled={deleting}
+                      onClick={() => {
+                        setShowDeleteForm(false);
+                        setPassword('');
+                        setError('');
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </>
               )}
             </section>

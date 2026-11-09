@@ -18,7 +18,7 @@ NODE_ATTRS = {
 MARK_ATTRS = {'bold': set(), 'italic': set(), 'underline': set(),
               'strike': set(), 'code': set(),
               'textStyle': {'color', 'fontFamily'},
-              'link': {'href', 'target', 'rel', 'class'}}
+              'link': {'href', 'target', 'rel', 'class', 'title'}}
 
 
 def fail(message):

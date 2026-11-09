@@ -18,7 +18,10 @@ from usuarios.mfa_views import MFAChallengeView, MFAEnrollmentView, MFAManagemen
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
 from pastas.views import PastaViewSet
+from pastas.biblioteca import biblioteca
 from referencias.views import buscar_referencias
+from revisoes.questionarios import MateriaViewSet, QuestionarioViewSet, resultados
+from notificacoes.views import NotificacaoViewSet
 from revisoes.views import PerguntaViewSet, TentativaViewSet
 from usuarios.views import (
     AccountView,
@@ -31,6 +34,9 @@ from usuarios.views import (
 )
 
 router = DefaultRouter()
+router.register(r'materias', MateriaViewSet, basename='materia')
+router.register(r'questionarios', QuestionarioViewSet, basename='questionario')
+router.register(r'notificacoes', NotificacaoViewSet, basename='notificacao')
 router.register(r'pastas', PastaViewSet, basename='pasta')
 router.register(r'anotacoes', AnotacaoViewSet, basename='anotacao')
 router.register(r'mapas-mentais', MapaMentalViewSet, basename='mapa-mental')
@@ -39,6 +45,8 @@ router.register(r'tentativas', TentativaViewSet, basename='tentativa')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/resultados/', resultados, name='resultados'),
+    path('api/biblioteca/', biblioteca, name='biblioteca'),
     path('api/', include(router.urls)),
     path('api/referencias/', buscar_referencias, name='buscar-referencias'),
 

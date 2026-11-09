@@ -3,6 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from anotacoes.models import Anotacao
 from mapas.models import MapaMental
+from revisoes.models import Pergunta, Tentativa
 from usuarios.services import anonimizar_e_desativar_conta
 from .models import Pasta
 
@@ -42,6 +43,29 @@ class PastaTests(TestCase):
     def test_exclui_pasta_vazia(self):
         self.assertEqual(self.client.delete(f'/api/pastas/{self.folder.pk}/').status_code, 204)
         self.assertFalse(Pasta.objects.filter(pk=self.folder.pk).exists())
+
+    def test_exclusao_confirmada_inclui_subpastas_notas_mapas_e_revisoes(self):
+        child = Pasta.objects.create(nome='Filha', pai=self.folder, autor=self.user)
+        note = Anotacao.objects.create(titulo='Nota', conteudo={}, autor=self.user, pasta=child)
+        question = Pergunta.objects.create(anotacao=note, enunciado='Pergunta', resposta='Resposta')
+        attempt = Tentativa.objects.create(pergunta=question, acertou=True)
+        mindmap = MapaMental.objects.create(titulo='Mapa', dados={}, autor=self.user, pasta=self.folder)
+        outside = Anotacao.objects.create(titulo='Fora', conteudo={}, autor=self.user)
+        url = f'/api/pastas/{self.folder.pk}/'
+        self.assertEqual(self.client.delete(url).status_code, 400)
+        self.assertTrue(Anotacao.objects.filter(pk=note.pk).exists())
+        self.assertEqual(self.client.delete(url + '?confirmar_conteudo=true').status_code, 204)
+        for model, item in [(Pasta, self.folder), (Pasta, child), (Anotacao, note),
+                            (MapaMental, mindmap), (Pergunta, question), (Tentativa, attempt)]:
+            self.assertFalse(model.objects.filter(pk=item.pk).exists())
+            self.assertIsNotNone(model.all_objects.get(pk=item.pk).deletado_em)
+        self.assertTrue(Anotacao.objects.filter(pk=outside.pk).exists())
+        self.assertTrue(Pasta.objects.filter(pk=self.foreign.pk).exists())
+
+    def test_exclusao_confirmada_nao_permite_pasta_de_outro_usuario(self):
+        response = self.client.delete(f'/api/pastas/{self.foreign.pk}/?confirmar_conteudo=true')
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Pasta.objects.filter(pk=self.foreign.pk).exists())
 
     def test_mover_nota_valida_autor_e_pasta_ativa(self):
         note = Anotacao.objects.create(titulo='Nota', conteudo={}, autor=self.user)

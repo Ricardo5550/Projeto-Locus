@@ -31,10 +31,15 @@
   gap: 10px;
 }
 
+.account-card section {
+  display: grid;
+  gap: 10px;
+}
+
 .account-card h1,
 .account-card h2,
 .account-card p {
-  margin-top: 0;
+  margin: 0;
 }
 
 .account-card label {
@@ -79,7 +84,7 @@
   border-top: 1px solid #ded5ca;
 }
 
-.account-danger p {
+.account-danger p:not(.account-error) {
   color: #6f5a4c;
 }
 
@@ -94,4 +99,26 @@
 
 .account-error {
   color: #9b2c2c;
+}
+
+.account-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.account-actions button {
+  margin-top: 0;
+}
+
+.account-secret {
+  overflow-wrap: anywhere;
+}
+
+.account-recovery-codes {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
 }

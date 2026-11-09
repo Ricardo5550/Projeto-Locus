@@ -27,6 +27,7 @@ ALLOWED_HOSTS = [
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
 
 INSTALLED_APPS = [
+    'notificacoes',
     'usuarios.admin_apps.LocusAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',

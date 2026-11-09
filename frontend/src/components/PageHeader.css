@@ -10,3 +10,17 @@
 .page-back:focus-visible,.page-action:focus-visible,.page-header__title:focus-visible { outline:2px solid #9d6a2e; outline-offset:3px; }
 .page-action:disabled { opacity:.6; cursor:wait; }
 @media(max-width:640px) { .page-header { flex-wrap:wrap; padding:9px 12px; } .page-header__title { flex:1 1 100px; width:auto; } .page-header__actions { width:100%; } .page-header__status { margin-right:auto; } }
+
+
+.page-header__title-group {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.page-header__title-group .page-header__title {
+  flex: 0 1 auto;
+  width: auto;
+}

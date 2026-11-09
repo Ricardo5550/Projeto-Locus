@@ -43,7 +43,7 @@ def revogar_sessoes(user):
 
 
 def gerar_recuperacao(device):
-    codes = [secrets.token_hex(16).upper() for _ in range(10)]
+    codes = [secrets.token_hex(16).upper() for _ in range(2)]
     device.recuperacao = [resumo(code) for code in codes]
     device.save(update_fields=['recuperacao'])
     return ['-'.join(code[i:i+8] for i in range(0, len(code), 8)) for code in codes]

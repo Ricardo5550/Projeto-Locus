@@ -3,7 +3,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from anotacoes.models import Anotacao
-from .models import Pergunta, Tentativa
+from .models import Pergunta, Tentativa, Questionario
 
 
 @override_settings(DATA_ENCRYPTION_KEY='6RjRfe5FBjdCRoJ_ZZDOZfIfz8EIQH-EYsPt-1XnFDY=')
@@ -12,6 +12,8 @@ class FluxoQuestionarioTests(TestCase):
         User = get_user_model()
         self.user_a = User.objects.create_user('a', 'a@example.com', 'senha123')
         self.user_b = User.objects.create_user('b', 'b@example.com', 'senha123')
+        self.q_a = Questionario.objects.create(autor=self.user_a, titulo='Estudo A')
+        self.q_b = Questionario.objects.create(autor=self.user_b, titulo='Estudo B')
         self.client = APIClient()
         self.anotacao_a = Anotacao.objects.create(
             titulo='Biologia', conteudo={'type': 'doc', 'content': []}, autor=self.user_a
@@ -20,6 +22,7 @@ class FluxoQuestionarioTests(TestCase):
     def test_usuario_nao_cria_pergunta_em_anotacao_de_outro(self):
         self.client.force_authenticate(self.user_b)
         resposta = self.client.post('/api/perguntas/', {
+            'questionario': self.q_b.pk,
             'anotacao': self.anotacao_a.pk,
             'enunciado': 'Pergunta',
             'resposta': 'Resposta',
@@ -38,6 +41,7 @@ class FluxoQuestionarioTests(TestCase):
     def test_fluxo_do_proprio_usuario(self):
         self.client.force_authenticate(self.user_a)
         criada = self.client.post('/api/perguntas/', {
+            'questionario': self.q_a.pk,
             'anotacao': self.anotacao_a.pk,
             'enunciado': 'O que é mitose?',
             'resposta': 'Divisão celular.',
@@ -50,8 +54,9 @@ class FluxoQuestionarioTests(TestCase):
             'resposta_digitada': 'Divisão celular',
             'acertou': True,
         }, format='json')
-        self.assertEqual(tentativa.status_code, 201)
-        self.assertTrue(Tentativa.objects.get(pk=tentativa.data['id']).acertou)
+        # Avaliações isoladas não podem mais registrar resultados: apenas Finalizar.
+        self.assertEqual(tentativa.status_code, 405)
+        self.assertFalse(Tentativa.objects.exists())
 
     def test_exclusao_da_pergunta_e_soft_delete(self):
         pergunta = Pergunta.objects.create(

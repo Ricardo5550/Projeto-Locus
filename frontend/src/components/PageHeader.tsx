@@ -12,6 +12,7 @@ type Props = {
   maxLength?: number;
   status?: string;
   actions?: ReactNode;
+  afterTitle?: ReactNode;
 };
 
 export function BackButton({ onClick, label = 'Voltar' }: { onClick: () => void; label?: string }) {
@@ -20,7 +21,7 @@ export function BackButton({ onClick, label = 'Voltar' }: { onClick: () => void;
   </button>;
 }
 
-export default function PageHeader({ title, onBack, onHome, onTitleChange, placeholder, titleLabel, maxLength, status, actions }: Props) {
+export default function PageHeader({ title, onBack, onHome, onTitleChange, placeholder, titleLabel, maxLength, status, actions, afterTitle }: Props) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const header = ref.current;
@@ -40,7 +41,10 @@ export default function PageHeader({ title, onBack, onHome, onTitleChange, place
     </div>}
     {onTitleChange ? <input className="page-header__title" value={title} onChange={e => onTitleChange(e.target.value)}
       placeholder={placeholder} aria-label={titleLabel || 'Título'} maxLength={maxLength} />
-      : <h1 className="page-header__title">{title}</h1>}
+      : afterTitle ? <div className="page-header__title-group">
+        <h1 className="page-header__title">{title}</h1>
+        {afterTitle}
+      </div> : <h1 className="page-header__title">{title}</h1>}
     <div className="page-header__actions">
       {status && <span className="page-header__status" role="status">{status}</span>}
       {actions}

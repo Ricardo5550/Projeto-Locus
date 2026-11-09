@@ -14,6 +14,7 @@ import AnotacaoToolbar from './AnotacaoToolbar';
 import ReferenciasPanel from './ReferenciasPanel';
 import type { ReferenciaAcademica } from './apiReferencias';
 import { criarPergunta } from '../revisoes/apiRevisoes';
+import { ErroApi } from '../../services/apiClient';
 import { carregarMapaMental } from '../mapas/apiMapas';
 import type { TipoConteudo } from '../mapas/tiposMapa';
 import {
@@ -73,6 +74,7 @@ export default function AnotacaoEditor({
   const [dirty,setDirty]=useState(false);
   const loadedNote=useRef<number|null|undefined>(undefined);
   const [status, setStatus] = useState('');
+  const [salvandoPergunta, setSalvandoPergunta] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showReferences, setShowReferences] = useState(false);
@@ -252,11 +254,12 @@ export default function AnotacaoEditor({
   }
 
   async function saveQuestion() {
-    if (!editor || !questionDraft?.question.trim() || !questionDraft.answer.trim()) return;
+    if (salvandoPergunta || !editor || !questionDraft?.question.trim() || !questionDraft.answer.trim()) return;
+    const finalTitle = title.trim();
+    if (!finalTitle) { requireTitle(); return; }
+    setSalvandoPergunta(true);
     try {
       setStatus('Salvando anotação e pergunta...');
-      const finalTitle = title.trim();
-      if(!finalTitle) {requireTitle();return;}
       // Uma pergunta deve apontar para um registro persistido, inclusive em notas novas.
       const note = noteId === null
         ? await criarAnotacao(finalTitle, editor.getJSON() as ConteudoAnotacao, initialFolderId)
@@ -265,18 +268,31 @@ export default function AnotacaoEditor({
       setDirty(false);
       loadedNote.current=note.id;
       onCreated(note.id, note.titulo);
-      await criarPergunta({
+      const dados = {
         anotacao: note.id,
         enunciado: questionDraft.question.trim(),
         resposta: questionDraft.answer.trim(),
         trecho_origem: questionDraft.source,
-      });
+        mapa_origem: relationshipContext?.parentMapId,
+        visao_origem: relationshipContext?.parentViewStack.at(-1),
+      };
+      try {
+        await criarPergunta(dados);
+      } catch (error) {
+        if (!(error instanceof ErroApi) || error.status !== 409) throw error;
+        if (!window.confirm(error.message)) {
+          setStatus('Anotação salva. A criação da pergunta foi cancelada.');
+          return;
+        }
+        await criarPergunta({ ...dados, confirmar_reinicio: true });
+      }
       setQuestionDraft(null);
       setSelectedText('');
       setStatus('Pergunta salva. Ela já está disponível no questionário.');
     } catch (error) {
-      console.error(error);
-      setStatus('Não foi possível salvar a pergunta. Tente novamente.');
+      setStatus(error instanceof Error ? error.message : 'Não foi possível salvar a pergunta.');
+    } finally {
+      setSalvandoPergunta(false);
     }
   }
 
@@ -333,6 +349,7 @@ export default function AnotacaoEditor({
             onClick={startQuestion}>Criar pergunta</button>
           {questionDraft && <section className="note-editor__question">
             <h3>Nova pergunta</h3>
+            <p className="note-editor__help">O questionário é escolhido automaticamente pela origem desta anotação.</p>
             <small>Trecho de origem: “{questionDraft.source}”</small>
             <label htmlFor="note-question-text">Pergunta</label>
             <textarea id="note-question-text" value={questionDraft.question} rows={3}
@@ -352,7 +369,7 @@ export default function AnotacaoEditor({
               <textarea id="note-answer-text" value={questionDraft.answer} rows={4}
                 onChange={(event) => setQuestionDraft({ ...questionDraft, answer: event.target.value })}
                 placeholder="Edite a resposta antes de salvar" />
-              <button type="button" onClick={() => void saveQuestion()}>Salvar pergunta</button>
+              <button type="button" disabled={salvandoPergunta} onClick={() => void saveQuestion()}>Salvar pergunta</button>
               <button type="button" onClick={() => setQuestionDraft({ ...questionDraft, answer: '', step: 'answer' })}>Selecionar outra resposta</button>
             </>}
             <button type="button" className="is-secondary" onClick={() => setQuestionDraft(null)}>Cancelar</button>

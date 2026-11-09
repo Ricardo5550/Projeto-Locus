@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import HomeMenu from './features/home/HomeMenu';
 import HomeLayout, { type SecaoHome } from './features/home/HomeLayout';
 import ConfiguracoesConta from './features/usuarios/ConfiguracoesConta';
@@ -15,7 +15,8 @@ import VerificarEmail from './features/cadastro/VerificarEmail';
 import TermosUso from './features/usuarios/TermosUso';
 import PoliticaPrivacidade from './features/usuarios/PoliticaPrivacidade';
 import ConfirmarAlteracaoEmail from './features/usuarios/ConfirmarAlteracaoEmail';
-import Questionario from './features/revisoes/Questionario';
+import Resultados from './features/revisoes/Resultados';
+import Questionario, { type NavegacaoQuestionario } from './features/revisoes/Questionario';
 import { restaurarSessao, encerrarSessao } from './services/apiClient';
 import './App.css';
 
@@ -33,6 +34,7 @@ type Tela =
   | 'verify-email'
   | 'terms'
   | 'privacy'
+  | 'results'
   | 'questionnaire';
 
 type EntradaHistorico = {
@@ -59,6 +61,13 @@ export default function App() {
   const [libraryFolderId, setLibraryFolderId] = useState<number | null>(null);
   const [loginNotice, setLoginNotice] = useState('');
   const [librarySearch, setLibrarySearch] = useState('');
+  const [entradaQuestionario,setEntradaQuestionario]=useState(0);
+  const navegacaoQuestionario = useRef<NavegacaoQuestionario>(null);
+  const [emDetalheQuestionario, setEmDetalheQuestionario] = useState(false);
+  const [questionarioAberto,setQuestionarioAberto]=useState<number|null>(null);
+  const [abrirDevolutiva,setAbrirDevolutiva]=useState(false);
+  const [retornoQuestionario,setRetornoQuestionario]=useState<number|null>(null);
+  const [revisaoEmAndamento,setRevisaoEmAndamento]=useState(false);
   const [accountVersion, setAccountVersion] = useState(0);
   const [currentMapId, setCurrentMapId] = useState<number | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
@@ -95,6 +104,7 @@ export default function App() {
   }, [screen]);
 
   async function handleLogout() {
+    if(revisaoEmAndamento&&!window.confirm('Sair sem finalizar? Esta sessão não será contabilizada.'))return;
     try { await encerrarSessao(); }
     catch { window.alert('Não foi possível encerrar a sessão no servidor. Verifique a conexão e tente novamente.'); }
   }
@@ -133,6 +143,7 @@ export default function App() {
   }
 
   function openSavedNote(id: number, title: string) {
+    setRetornoQuestionario(null);
     setHistory([]);
     setCurrentNoteId(id);
     setCurrentMapId(null);
@@ -236,6 +247,11 @@ export default function App() {
   }
 
   function openHomeSection(section: SecaoHome) {
+    if(revisaoEmAndamento&&!window.confirm('Sair sem finalizar? Esta sessão não será contabilizada.'))return;
+    setRevisaoEmAndamento(false);
+    setEntradaQuestionario(n=>n+1);
+    setQuestionarioAberto(null);
+    setAbrirDevolutiva(false);
     if (section === 'home') { goHome(); return; }
     setHistory([]);
     setScreen(section);
@@ -317,9 +333,17 @@ export default function App() {
     return <RecuperarSenha onBackToLogin={() => setScreen('login')} />;
   }
 
-  if (screen === 'home' || screen === 'questionnaire' || screen === 'account' || screen === 'terms' || screen === 'privacy') {
+  if (screen === 'home' || screen === 'questionnaire' || screen === 'results' ||
+      screen === 'account' || screen === 'terms' || screen === 'privacy') {
     return <HomeLayout active={screen} onNavigate={openHomeSection} onLogout={() => void handleLogout()}
-      search={librarySearch} onSearchChange={setLibrarySearch} accountVersion={accountVersion}>
+      onBack={screen === 'questionnaire' && emDetalheQuestionario
+        ? () => navegacaoQuestionario.current?.voltar()
+        : undefined}
+      search={librarySearch} onSearchChange={setLibrarySearch} accountVersion={accountVersion} onNotification={(destino,id)=>{
+        if(destino!=='questionnaire')return;
+        if(revisaoEmAndamento&&!window.confirm('Sair sem finalizar? Esta sessão não será contabilizada.'))return;
+        setRevisaoEmAndamento(false);setEntradaQuestionario(n=>n+1);setQuestionarioAberto(id);setAbrirDevolutiva(false);setScreen('questionnaire');
+      }}>
       {screen === 'home' && <HomeMenu
         folderId={libraryFolderId}
         search={librarySearch}
@@ -329,7 +353,10 @@ export default function App() {
         onOpenMindMap={openSavedMindMap}
         onOpenNote={openSavedNote}
       />}
-      {screen === 'questionnaire' && <Questionario embedded onBack={goHome} />}
+      {screen === 'results' && <Resultados />}
+      {screen === 'questionnaire' && <Questionario key={`${questionarioAberto??'lista'}-${entradaQuestionario}`} ref={navegacaoQuestionario} initialId={questionarioAberto} initialDevolutiva={abrirDevolutiva} onSessionChange={setRevisaoEmAndamento} onDetalheChange={setEmDetalheQuestionario} onOpenNote={(id,title,qid)=>{
+        setRetornoQuestionario(qid);setCurrentNoteId(id);setNoteRelationshipContext(null);setBreadcrumb(['Início','Questionários',title]);setScreen('annotation');
+      }} />}
       {screen === 'account' && <ConfiguracoesConta embedded onBack={goHome}
         onAccountUpdated={() => setAccountVersion(current => current + 1)}
         onAccountDeleted={() => {
@@ -349,8 +376,8 @@ export default function App() {
         initialFolderId={libraryFolderId}
         initialTitle={breadcrumb[breadcrumb.length - 1] || 'Nova anotação'}
         breadcrumb={breadcrumb}
-        onBack={goBack}
-        onHome={goHome}
+        onBack={()=>{if(retornoQuestionario){setQuestionarioAberto(retornoQuestionario);setAbrirDevolutiva(true);setRetornoQuestionario(null);setScreen('questionnaire');}else goBack();}}
+        onHome={()=>{setRetornoQuestionario(null);goHome();}}
         relationshipContext={noteRelationshipContext}
         onNavigateRelationship={navigateFromAnnotation}
         onCreated={(id, title) => {

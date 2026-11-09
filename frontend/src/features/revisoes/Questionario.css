@@ -139,3 +139,9 @@
     flex-direction: column;
   }
 }
+
+.revisoes button.is-danger {
+  color: #8b2525;
+  border-color: #a44242;
+  background: #fff3f1;
+}

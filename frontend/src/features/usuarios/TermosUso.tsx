@@ -15,10 +15,16 @@ export default function TermosUso({
 }: TermosUsoProps) {
   return (
     <div className={`legal-page${embedded ? ' is-embedded' : ''}`}>
-      {!embedded && <PageHeader title="Termos de Uso" onBack={onBack} />}
+      {!embedded && (
+        <PageHeader title="Termos de Uso" actions={<BackButton onClick={onBack} label={backLabel} />} />
+      )}
       <article className="terms-container">
         <div className="legal-document__header">
-          <span className="legal-document__brand">Locus</span>
+          <div className="legal-document__topo">
+            {embedded && <BackButton onClick={onBack} label={backLabel} />}
+            <span className="legal-document__brand">Locus</span>
+            
+          </div>
           <h1>Termos de Uso</h1>
           <p>Versão 1.0 — vigente a partir de 27 de setembro de 2026.</p>
         </div>
@@ -93,7 +99,6 @@ export default function TermosUso({
 
         <div className="legal-document__footer">
           <strong>Termos de Uso — versão 1.0</strong>
-          <BackButton onClick={onBack} label={backLabel} />
         </div>
       </article>
     </div>

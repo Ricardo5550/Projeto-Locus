@@ -107,11 +107,11 @@ class MFATests(TestCase):
         device = self.device()
         codes = mfa.gerar_recuperacao(device)
         device.refresh_from_db()
-        self.assertEqual(len(codes), 10)
+        self.assertEqual(len(codes), 2)
         self.assertNotIn(codes[0], str(device.recuperacao))
         challenge = self.login().data['challenge']
         self.assertEqual(self.factor(challenge, codes[0]).status_code, 200)
-        device.refresh_from_db(); self.assertEqual(len(device.recuperacao), 9)
+        device.refresh_from_db(); self.assertEqual(len(device.recuperacao), 1)
         challenge = self.login().data['challenge']
         self.assertEqual(self.factor(challenge, codes[0]).status_code, 400)
 
@@ -144,7 +144,7 @@ class MFATests(TestCase):
         self.assertTrue(setup.data['qr_code'].startswith('data:image/svg+xml;base64,'))
         response = self.post('/api/auth/mfa/enroll/', {'challenge': value, 'code': pyotp.TOTP(setup.data['secret']).now()})
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['recovery_codes']), 10)
+        self.assertEqual(len(response.data['recovery_codes']), 2)
         self.assertEqual(self.client.get('/api/auth/account/').status_code, 200)
 
     def test_usuario_ativa_fator_e_tokens_antigos_perdem_validade(self):
@@ -155,7 +155,7 @@ class MFATests(TestCase):
         secret = setup.data['secret']
         response = self.post('/api/auth/mfa/', {'action': 'activate', 'password': 'SenhaTeste123!', 'code': pyotp.TOTP(secret).now()})
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['recovery_codes']), 10)
+        self.assertEqual(len(response.data['recovery_codes']), 2)
         self.assertTrue(self.client.get('/api/auth/mfa/').data['enabled'])
         self.client.cookies['locus_access'] = old_access
         self.assertEqual(self.client.get('/api/auth/account/').status_code, 401)
@@ -270,7 +270,7 @@ class AdminMFATests(TestCase):
         secret = response.context_data['secret']
         response = self.post({'code': pyotp.TOTP(secret).now(), 'next': 'https://intruso.example/'})
         self.assertEqual(response.context_data['phase'], 'recovery')
-        self.assertEqual(len(response.context_data['recovery_codes']), 10)
+        self.assertEqual(len(response.context_data['recovery_codes']), 2)
         self.assertEqual(self.client.get('/admin/').status_code, 200)
         self.assertNotIn('recovery_codes', self.client.session)
         self.assertFalse(response.context_data['next'].startswith('https://intruso'))

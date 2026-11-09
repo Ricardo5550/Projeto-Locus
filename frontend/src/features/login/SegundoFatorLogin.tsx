@@ -35,10 +35,10 @@ export default function SegundoFatorLogin({ challenge, setup, onSuccess, onCance
     {recovery.length ? <CodigosRecuperacao codes={recovery} onClose={() => { setRecovery([]); onSuccess(); }} /> : <>
       <h1>{setup ? 'Configure seu autenticador' : 'Verificação em duas etapas'}</h1>
       {setup ? <>
-        <p>Contas administrativas exigem 2FA. Adicione esta conta no Google Authenticator ou outro aplicativo TOTP. A configuração expira em cinco minutos.</p>
+        <p>Contas administrativas exigem 2FA. Adicione esta conta no Google Authenticator ou outro app 2FA. A configuração expira em cinco minutos.</p>
         {config && <><img src={config.qr_code} width="220" height="220" alt="QR Code do autenticador" />
           <p>Chave: <code style={{ overflowWrap: 'anywhere' }}>{config.secret}</code></p></>}
-      </> : <p>Informe o código do aplicativo ou um dos seus códigos de recuperação. Um código já utilizado não pode ser repetido; aguarde o próximo código do aplicativo.</p>}
+      </> : <p>Informe o código do aplicativo ou um dos seus códigos de recuperação.</p>}
       <form onSubmit={confirmar}>
         <label htmlFor="mfa-login-code">Código {setup ? 'do aplicativo' : 'do aplicativo ou de recuperação'}</label>
         <input id="mfa-login-code" value={code} onChange={e => setCode(e.target.value)} maxLength={80} autoComplete="one-time-code" required autoFocus disabled={busy} />
