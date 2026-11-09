@@ -14,7 +14,6 @@ from usuarios.auth_endpoints import (
 from rest_framework.routers import DefaultRouter
 from usuarios.email_views import EmailChangeView, EmailChangeRedirectView, ConfirmEmailChangeView
 from usuarios.mfa_views import MFAChallengeView, MFAEnrollmentView, MFAManagementView
-
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
 from pastas.views import PastaViewSet
@@ -23,6 +22,23 @@ from referencias.views import buscar_referencias
 from revisoes.questionarios import MateriaViewSet, QuestionarioViewSet, resultados
 from notificacoes.views import NotificacaoViewSet
 from revisoes.views import PerguntaViewSet, TentativaViewSet
+from acompanhamento.views import (
+    AnotacaoCompartilhadaDetalheView,
+    MapaCompartilhadoDetalheView,
+    AceitarConviteView,
+    CriarConviteView,
+    ConvitesRecebidosView,
+    RecusarConviteView,
+    EspacosAcompanhamentoView,
+    TutoresEspacoView,
+    RemoverTutorView,
+    CompartilharAnotacaoView,
+    CompartilharMapaView,
+    EspacosTutorView,
+    MateriaisCompartilhadosEspacoView,
+    TutoresDisponiveisView,
+    PerfilTutorView,
+)
 from usuarios.views import (
     AccountView,
     CsrfView,
@@ -48,6 +64,97 @@ urlpatterns = [
     path('api/resultados/', resultados, name='resultados'),
     path('api/biblioteca/', biblioteca, name='biblioteca'),
     path('api/', include(router.urls)),
+
+    path(
+        'api/acompanhamento/anotacoes/<int:pk>/',
+        AnotacaoCompartilhadaDetalheView.as_view(),
+        name='acompanhamento-anotacao-detalhe'
+    ),
+
+    path(
+        'api/acompanhamento/mapas/<int:pk>/',
+        MapaCompartilhadoDetalheView.as_view(),
+        name='acompanhamento-mapa-detalhe'
+    ),
+
+    path(
+        'api/acompanhamento/convites/<int:pk>/aceitar/',
+        AceitarConviteView.as_view(),
+        name='acompanhamento-convite-aceitar'
+    ),
+
+    path(
+        'api/acompanhamento/convites/',
+        CriarConviteView.as_view(),
+        name='acompanhamento-convite-criar'
+    ),
+
+    path(
+        'api/acompanhamento/convites/recebidos/',
+        ConvitesRecebidosView.as_view(),
+        name='acompanhamento-convites-recebidos'
+    ),
+
+    path(
+        'api/acompanhamento/convites/<int:pk>/recusar/',
+        RecusarConviteView.as_view(),
+        name='acompanhamento-convite-recusar'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/',
+        EspacosAcompanhamentoView.as_view(),
+        name='acompanhamento-espacos'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/<int:pk>/tutores/',
+        TutoresEspacoView.as_view(),
+        name='acompanhamento-espaco-tutores'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/<int:pk>/tutores/<int:tutor_id>/',
+        RemoverTutorView.as_view(),
+        name='acompanhamento-remover-tutor'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/<int:pk>/anotacoes/<int:anotacao_id>/compartilhar/',
+        CompartilharAnotacaoView.as_view(),
+        name='acompanhamento-compartilhar-anotacao'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/<int:pk>/mapas/<int:mapa_id>/compartilhar/',
+        CompartilharMapaView.as_view(),
+        name='acompanhamento-compartilhar-mapa'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/participando/',
+        EspacosTutorView.as_view(),
+        name='acompanhamento-espacos-participando'
+    ),
+
+    path(
+        'api/acompanhamento/espacos/<int:pk>/materiais/',
+        MateriaisCompartilhadosEspacoView.as_view(),
+        name='acompanhamento-espaco-materiais'
+    ),
+
+    path(
+        'api/acompanhamento/tutores/disponiveis/',
+        TutoresDisponiveisView.as_view(),
+        name='acompanhamento-tutores-disponiveis'
+    ),
+
+    path(
+        'api/acompanhamento/tutores/perfil/',
+        PerfilTutorView.as_view(),
+        name='acompanhamento-perfil-tutor'
+    ),
+
     path('api/referencias/', buscar_referencias, name='buscar-referencias'),
 
     # Links usados nos e-mails. Eles apenas redirecionam para o SPA.

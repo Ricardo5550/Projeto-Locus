@@ -6,10 +6,16 @@ import { obterUsuarioAtual } from '../usuarios/apiUsuarios';
 import './HomeMenu.css';
 import './HomeLayout.css';
 
-export type SecaoHome = 'home' | 'results' | 'questionnaire' | 'account' | 'terms' | 'privacy';
+export type SecaoHome = 'home' | 'results' | 'questionnaire' | 'acompanhamento' | 'account' | 'terms' | 'privacy';
+
 const titulos: Record<SecaoHome, string> = {
-  home: 'Biblioteca', results: 'Resultados', questionnaire: 'Questionários', account: 'Minha conta',
-  terms: 'Termos de Uso', privacy: 'Política de Privacidade',
+  home: 'Biblioteca',
+  results: 'Resultados',
+  questionnaire: 'Questionários',
+  acompanhamento: 'Acompanhamento',
+  account: 'Minha conta',
+  terms: 'Termos de Uso',
+  privacy: 'Política de Privacidade',
 };
 
 export default function HomeLayout({ active, children, onNavigate, onLogout, search, onSearchChange, accountVersion, onNotification, onBack }: {
@@ -32,7 +38,12 @@ export default function HomeLayout({ active, children, onNavigate, onLogout, sea
   return <div className="home-layout home-layout--shared">
     <aside className="home-sidebar" aria-label="Menu principal">
       <div className="home-brand"><div className="home-brand__logo">L</div><strong>Locus</strong></div>
-      <nav aria-label="Conteúdos">{nav('home')}{nav('questionnaire')}{nav('results')}</nav>
+      <nav aria-label="Conteúdos">
+        {nav('home')}
+        {nav('questionnaire')}
+        {nav('results')}
+        {nav('acompanhamento')}
+      </nav>
       <nav className="home-sidebar__bottom" aria-label="Informações e sessão">
         {nav('terms')}{nav('privacy')}
         <button className="home-nav-button home-nav-button--logout" type="button" onClick={onLogout}>Sair</button>
