@@ -30,11 +30,7 @@ class EncryptedJSONField(models.TextField):
             return value
 
         plain = decrypt_text(value)
-        try:
-            return deserialize_json(plain)
-        except (TypeError, ValueError):
-            # Compatibilidade defensiva com registros legados inesperados.
-            return plain
+        return deserialize_json(plain)
 
     def to_python(self, value):
         if value is None or isinstance(value, (dict, list, int, float, bool)):

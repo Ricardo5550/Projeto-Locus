@@ -3,8 +3,16 @@ from .models import AlteracaoEmail
 
 from allauth.account.models import EmailAddress
 from django.db import transaction
-from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from rest_framework_simplejwt.token_blacklist.models import (
+    BlacklistedToken,
+    OutstandingToken,
+)
 
+from acompanhamento.models import (
+    EspacoAcompanhamento,
+    MensagemAcompanhamento,
+    PerfilTutor,
+)
 from anotacoes.models import Anotacao
 from mapas.models import MapaMental
 from pastas.models import Pasta
@@ -25,7 +33,16 @@ def anonimizar_e_desativar_conta(user):
     SessaoRevisao.objects.filter(autor=user).delete()
     Questionario.objects.filter(autor=user).delete()
     Materia.objects.filter(autor=user).delete()
-    Notificacao.objects.filter(destinatario=user).delete()
+    Notificacao.all_objects.filter(destinatario=user).hard_delete()
+    MensagemAcompanhamento.objects.filter(autor=user).update(texto='')
+    EspacoAcompanhamento.objects.filter(proprietario=user).update(nome='')
+    PerfilTutor.objects.filter(usuario=user).update(
+        nome_apresentacao='',
+        descricao='',
+        area='',
+        formacoes=[],
+        ativo=False,
+    )
 
     # Revoga todas as sessões JWT ainda conhecidas.
     for token in OutstandingToken.objects.filter(user=user):
@@ -35,6 +52,7 @@ def anonimizar_e_desativar_conta(user):
     EmailAddress.objects.filter(user=user).delete()
     AlteracaoEmail.objects.filter(usuario=user).delete()
     from .models import SegundoFator, DesafioAutenticacao
+
     SegundoFator.objects.filter(usuario=user).delete()
     DesafioAutenticacao.objects.filter(usuario=user).delete()
 

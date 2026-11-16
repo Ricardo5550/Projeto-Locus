@@ -1,4 +1,5 @@
 """Limite adicional de login por combinação de endereço de rede e e-mail."""
+
 from hashlib import sha256
 
 from rest_framework.throttling import SimpleRateThrottle, UserRateThrottle
@@ -12,7 +13,10 @@ class AdminLoginThrottle(SimpleRateThrottle):
     scope = 'admin_login'
 
     def get_cache_key(self, request, view):
-        return self.cache_format % {'scope': self.scope, 'ident': self.get_ident(request)}
+        return self.cache_format % {
+            'scope': self.scope,
+            'ident': self.get_ident(request),
+        }
 
 
 class LoginPairThrottle(SimpleRateThrottle):

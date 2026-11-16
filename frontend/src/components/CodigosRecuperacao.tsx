@@ -14,14 +14,10 @@ export default function CodigosRecuperacao({
         separado da senha. Eles não serão exibidos novamente.
       </p>
 
-      <pre className="account-recovery-codes">{codes.join('\n')}</pre>
+      <pre className="account-recovery-codes">{codes.join("\n")}</pre>
 
       <div className="account-actions">
-        <button
-          type="button"
-          className="account-primary"
-          onClick={onClose}
-        >
+        <button type="button" className="account-primary" onClick={onClose}>
           Guardei os códigos
         </button>
       </div>

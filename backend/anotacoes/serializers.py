@@ -9,6 +9,7 @@ class AnotacaoSerializer(PastaConteudoMixin, serializers.ModelSerializer):
 
     def validate_conteudo(self, value):
         from .validation import validate_document
+
         return validate_document(value)
 
     def validate_titulo(self, value):

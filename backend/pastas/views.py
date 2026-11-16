@@ -35,20 +35,31 @@ class PastaViewSet(viewsets.ModelViewSet):
         pastas = {instance.pk}
         pendentes = {instance.pk}
         while pendentes:
-            pendentes = set(Pasta.objects.filter(
-                autor=self.request.user, pai_id__in=pendentes
-            ).values_list('pk', flat=True)) - pastas
+            pendentes = (
+                set(
+                    Pasta.objects.filter(
+                        autor=self.request.user, pai_id__in=pendentes
+                    ).values_list('pk', flat=True)
+                )
+                - pastas
+            )
             pastas.update(pendentes)
-        if Questionario.objects.filter(autor=self.request.user, pasta_id__in=pastas).exists():
-            raise ValidationError({
-                'detail': 'Mova ou exclua os questionários vinculados à pasta ou às subpastas antes de excluir a pasta.'
-            })
+        if Questionario.objects.filter(
+            autor=self.request.user, pasta_id__in=pastas
+        ).exists():
+            raise ValidationError(
+                {
+                    'detail': 'Mova ou exclua os questionários vinculados à pasta ou às subpastas antes de excluir a pasta.'
+                }
+            )
 
         notas = Anotacao.objects.filter(autor=self.request.user, pasta_id__in=pastas)
         mapas = MapaMental.objects.filter(autor=self.request.user, pasta_id__in=pastas)
         if len(pastas) > 1 or notas.exists() or mapas.exists():
             if self.request.query_params.get('confirmar_conteudo') != 'true':
-                raise ValidationError({'detail': 'Confirme a exclusão da pasta e de todo o seu conteúdo.'})
+                raise ValidationError(
+                    {'detail': 'Confirme a exclusão da pasta e de todo o seu conteúdo.'}
+                )
         for mapa in mapas:
             excluir_mapa(mapa, 'excluir_tudo', self.request)
         for nota in notas:

@@ -20,12 +20,19 @@ class _Resposta(BytesIO):
 class CrossrefServiceTests(SimpleTestCase):
     @patch('referencias.services.urlopen')
     def test_normaliza_resultados(self, abrir):
-        dados = {'message': {'items': [{
-            'DOI': '10.1234/abc', 'title': ['Artigo teste'],
-            'author': [{'given': 'Ana', 'family': 'Silva'}],
-            'published': {'date-parts': [[2024, 3, 1]]},
-            'container-title': ['Revista exemplo'],
-        }]}}
+        dados = {
+            'message': {
+                'items': [
+                    {
+                        'DOI': '10.1234/abc',
+                        'title': ['Artigo teste'],
+                        'author': [{'given': 'Ana', 'family': 'Silva'}],
+                        'published': {'date-parts': [[2024, 3, 1]]},
+                        'container-title': ['Revista exemplo'],
+                    }
+                ]
+            }
+        }
         abrir.return_value = _Resposta(json.dumps(dados).encode('utf-8'))
         resultado = pesquisar_crossref('Artigo teste')[0]
         self.assertEqual(resultado['titulo'], 'Artigo teste')
@@ -46,7 +53,9 @@ class CrossrefEndpointTests(SimpleTestCase):
 
     def _request(self, path):
         request = self.factory.get(path)
-        force_authenticate(request, user=type('User', (), {'is_authenticated': True, 'pk': 1})())
+        force_authenticate(
+            request, user=type('User', (), {'is_authenticated': True, 'pk': 1})()
+        )
         return request
 
     def test_pesquisa_vazia(self):

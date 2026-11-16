@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { ArrowLeft, Home } from 'lucide-react';
-import './PageHeader.css';
+import { useEffect, useRef, type ReactNode } from "react";
+import { ArrowLeft, Home } from "lucide-react";
+import "./PageHeader.css";
 
 type Props = {
   title: string;
@@ -15,39 +15,96 @@ type Props = {
   afterTitle?: ReactNode;
 };
 
-export function BackButton({ onClick, label = 'Voltar' }: { onClick: () => void; label?: string }) {
-  return <button type="button" className="page-back" onClick={onClick} aria-label={label} title={label}>
-    <ArrowLeft size={18} aria-hidden="true" />
-  </button>;
+export function BackButton({
+  onClick,
+  label = "Voltar",
+}: {
+  onClick: () => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="page-back"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      <ArrowLeft size={18} aria-hidden="true" />
+    </button>
+  );
 }
 
-export default function PageHeader({ title, onBack, onHome, onTitleChange, placeholder, titleLabel, maxLength, status, actions, afterTitle }: Props) {
+export default function PageHeader({
+  title,
+  onBack,
+  onHome,
+  onTitleChange,
+  placeholder,
+  titleLabel,
+  maxLength,
+  status,
+  actions,
+  afterTitle,
+}: Props) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const header = ref.current;
     if (!header) return;
-    const measure = () => header.parentElement?.style.setProperty('--page-header-height', `${header.offsetHeight}px`);
+    const measure = () =>
+      header.parentElement?.style.setProperty(
+        "--page-header-height",
+        `${header.offsetHeight}px`,
+      );
     const observer = new ResizeObserver(measure);
     observer.observe(header);
     measure();
     return () => observer.disconnect();
   }, []);
-  return <header className="page-header" ref={ref}>
-    {(onBack || onHome) && <div className="page-header__navigation">
-      {onBack && <BackButton onClick={onBack} />}
-      {onHome && <button type="button" className="page-action page-home" onClick={onHome} aria-label="Ir para a Home" title="Ir para a Home">
-        <Home size={18} aria-hidden="true" /><span>Menu</span>
-      </button>}
-    </div>}
-    {onTitleChange ? <input className="page-header__title" value={title} onChange={e => onTitleChange(e.target.value)}
-      placeholder={placeholder} aria-label={titleLabel || 'Título'} maxLength={maxLength} />
-      : afterTitle ? <div className="page-header__title-group">
+  return (
+    <header className="page-header" ref={ref}>
+      {(onBack || onHome) && (
+        <div className="page-header__navigation">
+          {onBack && <BackButton onClick={onBack} />}
+          {onHome && (
+            <button
+              type="button"
+              className="page-action page-home"
+              onClick={onHome}
+              aria-label="Ir para a Home"
+              title="Ir para a Home"
+            >
+              <Home size={18} aria-hidden="true" />
+              <span>Menu</span>
+            </button>
+          )}
+        </div>
+      )}
+      {onTitleChange ? (
+        <input
+          className="page-header__title"
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          placeholder={placeholder}
+          aria-label={titleLabel || "Título"}
+          maxLength={maxLength}
+        />
+      ) : afterTitle ? (
+        <div className="page-header__title-group">
+          <h1 className="page-header__title">{title}</h1>
+          {afterTitle}
+        </div>
+      ) : (
         <h1 className="page-header__title">{title}</h1>
-        {afterTitle}
-      </div> : <h1 className="page-header__title">{title}</h1>}
-    <div className="page-header__actions">
-      {status && <span className="page-header__status" role="status">{status}</span>}
-      {actions}
-    </div>
-  </header>;
+      )}
+      <div className="page-header__actions">
+        {status && (
+          <span className="page-header__status" role="status">
+            {status}
+          </span>
+        )}
+        {actions}
+      </div>
+    </header>
+  );
 }

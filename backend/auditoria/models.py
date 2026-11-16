@@ -1,8 +1,11 @@
+from uuid import uuid4
+
 from django.conf import settings
 from django.db import models
 
 
 class RegistroAtividade(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     ACAO_CHOICES = [
         ('login', 'Login'),
         ('logout', 'Logout'),
@@ -21,8 +24,16 @@ class RegistroAtividade(models.Model):
 
     acao = models.CharField(max_length=64)
     recurso = models.CharField(max_length=20, choices=RECURSO_CHOICES)
-    recurso_id = models.PositiveBigIntegerField(null=True, blank=True)
-    resultado = models.CharField(max_length=12, default='sucesso', choices=[('sucesso', 'Sucesso'), ('falha', 'Falha'), ('bloqueado', 'Bloqueado')])
+    recurso_id = models.UUIDField(null=True, blank=True)
+    resultado = models.CharField(
+        max_length=12,
+        default='sucesso',
+        choices=[
+            ('sucesso', 'Sucesso'),
+            ('falha', 'Falha'),
+            ('bloqueado', 'Bloqueado'),
+        ],
+    )
     endereco_ip = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=500, blank=True)
     descricao = models.CharField(max_length=500, blank=True)

@@ -7,9 +7,11 @@ def obter_pagina(request, queryset):
 
 
 def responder_pagina(pagina, itens):
-    return Response({
-        'itens': list(itens),
-        'pagina': pagina.number,
-        'total_paginas': pagina.paginator.num_pages,
-        'total': pagina.paginator.count,
-    })
+    return Response(
+        {
+            'itens': list(itens),
+            'pagina': pagina.number,
+            'total_paginas': pagina.paginator.num_pages,
+            'total': pagina.paginator.count,
+        }
+    )

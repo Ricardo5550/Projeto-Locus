@@ -1,4 +1,4 @@
-import type { Editor } from '@tiptap/react';
+import type { Editor } from "@tiptap/react";
 
 export default function AnotacaoToolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null;
@@ -7,14 +7,16 @@ export default function AnotacaoToolbar({ editor }: { editor: Editor | null }) {
     <div className="note-toolbar" aria-label="Formatação de texto">
       <button
         type="button"
-        onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+        onClick={() =>
+          editor.chain().focus().clearNodes().unsetAllMarks().run()
+        }
       >
         Texto normal
       </button>
 
       <button
         type="button"
-        className={editor.isActive('bold') ? 'is-active' : ''}
+        className={editor.isActive("bold") ? "is-active" : ""}
         onClick={() => editor.chain().focus().toggleBold().run()}
       >
         Negrito
@@ -22,7 +24,7 @@ export default function AnotacaoToolbar({ editor }: { editor: Editor | null }) {
 
       <button
         type="button"
-        className={editor.isActive('italic') ? 'is-active' : ''}
+        className={editor.isActive("italic") ? "is-active" : ""}
         onClick={() => editor.chain().focus().toggleItalic().run()}
       >
         Itálico
@@ -30,7 +32,7 @@ export default function AnotacaoToolbar({ editor }: { editor: Editor | null }) {
 
       <button
         type="button"
-        className={editor.isActive('underline') ? 'is-active' : ''}
+        className={editor.isActive("underline") ? "is-active" : ""}
         onClick={() => editor.chain().focus().toggleUnderline().run()}
       >
         Sublinhado
@@ -38,21 +40,21 @@ export default function AnotacaoToolbar({ editor }: { editor: Editor | null }) {
 
       <button
         type="button"
-        onClick={() => editor.chain().focus().setTextAlign('left').run()}
+        onClick={() => editor.chain().focus().setTextAlign("left").run()}
       >
         Esquerda
       </button>
 
       <button
         type="button"
-        onClick={() => editor.chain().focus().setTextAlign('center').run()}
+        onClick={() => editor.chain().focus().setTextAlign("center").run()}
       >
         Centro
       </button>
 
       <button
         type="button"
-        onClick={() => editor.chain().focus().setTextAlign('right').run()}
+        onClick={() => editor.chain().focus().setTextAlign("right").run()}
       >
         Direita
       </button>

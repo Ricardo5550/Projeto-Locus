@@ -15,9 +15,9 @@ class MapaMentalViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return MapaMental.objects.filter(
-            autor=self.request.user
-        ).order_by('-data_atualizacao')
+        return MapaMental.objects.filter(autor=self.request.user).order_by(
+            '-data_atualizacao'
+        )
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -44,4 +44,6 @@ class MapaMentalViewSet(viewsets.ModelViewSet):
         if modo not in ('excluir_tudo', 'manter_anotacoes'):
             raise ValidationError({'modo': 'Escolha excluir_tudo ou manter_anotacoes.'})
         pasta = excluir_mapa(self.get_object(), modo, request)
-        return Response({'pasta_id': pasta.pk if pasta else None}, status=status.HTTP_200_OK)
+        return Response(
+            {'pasta_id': pasta.pk if pasta else None}, status=status.HTTP_200_OK
+        )

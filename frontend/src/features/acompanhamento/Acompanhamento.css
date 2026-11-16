@@ -67,7 +67,7 @@
 }
 
 .acompanhamento-page button:disabled {
-  opacity: .55;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
@@ -111,7 +111,7 @@
 
 .acompanhamento-page time {
   color: #69574b;
-  font-size: .85em;
+  font-size: 0.85em;
 }
 
 .acompanhamento-mapa {

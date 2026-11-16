@@ -1,51 +1,55 @@
-import { useEffect, useMemo, useState } from 'react';
-import { requisicaoApi } from '../../services/apiClient';
-import '../login/RecuperacaoAcesso.css';
+import { useEffect, useMemo, useState } from "react";
+import { requisicaoApi } from "../../services/apiClient";
+import "../login/RecuperacaoAcesso.css";
 
 interface VerificarEmailProps {
   onBackToLogin: () => void;
 }
 
-type EstadoVerificacao = 'loading' | 'success' | 'error';
+type EstadoVerificacao = "loading" | "success" | "error";
 
 export default function VerificarEmail({ onBackToLogin }: VerificarEmailProps) {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const key = params.get('verify_email') ?? '';
-  const [state, setState] = useState<EstadoVerificacao>('loading');
-  const [message, setMessage] = useState('Confirmando seu e-mail...');
+  const key = params.get("verify_email") ?? "";
+  const [state, setState] = useState<EstadoVerificacao>("loading");
+  const [message, setMessage] = useState("Confirmando seu e-mail...");
 
   useEffect(() => {
     if (!key) {
-      setState('error');
-      setMessage('O link de confirmação é inválido ou incompleto.');
+      setState("error");
+      setMessage("O link de confirmação é inválido ou incompleto.");
       return;
     }
 
     let cancelled = false;
 
     requisicaoApi(
-      '/auth/verify-email/',
+      "/auth/verify-email/",
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ key }),
       },
-      { auth: false }
+      { auth: false },
     )
       .then(async (response) => {
         if (cancelled) return;
         if (!response.ok) {
-          setState('error');
-          setMessage('Não foi possível confirmar este e-mail. O link pode ter expirado ou já ter sido utilizado.');
+          setState("error");
+          setMessage(
+            "Não foi possível confirmar este e-mail. O link pode ter expirado ou já ter sido utilizado.",
+          );
           return;
         }
-        setState('success');
-        setMessage('E-mail confirmado com sucesso. Você já pode entrar.');
-        window.history.replaceState({}, '', '/');
+        setState("success");
+        setMessage("E-mail confirmado com sucesso. Você já pode entrar.");
+        window.history.replaceState({}, "", "/");
       })
       .catch(() => {
         if (!cancelled) {
-          setState('error');
-          setMessage('Não foi possível conectar ao servidor para confirmar o e-mail.');
+          setState("error");
+          setMessage(
+            "Não foi possível conectar ao servidor para confirmar o e-mail.",
+          );
         }
       });
 
@@ -61,18 +65,22 @@ export default function VerificarEmail({ onBackToLogin }: VerificarEmailProps) {
         <h1>Confirmação de e-mail</h1>
         <p
           className={`auth-recovery-message ${
-            state === 'success'
-              ? 'auth-recovery-message--success'
-              : state === 'error'
-                ? 'auth-recovery-message--error'
-                : ''
+            state === "success"
+              ? "auth-recovery-message--success"
+              : state === "error"
+                ? "auth-recovery-message--error"
+                : ""
           }`}
           role="status"
         >
           {message}
         </p>
-        {state !== 'loading' && (
-          <button type="button" className="auth-recovery-primary" onClick={onBackToLogin}>
+        {state !== "loading" && (
+          <button
+            type="button"
+            className="auth-recovery-primary"
+            onClick={onBackToLogin}
+          >
             Ir para o login
           </button>
         )}

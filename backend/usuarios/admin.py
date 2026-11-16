@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AceiteLegal
+from .models import AceiteLegal, PoliticaPrivacidade, TermosUso
 from . import admin_support  # noqa: F401
 
 
@@ -29,6 +29,30 @@ class AceiteLegalAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PoliticaPrivacidade, TermosUso)
+class DocumentoPublicadoAdmin(admin.ModelAdmin):
+    list_display = ('versao', 'publicada_em')
+    fields = ('versao', 'conteudo', 'publicada_em')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'conteudo' in form.base_fields:
+            form.base_fields['conteudo'].help_text = (
+                'Salvar publica a nova versão imediatamente. Separe os parágrafos com uma '
+                'linha em branco. Comece os títulos de seção com ## e um espaço.'
+            )
+        return form
+
+    search_fields = ('versao',)
+    readonly_fields = ('publicada_em',)
 
     def has_change_permission(self, request, obj=None):
         return False

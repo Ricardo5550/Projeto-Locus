@@ -5,6 +5,7 @@ from rest_framework.parsers import JSONParser
 
 class LimitedJSONParser(JSONParser):
     """Limita bytes e profundidade antes de chamar o decodificador JSON."""
+
     def parse(self, stream, media_type=None, parser_context=None):
         raw = stream.read(10 * 1024 * 1024 + 1)
         if len(raw) > 10 * 1024 * 1024:
@@ -27,8 +28,10 @@ class LimitedJSONParser(JSONParser):
                     raise ParseError('JSON excede a profundidade permitida.')
             elif char in (125, 93):
                 depth -= 1
+
         def invalid_constant(value):
             raise ValueError(value)
+
         try:
             value = json.loads(raw.decode('utf-8'), parse_constant=invalid_constant)
             if not isinstance(value, dict):

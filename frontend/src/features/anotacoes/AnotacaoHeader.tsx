@@ -1,8 +1,9 @@
-import type { ChangeEvent } from 'react';
-import PageHeader from '../../components/PageHeader';
-import type { Editor } from '@tiptap/react';
+import { useDialogos } from "../../components/contextoDialogos";
+import type { ChangeEvent } from "react";
+import PageHeader from "../../components/PageHeader";
+import type { Editor } from "@tiptap/react";
 
- type AnotacaoHeaderProps = {
+type AnotacaoHeaderProps = {
   title: string;
   setTitle: (value: string) => void;
   editor: Editor | null;
@@ -21,25 +22,32 @@ export default function AnotacaoHeader({
   onHome,
   onSave,
 }: AnotacaoHeaderProps) {
+  const dialogos = useDialogos();
   function insertImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    event.target.value = '';
+    event.target.value = "";
 
     if (!file || !editor) return;
 
-    if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
-      alert('Selecione uma imagem PNG, JPEG, GIF ou WebP.');
+    if (
+      !["image/png", "image/jpeg", "image/gif", "image/webp"].includes(
+        file.type,
+      )
+    ) {
+      void dialogos.avisar("Selecione uma imagem PNG, JPEG, GIF ou WebP.");
       return;
     }
 
     if (file.size > 3 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 3 MB. A anotação inteira deve ter até 5 MB.');
+      void dialogos.avisar(
+        "A imagem deve ter no máximo 3 MB. A anotação inteira deve ter até 5 MB.",
+      );
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === 'string') {
+      if (typeof reader.result === "string") {
         editor.chain().focus().setImage({ src: reader.result }).run();
       }
     };
@@ -48,15 +56,34 @@ export default function AnotacaoHeader({
 
   return (
     <PageHeader
-      title={title} onTitleChange={setTitle} onBack={onBack} onHome={onHome} status={status}
-      titleLabel="Nome da anotação" placeholder="Digite o título da anotação..." maxLength={100}
-      actions={<>
-        <label className="page-action">
-          Inserir imagem
-          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={insertImage} hidden />
-        </label>
-        <button type="button" className="page-action is-primary" onClick={onSave}>Salvar</button>
-      </>}
+      title={title}
+      onTitleChange={setTitle}
+      onBack={onBack}
+      onHome={onHome}
+      status={status}
+      titleLabel="Nome da anotação"
+      placeholder="Digite o título da anotação..."
+      maxLength={100}
+      actions={
+        <>
+          <label className="page-action">
+            Inserir imagem
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              onChange={insertImage}
+              hidden
+            />
+          </label>
+          <button
+            type="button"
+            className="page-action is-primary"
+            onClick={onSave}
+          >
+            Salvar
+          </button>
+        </>
+      }
     />
   );
 }

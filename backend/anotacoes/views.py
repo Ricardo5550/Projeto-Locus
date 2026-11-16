@@ -15,9 +15,9 @@ class AnotacaoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Anotacao.objects.filter(
-            autor=self.request.user
-        ).order_by('-data_atualizacao')
+        return Anotacao.objects.filter(autor=self.request.user).order_by(
+            '-data_atualizacao'
+        )
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -25,8 +25,11 @@ class AnotacaoViewSet(viewsets.ModelViewSet):
         registrar_atividade(self.request, 'criar', 'anotacao', anotacao.pk)
 
     @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        get_user_model().objects.select_for_update().get(pk=request.user.pk)
+        return super().update(request, *args, **kwargs)
+
     def perform_update(self, serializer):
-        get_user_model().objects.select_for_update().get(pk=self.request.user.pk)
         anotacao = serializer.save()
         sincronizar_titulo_anotacao(anotacao)
         registrar_atividade(self.request, 'editar', 'anotacao', anotacao.pk)

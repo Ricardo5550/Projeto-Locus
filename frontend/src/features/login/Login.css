@@ -3,16 +3,16 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #FCF5EB;
+  background-color: #fcf5eb;
   font-family: sans-serif;
 }
 
 .card-login {
-  background-color: #F6D56D;
+  background-color: #f6d56d;
   width: 100%;
   max-width: 420px;
   padding: 40px 30px;
-  border-radius: 8px; 
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -21,7 +21,7 @@
 }
 
 .logo-pill {
-  background-color: #FFFFFF;
+  background-color: #ffffff;
   color: #000000;
   font-size: 28px;
   font-weight: bold;
@@ -71,7 +71,7 @@ input {
 }
 
 input:focus {
-  outline: 2px solid #5C4033;
+  outline: 2px solid #5c4033;
 }
 
 .btn-entrar {
@@ -79,8 +79,8 @@ input:focus {
   padding: 12px 40px;
   border: none;
   border-radius: 8px;
-  background-color: #5C4033;
-  color: #FFFFFF;
+  background-color: #5c4033;
+  color: #ffffff;
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
@@ -88,12 +88,12 @@ input:focus {
 }
 
 .btn-entrar:hover {
-  background-color: #4A3329;
+  background-color: #4a3329;
 }
 
 .auth-link {
   margin-top: 15px;
-  color: #5C4033;
+  color: #5c4033;
   cursor: pointer;
 }
 
@@ -149,7 +149,6 @@ input:disabled {
   font-size: 13px;
 }
 
-
 .auth-message--login-top {
   margin-top: 0;
   margin-bottom: 16px;
@@ -180,4 +179,17 @@ input:disabled {
   display: inline-block;
   margin-top: 10px;
   font-weight: 600;
+}
+
+.aceite-legal-form label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+.aceite-legal-form input[type="checkbox"] {
+  width: auto;
+  accent-color: #5c4033;
 }

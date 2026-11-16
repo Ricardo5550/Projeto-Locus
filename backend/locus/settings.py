@@ -17,7 +17,9 @@ if DEBUG:
 else:
     SECRET_KEY = os.environ['SECRET_KEY']
     if len(SECRET_KEY) < 50 or SECRET_KEY.startswith('django-insecure-'):
-        raise ValueError('Configure uma SECRET_KEY aleatória com pelo menos 50 caracteres para produção.')
+        raise ValueError(
+            'Configure uma SECRET_KEY aleatória com pelo menos 50 caracteres para produção.'
+        )
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -104,7 +106,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {'min_length': 7},
+        'OPTIONS': {'min_length': 9},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -157,16 +159,14 @@ REST_FRAMEWORK = {
         'mfa_setup': '10/minute',
         'mfa_manage': '10/minute',
     },
-    # Não confie em X-Forwarded-For por padrão. Ajuste somente após conhecer
-    # a cadeia de proxies da hospedagem (ver guia).
+    #Não confie em X-Forwarded-For por padrão. Ajuste somente após conhecer
+    #a cadeia de proxies da hospedagem (ver guia).
     'NUM_PROXIES': int(os.getenv('TRUSTED_PROXY_COUNT', '0')),
     'DEFAULT_PARSER_CLASSES': ('core.parsers.LimitedJSONParser',),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'usuarios.authentication.CookieJWTAuthentication',
     ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',),
 }
 
 SIMPLE_JWT = {
@@ -189,15 +189,20 @@ ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
 
 EMAIL_BACKEND = os.getenv(
     'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend' if DEBUG
-    else 'django.core.mail.backends.smtp.EmailBackend',
+    (
+        'django.core.mail.backends.console.EmailBackend'
+        if DEBUG
+        else 'django.core.mail.backends.smtp.EmailBackend'
+    ),
 )
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@locus.local')
+DEFAULT_FROM_EMAIL = os.getenv(
+    'DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@locus.local'
+)
 
 REST_AUTH = {
     'USE_JWT': True,
@@ -211,7 +216,7 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-# Em produção, habilite via variáveis de ambiente e proxy HTTPS.
+#Em produção, habilite via variáveis de ambiente e proxy HTTPS.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -219,7 +224,7 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
 
 
-# Cookies da API. Em produção, use HTTPS e mantenha Secure habilitado.
+#Cookies da API. Em produção, use HTTPS e mantenha Secure habilitado.
 JWT_ACCESS_COOKIE = 'locus_access'
 JWT_REFRESH_COOKIE = 'locus_refresh'
 JWT_COOKIE_SECURE = not DEBUG
@@ -234,17 +239,24 @@ CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = JWT_COOKIE_SECURE
 CSRF_COOKIE_SAMESITE = JWT_COOKIE_SAMESITE
 EMAIL_CHANGE_MAX_AGE = 86400
-# Limite para o corpo antes do processamento dos documentos JSON (imagens incluídas).
+#Limite para o corpo antes do processamento dos documentos JSON (imagens incluídas).
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
-# Cache compartilhado entre os processos de produção, sem dependência extra.
-# Antes de iniciar em produção: python manage.py createcachetable
-CACHES = {'default': {
-    'BACKEND': ('django.core.cache.backends.locmem.LocMemCache' if DEBUG
-                else 'django.core.cache.backends.db.DatabaseCache'),
-    'LOCATION': 'locus_rate_cache',
-    'OPTIONS': {'MAX_ENTRIES': 20000},
-}}
+#Cache compartilhado entre os processos de produção, sem dependência extra.
+#Antes de iniciar em produção: python manage.py createcachetable
+CACHES = {
+    'default': {
+        'BACKEND': (
+            'django.core.cache.backends.locmem.LocMemCache'
+            if DEBUG
+            else 'django.core.cache.backends.db.DatabaseCache'
+        ),
+        'LOCATION': 'locus_rate_cache',
+        'OPTIONS': {'MAX_ENTRIES': 20000},
+    }
+}
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
 X_FRAME_OPTIONS = 'DENY'
+
+AUTH_USER_MODEL = "usuarios.Usuario"

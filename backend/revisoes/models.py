@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from core.fields import EncryptedTextField, EncryptedJSONField
@@ -5,10 +6,18 @@ from core.models import SoftDeleteModel
 
 
 class Pergunta(SoftDeleteModel):
+    campos_ao_excluir = {"enunciado": "", "resposta": "", "trecho_origem": ""}
+
     anotacao = models.ForeignKey(
         'anotacoes.Anotacao', on_delete=models.CASCADE, related_name='perguntas'
     )
-    questionario = models.ForeignKey('Questionario', null=True, blank=True, on_delete=models.SET_NULL, related_name='perguntas')
+    questionario = models.ForeignKey(
+        'Questionario',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='perguntas',
+    )
     enunciado = EncryptedTextField()
     resposta = EncryptedTextField()
     trecho_origem = EncryptedTextField(blank=True)
@@ -19,7 +28,11 @@ class Pergunta(SoftDeleteModel):
 
 
 class Tentativa(SoftDeleteModel):
-    pergunta = models.ForeignKey(Pergunta, on_delete=models.CASCADE, related_name='tentativas')
+    campos_ao_excluir = {"resposta_digitada": ""}
+
+    pergunta = models.ForeignKey(
+        Pergunta, on_delete=models.CASCADE, related_name='tentativas'
+    )
     resposta_digitada = EncryptedTextField(blank=True)
     acertou = models.BooleanField()
     data_criacao = models.DateTimeField(auto_now_add=True)
@@ -29,7 +42,9 @@ class Tentativa(SoftDeleteModel):
 
 
 class Materia(SoftDeleteModel):
-    autor = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    campos_ao_excluir = {"nome": ""}
+
+    autor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     nome = models.CharField(max_length=150)
 
     class Meta:
@@ -37,11 +52,17 @@ class Materia(SoftDeleteModel):
 
 
 class Questionario(SoftDeleteModel):
-    autor = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    campos_ao_excluir = {"titulo": ""}
+
+    autor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     titulo = models.CharField(max_length=150)
-    origem = models.CharField(max_length=230, blank=True, default='', editable=False)
-    materia = models.ForeignKey(Materia, null=True, blank=True, on_delete=models.SET_NULL)
-    pasta = models.ForeignKey('pastas.Pasta', null=True, blank=True, on_delete=models.SET_NULL)
+    origem = models.CharField(max_length=300, blank=True, default='', editable=False)
+    materia = models.ForeignKey(
+        Materia, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    pasta = models.ForeignKey(
+        'pastas.Pasta', null=True, blank=True, on_delete=models.SET_NULL
+    )
     versao = models.PositiveIntegerField(default=1)
     facilidade = models.DecimalField(max_digits=8, decimal_places=2, default='2.50')
     sucessos = models.PositiveIntegerField(default=0)
@@ -63,9 +84,13 @@ class Questionario(SoftDeleteModel):
 
 
 class SessaoRevisao(SoftDeleteModel):
-    questionario = models.ForeignKey(Questionario, on_delete=models.CASCADE, related_name='sessoes')
+    campos_ao_excluir = {"respostas": []}
+
+    questionario = models.ForeignKey(
+        Questionario, on_delete=models.CASCADE, related_name='sessoes'
+    )
     materia = models.ForeignKey(Materia, null=True, on_delete=models.SET_NULL)
-    autor = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    autor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     chave = models.UUIDField()
     versao = models.PositiveIntegerField()
     treino = models.BooleanField(default=False)
@@ -78,4 +103,8 @@ class SessaoRevisao(SoftDeleteModel):
 
     class Meta:
         ordering = ['-data_criacao', '-pk']
-        constraints = [models.UniqueConstraint(fields=['autor', 'chave'], name='revisao_chave_unica')]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['autor', 'chave'], name='revisao_chave_unica'
+            )
+        ]

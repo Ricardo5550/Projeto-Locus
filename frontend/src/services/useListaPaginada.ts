@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { apiJson } from './apiClient';
+import { useEffect, useState } from "react";
+import { apiJson } from "./apiClient";
 
 type Pagina<T> = {
   itens: T[];
@@ -10,7 +10,11 @@ type Pagina<T> = {
 
 export function useListaPaginada<T>(rota: string | null) {
   const [revisao, setRevisao] = useState(0);
-  const [resultado, setResultado] = useState<{ chave: string; dados?: Pagina<T>; erro?: string }>();
+  const [resultado, setResultado] = useState<{
+    chave: string;
+    dados?: Pagina<T>;
+    erro?: string;
+  }>();
   const chave = rota === null ? null : `${rota}|${revisao}`;
 
   useEffect(() => {
@@ -18,12 +22,18 @@ export function useListaPaginada<T>(rota: string | null) {
     const controlador = new AbortController();
     const espera = window.setTimeout(() => {
       apiJson<Pagina<T>>(rota, { signal: controlador.signal })
-        .then(dados => {
+        .then((dados) => {
           if (!controlador.signal.aborted) setResultado({ chave, dados });
         })
-        .catch(erro => {
+        .catch((erro) => {
           if (!controlador.signal.aborted) {
-            setResultado({ chave, erro: erro instanceof Error ? erro.message : 'Não foi possível carregar a lista.' });
+            setResultado({
+              chave,
+              erro:
+                erro instanceof Error
+                  ? erro.message
+                  : "Não foi possível carregar a lista.",
+            });
           }
         });
     }, 180);
@@ -38,6 +48,6 @@ export function useListaPaginada<T>(rota: string | null) {
     dados: atual?.dados,
     erro: atual?.erro,
     carregando: chave !== null && !atual,
-    atualizar: () => setRevisao(revisaoAtual => revisaoAtual + 1),
+    atualizar: () => setRevisao((revisaoAtual) => revisaoAtual + 1),
   };
 }

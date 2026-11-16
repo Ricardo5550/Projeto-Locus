@@ -12,12 +12,22 @@ from anotacoes.models import Anotacao
 from mapas.models import MapaMental
 from notificacoes.models import Notificacao
 
+
 def avisar_no_canal(espaco, autor, chave, texto, *, duvida=False):
     if autor.pk == espaco.proprietario_id:
-        destinatarios = Participacao.objects.filter(
-            espaco=espaco, ativo=True, saiu_em__isnull=True,
-            tutor__ativo=True, tutor__usuario__is_active=True,
-        ).exclude(tutor__usuario=autor).values_list('tutor__usuario_id', flat=True).distinct()
+        destinatarios = (
+            Participacao.objects.filter(
+                espaco=espaco,
+                ativo=True,
+                saiu_em__isnull=True,
+                tutor__ativo=True,
+                tutor__aprovado=True,
+                tutor__usuario__is_active=True,
+            )
+            .exclude(tutor__usuario=autor)
+            .values_list('tutor__usuario_id', flat=True)
+            .distinct()
+        )
     else:
         destinatarios = [espaco.proprietario_id]
 
@@ -42,35 +52,25 @@ def criar_convite(espaco, tutor, usuario):
     if usuario != espaco.proprietario:
         raise PermissionDenied("Somente o proprietário pode convidar um tutor.")
 
-    if not tutor.ativo or not tutor.usuario.is_active:
+    if not tutor.aprovado or not tutor.ativo or not tutor.usuario.is_active:
         raise ValidationError("Este tutor está inativo.")
 
     if tutor.usuario_id == usuario.pk:
         raise ValidationError("Você não pode convidar a si mesmo.")
 
-    # Criação e aceite usam o mesmo bloqueio antes de verificar duplicatas.
+    #Criação e aceite usam o mesmo bloqueio antes de verificar duplicatas.
     EspacoAcompanhamento.objects.select_for_update().get(pk=espaco.pk)
 
-    if Participacao.objects.filter(
-        espaco=espaco,
-        tutor=tutor,
-        ativo=True
-    ).exists():
+    if Participacao.objects.filter(espaco=espaco, tutor=tutor, ativo=True).exists():
         raise ValidationError("Este tutor já participa do canal.")
 
-    if Convite.objects.filter(
-        espaco=espaco,
-        tutor=tutor,
-        status='pendente'
-    ).exists():
+    if Convite.objects.filter(espaco=espaco, tutor=tutor, status='pendente').exists():
         raise ValidationError("Já existe um convite pendente para este tutor.")
 
     return Convite.objects.create(
-        espaco=espaco,
-        tutor=tutor,
-        solicitado_por=usuario,
-        status='pendente'
+        espaco=espaco, tutor=tutor, solicitado_por=usuario, status='pendente'
     )
+
 
 @transaction.atomic
 def aceitar_convite(convite, usuario):
@@ -84,7 +84,12 @@ def aceitar_convite(convite, usuario):
     usuario_tutor = convite.tutor.usuario
     solicitante = convite.solicitado_por
 
-    if not proprietario.is_active or not usuario_tutor.is_active or not convite.tutor.ativo:
+    if (
+        not proprietario.is_active
+        or not usuario_tutor.is_active
+        or not convite.tutor.ativo
+        or not convite.tutor.aprovado
+    ):
         raise ValidationError("O proprietário ou o tutor está inativo.")
 
     if proprietario == usuario_tutor:
@@ -100,7 +105,9 @@ def aceitar_convite(convite, usuario):
     if not usuario.is_authenticated or not usuario.is_active or usuario != destinatario:
         raise PermissionDenied("Você não tem permissão para aceitar este convite.")
 
-    if Participacao.objects.filter(espaco=convite.espaco, tutor=convite.tutor, ativo=True).exists():
+    if Participacao.objects.filter(
+        espaco=convite.espaco, tutor=convite.tutor, ativo=True
+    ).exists():
         raise ValidationError("O tutor já está participando deste canal.")
 
     Participacao.objects.create(
@@ -113,14 +120,13 @@ def aceitar_convite(convite, usuario):
     convite.respondido_em = timezone.now()
     convite.save(update_fields=['status', 'respondido_em'])
 
+
 @transaction.atomic
 def recusar_convite(convite, usuario):
     if not usuario.is_authenticated or not usuario.is_active:
         raise PermissionDenied("Usuário não autorizado.")
 
-    convite = Convite.objects.select_for_update().get(
-        pk=convite.pk
-    )
+    convite = Convite.objects.select_for_update().get(pk=convite.pk)
 
     proprietario = convite.espaco.proprietario
     usuario_tutor = convite.tutor.usuario
@@ -145,17 +151,22 @@ def recusar_convite(convite, usuario):
 
     return convite
 
+
 @transaction.atomic
 def remover_tutor(espaco, tutor, usuario):
-    if not usuario.is_authenticated or not usuario.is_active or usuario != espaco.proprietario:
+    if (
+        not usuario.is_authenticated
+        or not usuario.is_active
+        or usuario != espaco.proprietario
+    ):
         raise PermissionDenied("Você não tem permissão para remover este tutor.")
 
     EspacoAcompanhamento.objects.select_for_update().get(pk=espaco.pk)
-    participacao = Participacao.objects.select_for_update().filter(
-        espaco=espaco,
-        tutor=tutor,
-        ativo=True
-    ).first()
+    participacao = (
+        Participacao.objects.select_for_update()
+        .filter(espaco=espaco, tutor=tutor, ativo=True)
+        .first()
+    )
 
     if participacao is None:
         raise ValidationError("Este tutor não possui participação ativa neste canal.")
@@ -164,62 +175,76 @@ def remover_tutor(espaco, tutor, usuario):
     participacao.saiu_em = timezone.now()
     participacao.save(update_fields=['ativo', 'saiu_em'])
 
+
 @transaction.atomic
 def compartilhar_anotacao(espaco, anotacao, usuario):
-    if not usuario.is_authenticated or not usuario.is_active or usuario != espaco.proprietario:
-        raise PermissionDenied("Você não tem permissão para compartilhar esta anotação.")
+    if (
+        not usuario.is_authenticated
+        or not usuario.is_active
+        or usuario != espaco.proprietario
+    ):
+        raise PermissionDenied(
+            "Você não tem permissão para compartilhar esta anotação."
+        )
 
     if anotacao.autor_id != usuario.pk:
         raise PermissionDenied("Você não pode compartilhar uma anotação que não é sua.")
 
     if not Anotacao.objects.filter(
-        pk=anotacao.pk,
-        autor=usuario,
-        deletado_em__isnull=True
+        pk=anotacao.pk, autor=usuario, deletado_em__isnull=True
     ).exists():
         raise ValidationError("A anotação não existe ou foi excluída.")
 
     compartilhamento, criado = AnotacaoCompartilhada.objects.get_or_create(
-        espaco=espaco,
-        anotacao=anotacao
+        espaco=espaco, anotacao=anotacao
     )
 
     if criado:
-        avisar_no_canal(espaco, usuario, f'anotacao:{compartilhamento.pk}', 'Nova anotação compartilhada no canal.')
+        avisar_no_canal(
+            espaco,
+            usuario,
+            f'anotacao:{compartilhamento.pk}',
+            'Nova anotação compartilhada no canal.',
+        )
     return compartilhamento
+
 
 @transaction.atomic
 def compartilhar_mapa(espaco, mapa, usuario):
-    if not usuario.is_authenticated or not usuario.is_active or usuario != espaco.proprietario:
+    if (
+        not usuario.is_authenticated
+        or not usuario.is_active
+        or usuario != espaco.proprietario
+    ):
         raise PermissionDenied("Você não tem permissão para compartilhar este mapa.")
 
     if mapa.autor_id != usuario.pk:
         raise PermissionDenied("Você não pode compartilhar um mapa que não é seu.")
 
     if not MapaMental.objects.filter(
-        pk=mapa.pk,
-        autor=usuario,
-        deletado_em__isnull=True
+        pk=mapa.pk, autor=usuario, deletado_em__isnull=True
     ).exists():
         raise ValidationError("O mapa não existe ou foi excluído.")
 
     compartilhamento, criado = MapaCompartilhado.objects.get_or_create(
-        espaco=espaco,
-        mapa=mapa
+        espaco=espaco, mapa=mapa
     )
 
     if criado:
-        avisar_no_canal(espaco, usuario, f'mapa:{compartilhamento.pk}', 'Novo mapa mental compartilhado no canal.')
+        avisar_no_canal(
+            espaco,
+            usuario,
+            f'mapa:{compartilhamento.pk}',
+            'Novo mapa mental compartilhado no canal.',
+        )
     return compartilhamento
+
 
 def pode_visualizar_anotacao(anotacao, usuario):
     if not usuario.is_authenticated or not usuario.is_active:
         return False
 
-    if not Anotacao.objects.filter(
-        pk=anotacao.pk,
-        deletado_em__isnull=True
-    ).exists():
+    if not Anotacao.objects.filter(pk=anotacao.pk, deletado_em__isnull=True).exists():
         return False
 
     if anotacao.autor_id == usuario.pk:
@@ -230,18 +255,17 @@ def pode_visualizar_anotacao(anotacao, usuario):
         espaco__proprietario__is_active=True,
         espaco__participacao__tutor__usuario=usuario,
         espaco__participacao__tutor__ativo=True,
+        espaco__participacao__tutor__aprovado=True,
         espaco__participacao__ativo=True,
-        espaco__participacao__saiu_em__isnull=True
+        espaco__participacao__saiu_em__isnull=True,
     ).exists()
+
 
 def pode_visualizar_mapa(mapa, usuario):
     if not usuario.is_authenticated or not usuario.is_active:
         return False
 
-    if not MapaMental.objects.filter(
-        pk=mapa.pk,
-        deletado_em__isnull=True
-    ).exists():
+    if not MapaMental.objects.filter(pk=mapa.pk, deletado_em__isnull=True).exists():
         return False
 
     if mapa.autor_id == usuario.pk:
@@ -252,6 +276,7 @@ def pode_visualizar_mapa(mapa, usuario):
         espaco__proprietario__is_active=True,
         espaco__participacao__tutor__usuario=usuario,
         espaco__participacao__tutor__ativo=True,
+        espaco__participacao__tutor__aprovado=True,
         espaco__participacao__ativo=True,
-        espaco__participacao__saiu_em__isnull=True
+        espaco__participacao__saiu_em__isnull=True,
     ).exists()

@@ -1,5 +1,6 @@
 """Configuração isolada para testes locais; não usa o PostgreSQL da aplicação."""
-from .settings import *  # noqa: F403
+
+from .settings import *  #noqa: F403
 
 DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}}
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'

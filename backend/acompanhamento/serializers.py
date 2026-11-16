@@ -3,14 +3,17 @@ from mapas.models import MapaMental
 from anotacoes.models import Anotacao
 from acompanhamento.models import MensagemAcompanhamento, PerfilTutor
 
+
 class CriarConviteSerializer(serializers.Serializer):
-    espaco_id = serializers.IntegerField(min_value=1, max_value=2**63 - 1)
-    tutor_id = serializers.IntegerField(min_value=1, max_value=2**63 - 1, required=False)
+    espaco_id = serializers.UUIDField()
+    tutor_id = serializers.UUIDField(required=False)
     usuario_tutor = serializers.CharField(max_length=150, required=False)
 
     def validate(self, attrs):
         if ('tutor_id' in attrs) == ('usuario_tutor' in attrs):
-            raise serializers.ValidationError('Informe um tutor da pesquisa ou o nome de usuário exato.')
+            raise serializers.ValidationError(
+                'Informe um tutor da pesquisa ou o nome de usuário exato.'
+            )
         return attrs
 
 
@@ -26,6 +29,7 @@ class AnotacaoCompartilhadaLeituraSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+
 class MapaCompartilhadoLeituraSerializer(serializers.ModelSerializer):
     dados = serializers.JSONField(read_only=True)
 
@@ -38,10 +42,15 @@ class MapaCompartilhadoLeituraSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+
 class FormacaoTutorSerializer(serializers.Serializer):
     titulo = serializers.CharField(max_length=200)
-    instituicao = serializers.CharField(max_length=200, allow_blank=True, required=False)
-    link_comprovante = serializers.URLField(max_length=500, allow_blank=True, required=False)
+    instituicao = serializers.CharField(
+        max_length=200, allow_blank=True, required=False
+    )
+    link_comprovante = serializers.URLField(
+        max_length=500, allow_blank=True, required=False
+    )
 
     def validate_link_comprovante(self, value):
         if value and not value.lower().startswith(('http://', 'https://')):
@@ -50,7 +59,9 @@ class FormacaoTutorSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if not attrs.get('titulo'):
-            raise serializers.ValidationError({'titulo': 'Informe o nome da formação ou do curso.'})
+            raise serializers.ValidationError(
+                {'titulo': 'Informe o nome da formação ou do curso.'}
+            )
         attrs.setdefault('instituicao', '')
         attrs.setdefault('link_comprovante', '')
         return attrs
@@ -70,10 +81,12 @@ class PerfilTutorSerializer(serializers.ModelSerializer):
             'formacoes',
             'visibilidade',
             'ativo',
+            'aprovado',
             'criado_em',
         ]
 
         read_only_fields = [
+            'aprovado',
             'id',
             'criado_em',
         ]
@@ -93,11 +106,23 @@ class MensagemAcompanhamentoSerializer(serializers.ModelSerializer):
 
     def get_pode_gerenciar(self, mensagem):
         request = self.context.get('request')
-        return bool(request and mensagem.tipo_material and mensagem.texto and mensagem.autor_id == request.user.pk)
+        return bool(
+            request
+            and mensagem.tipo_material
+            and mensagem.texto
+            and mensagem.autor_id == request.user.pk
+        )
 
     class Meta:
         model = MensagemAcompanhamento
-        fields = ['id', 'autor_nome', 'texto', 'criada_em', 'resposta_a', 'pode_gerenciar']
+        fields = [
+            'id',
+            'autor_nome',
+            'texto',
+            'criada_em',
+            'resposta_a',
+            'pode_gerenciar',
+        ]
         read_only_fields = ['id', 'autor_nome', 'criada_em', 'resposta_a']
 
 
@@ -106,4 +131,4 @@ class TextoMensagemSerializer(serializers.Serializer):
 
 
 class PublicarMensagemSerializer(TextoMensagemSerializer):
-    resposta_a = serializers.IntegerField(min_value=1, max_value=2**63 - 1, required=False)
+    resposta_a = serializers.UUIDField(required=False)

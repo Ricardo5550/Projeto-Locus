@@ -12,39 +12,27 @@ from usuarios.auth_endpoints import (
     PasswordChangeView,
 )
 from rest_framework.routers import DefaultRouter
-from usuarios.email_views import EmailChangeView, EmailChangeRedirectView, ConfirmEmailChangeView
+from usuarios.email_views import (
+    EmailChangeView,
+    EmailChangeRedirectView,
+    ConfirmEmailChangeView,
+)
 from usuarios.mfa_views import MFAChallengeView, MFAEnrollmentView, MFAManagementView
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
 from pastas.views import PastaViewSet
 from pastas.biblioteca import biblioteca
 from referencias.views import buscar_referencias
-from revisoes.questionarios import MateriaViewSet, QuestionarioViewSet, resultados
+from revisoes.questionarios import MateriaViewSet, QuestionarioViewSet
+from revisoes.resultados import resultados
 from notificacoes.views import NotificacaoViewSet
 from revisoes.views import PerguntaViewSet, TentativaViewSet
-from acompanhamento.views import (
-    MensagensAcompanhamentoView,
-    ComentarioAcompanhamentoDetalheView,
-    AnotacaoCompartilhadaDetalheView,
-    AnotacaoVinculadaAoMapaView,
-    MapaCompartilhadoDetalheView,
-    AceitarConviteView,
-    CriarConviteView,
-    ConvitesRecebidosView,
-    RecusarConviteView,
-    EspacosAcompanhamentoView,
-    CanalAcompanhamentoDetalheView,
-    TutoresEspacoView,
-    RemoverTutorView,
-    CompartilharAnotacaoView,
-    CompartilharMapaView,
-    EspacosTutorView,
-    MateriaisCompartilhadosEspacoView,
-    TutoresDisponiveisView,
-    PerfilTutorView,
-)
+
+from usuarios.legal import politica_vigente, termos_vigentes
 from usuarios.views import (
     AccountView,
+    AceitarDocumentosView,
+    DocumentoVigenteView,
     CsrfView,
     CookieRefreshView,
     EmailConfirmationRedirectView,
@@ -68,126 +56,8 @@ urlpatterns = [
     path('api/resultados/', resultados, name='resultados'),
     path('api/biblioteca/', biblioteca, name='biblioteca'),
     path('api/', include(router.urls)),
-
-    path(
-        'api/acompanhamento/anotacoes/<int:pk>/',
-        AnotacaoCompartilhadaDetalheView.as_view(),
-        name='acompanhamento-anotacao-detalhe'
-    ),
-
-    path(
-        'api/acompanhamento/mapas/<int:pk>/',
-        MapaCompartilhadoDetalheView.as_view(),
-        name='acompanhamento-mapa-detalhe'
-    ),
-
-    path(
-        'api/acompanhamento/convites/<int:pk>/aceitar/',
-        AceitarConviteView.as_view(),
-        name='acompanhamento-convite-aceitar'
-    ),
-
-    path(
-        'api/acompanhamento/convites/',
-        CriarConviteView.as_view(),
-        name='acompanhamento-convite-criar'
-    ),
-
-    path(
-        'api/acompanhamento/convites/recebidos/',
-        ConvitesRecebidosView.as_view(),
-        name='acompanhamento-convites-recebidos'
-    ),
-
-    path(
-        'api/acompanhamento/convites/<int:pk>/recusar/',
-        RecusarConviteView.as_view(),
-        name='acompanhamento-convite-recusar'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/',
-        EspacosAcompanhamentoView.as_view(),
-        name='acompanhamento-espacos'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/',
-        CanalAcompanhamentoDetalheView.as_view(),
-        name='acompanhamento-canal-detalhe',
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/tutores/',
-        TutoresEspacoView.as_view(),
-        name='acompanhamento-espaco-tutores'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/tutores/<int:tutor_id>/',
-        RemoverTutorView.as_view(),
-        name='acompanhamento-remover-tutor'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/anotacoes/<int:anotacao_id>/compartilhar/',
-        CompartilharAnotacaoView.as_view(),
-        name='acompanhamento-compartilhar-anotacao'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/mapas/<int:mapa_id>/anotacoes/<int:anotacao_id>/',
-        AnotacaoVinculadaAoMapaView.as_view(),
-        name='acompanhamento-anotacao-vinculada',
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/mapas/<int:mapa_id>/compartilhar/',
-        CompartilharMapaView.as_view(),
-        name='acompanhamento-compartilhar-mapa'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/participando/',
-        EspacosTutorView.as_view(),
-        name='acompanhamento-espacos-participando'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/materiais/',
-        MateriaisCompartilhadosEspacoView.as_view(),
-        name='acompanhamento-espaco-materiais'
-    ),
-
-    path(
-        'api/acompanhamento/espacos/<int:pk>/duvidas/',
-        MensagensAcompanhamentoView.as_view(),
-        name='acompanhamento-duvidas',
-    ),
-    path(
-        'api/acompanhamento/espacos/<int:pk>/materiais/<str:tipo_material>/<int:material_id>/comentarios/',
-        MensagensAcompanhamentoView.as_view(),
-        name='acompanhamento-comentarios',
-    ),
-    path(
-        'api/acompanhamento/espacos/<int:pk>/materiais/<str:tipo_material>/<int:material_id>/comentarios/<int:mensagem_id>/',
-        ComentarioAcompanhamentoDetalheView.as_view(),
-        name='acompanhamento-comentario-detalhe',
-    ),
-    path(
-        'api/acompanhamento/tutores/disponiveis/',
-        TutoresDisponiveisView.as_view(),
-        name='acompanhamento-tutores-disponiveis'
-    ),
-
-    path(
-        'api/acompanhamento/tutores/perfil/',
-        PerfilTutorView.as_view(),
-        name='acompanhamento-perfil-tutor'
-    ),
-
+    path('api/acompanhamento/', include('acompanhamento.urls')),
     path('api/referencias/', buscar_referencias, name='buscar-referencias'),
-
     # Links usados nos e-mails. Eles apenas redirecionam para o SPA.
     path(
         'api/auth/account-confirm-email/<str:key>/',
@@ -199,24 +69,48 @@ urlpatterns = [
         PasswordResetRedirectView.as_view(),
         name='password_reset_confirm',
     ),
-        path(
+    path(
         'api/auth/email-verification-sent/',
         RedirectView.as_view(url=settings.FRONTEND_URL),
         name='account_email_verification_sent',
     ),
-
     # Endpoints explícitos da autenticação do Locus.
+    path(
+        'api/auth/documentos/privacidade/',
+        DocumentoVigenteView.as_view(obter_documento=politica_vigente),
+        name='politica-vigente',
+    ),
+    path(
+        'api/auth/documentos/termos/',
+        DocumentoVigenteView.as_view(obter_documento=termos_vigentes),
+        name='termos-vigentes',
+    ),
+    path(
+        'api/auth/documentos/aceitar/',
+        AceitarDocumentosView.as_view(),
+        name='aceitar-documentos',
+    ),
     path('api/auth/csrf/', CsrfView.as_view(), name='csrf'),
     path('api/auth/mfa/verify/', MFAChallengeView.as_view(), name='mfa-verify'),
     path('api/auth/mfa/enroll/', MFAEnrollmentView.as_view(), name='mfa-enroll'),
     path('api/auth/mfa/', MFAManagementView.as_view(), name='mfa-manage'),
     path('api/auth/account/email/', EmailChangeView.as_view(), name='change-email'),
-    path('api/auth/account/email/link/', EmailChangeRedirectView.as_view(), name='change-email-link'),
-    path('api/auth/account/email/confirm/', ConfirmEmailChangeView.as_view(), name='confirm-email-change'),
+    path(
+        'api/auth/account/email/link/',
+        EmailChangeRedirectView.as_view(),
+        name='change-email-link',
+    ),
+    path(
+        'api/auth/account/email/confirm/',
+        ConfirmEmailChangeView.as_view(),
+        name='confirm-email-change',
+    ),
     re_path(r'^api/auth/login/?$', LoginView.as_view(), name='login'),
     path('api/auth/account/', AccountView.as_view(), name='account'),
     re_path(r'^api/auth/logout/?$', LogoutView.as_view(), name='logout'),
-    re_path(r'^api/auth/token/refresh/?$', CookieRefreshView.as_view(), name='token-refresh'),
+    re_path(
+        r'^api/auth/token/refresh/?$', CookieRefreshView.as_view(), name='token-refresh'
+    ),
     path('api/auth/registro/', RegisterView.as_view(), name='rest_register'),
     path('api/auth/verify-email/', VerifyEmailView.as_view(), name='rest_verify_email'),
     path(
@@ -224,12 +118,23 @@ urlpatterns = [
         ResendEmailVerificationView.as_view(),
         name='rest_resend_email',
     ),
-
     # Exponha somente as operações utilizadas. A inclusão genérica também
     # publicava outro login sem barra, fora dos controles do Locus.
-    path('api/auth/password/reset/', PasswordResetView.as_view(), name='rest_password_reset'),
-    path('api/auth/password/reset/confirm/', PasswordResetConfirmView.as_view(), name='rest_password_reset_confirm'),
-    path('api/auth/password/change/', PasswordChangeView.as_view(), name='rest_password_change'),
+    path(
+        'api/auth/password/reset/',
+        PasswordResetView.as_view(),
+        name='rest_password_reset',
+    ),
+    path(
+        'api/auth/password/reset/confirm/',
+        PasswordResetConfirmView.as_view(),
+        name='rest_password_reset_confirm',
+    ),
+    path(
+        'api/auth/password/change/',
+        PasswordChangeView.as_view(),
+        name='rest_password_change',
+    ),
 ]
 
 if settings.DEBUG:

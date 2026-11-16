@@ -39,7 +39,7 @@
   padding: 4px 10px;
   border-radius: 20px;
   background: #f1e3d3;
-  font-size: .85rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
@@ -50,7 +50,7 @@
 
 .convite-tutor__formacoes h4 {
   margin: 14px 0 8px;
-  font-size: .9rem;
+  font-size: 0.9rem;
 }
 
 .convite-tutor__formacoes ul {
@@ -63,7 +63,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   background: #f5efe7;
-  font-size: .875rem;
+  font-size: 0.875rem;
 }
 
 .convite-tutor__formacoes span {

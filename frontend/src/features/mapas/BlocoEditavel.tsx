@@ -5,11 +5,11 @@ import {
   useReactFlow,
   type Node,
   type NodeProps,
-} from '@xyflow/react';
-import type { CSSProperties } from 'react';
-import type { DadosBloco, FormatoBloco } from './tiposMapa';
+} from "@xyflow/react";
+import type { CSSProperties } from "react";
+import type { DadosBloco, FormatoBloco } from "./tiposMapa";
 
-type NoEditavel = Node<DadosBloco, 'editable'>;
+type NoEditavel = Node<DadosBloco, "editable">;
 type DadosBlocoLeitura = DadosBloco & { abrirConteudo?: () => void };
 
 type Ponto = {
@@ -18,7 +18,7 @@ type Ponto = {
 };
 
 const SHAPE_POINTS: Record<
-  Exclude<FormatoBloco, 'square' | 'circle'>,
+  Exclude<FormatoBloco, "square" | "circle">,
   Ponto[]
 > = {
   triangle: [
@@ -74,10 +74,8 @@ function pontoNaDirecao(from: Ponto, to: Ponto, amount: number): Ponto {
 function caminhoPoligonoArredondado(points: Ponto[], radius: number) {
   if (radius <= 0) {
     return `${points
-      .map((point, index) =>
-        `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
-      )
-      .join(' ')} Z`;
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+      .join(" ")} Z`;
   }
 
   const cornerRadius = Math.min(radius, 18);
@@ -107,19 +105,15 @@ function caminhoPoligonoArredondado(points: Ponto[], radius: number) {
   return `${path} Z`;
 }
 
-function Forma({
-  data,
-}: {
-  data: DadosBloco;
-}) {
+function Forma({ data }: { data: DadosBloco }) {
   const common = {
     fill: data.backgroundColor,
     stroke: data.borderColor,
     strokeWidth: data.borderWidth,
-    vectorEffect: 'non-scaling-stroke' as const,
+    vectorEffect: "non-scaling-stroke" as const,
   };
 
-  if (data.shape === 'square') {
+  if (data.shape === "square") {
     return (
       <svg
         className="mindmap-block__shape"
@@ -140,7 +134,7 @@ function Forma({
     );
   }
 
-  if (data.shape === 'circle') {
+  if (data.shape === "circle") {
     return (
       <svg
         className="mindmap-block__shape"
@@ -148,13 +142,7 @@ function Forma({
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        <ellipse
-          cx="50"
-          cy="50"
-          rx="49"
-          ry="49"
-          {...common}
-        />
+        <ellipse cx="50" cy="50" rx="49" ry="49" {...common} />
       </svg>
     );
   }
@@ -177,74 +165,110 @@ function Forma({
   );
 }
 
-export default function BlocoEditavel({ id, data, selected }: NodeProps<NoEditavel>) {
+export default function BlocoEditavel({
+  id,
+  data,
+  selected,
+}: NodeProps<NoEditavel>) {
   const { updateNodeData } = useReactFlow();
-  return <Bloco data={data} selected={selected} onChange={label => updateNodeData(id, { label })} />;
+  return (
+    <Bloco
+      data={data}
+      selected={selected}
+      onChange={(label) => updateNodeData(id, { label })}
+    />
+  );
 }
 
-export function BlocoLeitura({ data }: NodeProps<Node<DadosBlocoLeitura, 'leitura'>>) {
-  return <Bloco data={{
-    ...data,
-    shape: data.shape ?? 'square',
-    backgroundColor: data.backgroundColor ?? '#ffffff',
-    borderColor: data.borderColor ?? '#5e402b',
-    borderWidth: data.borderWidth ?? 1,
-    borderRadius: data.borderRadius ?? 0,
-    fontSize: data.fontSize ?? 16,
-    verticalAlign: data.verticalAlign ?? 'center',
-    textAlign: data.textAlign ?? 'center',
-  }} abrirConteudo={data.abrirConteudo} />;
+export function BlocoLeitura({
+  data,
+}: NodeProps<Node<DadosBlocoLeitura, "leitura">>) {
+  return (
+    <Bloco
+      data={{
+        ...data,
+        shape: data.shape ?? "square",
+        backgroundColor: data.backgroundColor ?? "#ffffff",
+        borderColor: data.borderColor ?? "#5e402b",
+        borderWidth: data.borderWidth ?? 1,
+        borderRadius: data.borderRadius ?? 0,
+        fontSize: data.fontSize ?? 16,
+        verticalAlign: data.verticalAlign ?? "center",
+        textAlign: data.textAlign ?? "center",
+      }}
+      abrirConteudo={data.abrirConteudo}
+    />
+  );
 }
 
-function Bloco({ data, selected = false, onChange, abrirConteudo }: {
+function Bloco({
+  data,
+  selected = false,
+  onChange,
+  abrirConteudo,
+}: {
   data: DadosBloco;
   selected?: boolean;
   onChange?: (label: string) => void;
   abrirConteudo?: () => void;
 }) {
-  const isText = data.elementKind === 'text';
+  const isText = data.elementKind === "text";
 
   const textStyle: CSSProperties = {
     color: data.textColor,
     fontFamily: data.fontFamily,
     fontSize: data.fontSize,
     fontWeight: data.bold ? 700 : 400,
-    fontStyle: data.italic ? 'italic' : 'normal',
-    textDecoration: data.strike ? 'line-through' : 'none',
+    fontStyle: data.italic ? "italic" : "normal",
+    textDecoration: data.strike ? "line-through" : "none",
     textAlign: data.textAlign,
     lineHeight: 1.2,
-    height: `${Math.max(1, data.label.split('\n').length) * data.fontSize * 1.2}px`,
+    height: `${Math.max(1, data.label.split("\n").length) * data.fontSize * 1.2}px`,
   };
 
   return (
-    <div className={`mindmap-block ${isText ? 'is-text' : ''}`}>
-      {onChange && <NodeResizer
-        isVisible={selected}
-        minWidth={isText ? 120 : 70}
-        minHeight={isText ? 60 : 70}
-        keepAspectRatio={false}
-        lineClassName="mindmap-resizer__line"
-        handleClassName="mindmap-resizer__handle"
-      />}
+    <div className={`mindmap-block ${isText ? "is-text" : ""}`}>
+      {onChange && (
+        <NodeResizer
+          isVisible={selected}
+          minWidth={isText ? 120 : 70}
+          minHeight={isText ? 60 : 70}
+          keepAspectRatio={false}
+          lineClassName="mindmap-resizer__line"
+          handleClassName="mindmap-resizer__handle"
+        />
+      )}
 
       {!isText && <Forma data={data} />}
 
       <div className={`mindmap-block__text is-${data.verticalAlign}`}>
-        {onChange && <textarea
-          className="nodrag"
-          value={data.label}
-          onChange={event => onChange(event.target.value)}
+        {onChange && (
+          <textarea
+            className="nodrag"
+            value={data.label}
+            onChange={(event) => onChange(event.target.value)}
+            style={textStyle}
+            rows={1}
+            aria-label="Texto do bloco"
+          />
+        )}
+        <span
+          className="mindmap-block__rotulo"
           style={textStyle}
-          rows={1}
-          aria-label="Texto do bloco"
-        />}
-        <span className="mindmap-block__rotulo" style={textStyle} aria-hidden={onChange ? true : undefined}>
+          aria-hidden={onChange ? true : undefined}
+        >
           {data.label}
         </span>
       </div>
 
-      {abrirConteudo && <button type="button" className="mindmap-block__abrir nodrag nopan"
-        aria-label={`Abrir ${data.label || 'conteúdo do bloco'}`} onClick={abrirConteudo} />}
+      {abrirConteudo && (
+        <button
+          type="button"
+          className="mindmap-block__abrir nodrag nopan"
+          aria-label={`Abrir ${data.label || "conteúdo do bloco"}`}
+          onClick={abrirConteudo}
+        />
+      )}
 
       {!isText && (
         <Handle
@@ -255,7 +279,7 @@ function Bloco({ data, selected = false, onChange, abrirConteudo }: {
           isConnectable={!!onChange && data.connectionMode}
           style={{
             opacity: onChange && data.connectionMode ? 1 : 0,
-            pointerEvents: onChange && data.connectionMode ? 'all' : 'none',
+            pointerEvents: onChange && data.connectionMode ? "all" : "none",
           }}
         />
       )}

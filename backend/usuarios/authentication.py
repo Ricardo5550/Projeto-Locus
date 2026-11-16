@@ -4,6 +4,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import EstadoAutenticacao
+from .legal import documentos_atualizados
 
 
 def exigir_csrf(request):
@@ -12,12 +13,17 @@ def exigir_csrf(request):
 
 
 def versao_sessao(usuario):
-    return EstadoAutenticacao.objects.filter(usuario=usuario).values_list('versao', flat=True).first() or 0
+    return (
+        EstadoAutenticacao.objects.filter(usuario=usuario)
+        .values_list('versao', flat=True)
+        .first()
+        or 0
+    )
 
 
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
-        # DRF não aplica CSRF automaticamente em autenticação JWT.
+        #DRF não aplica CSRF automaticamente em autenticação JWT.
         exigir_csrf(request)
         raw = request.COOKIES.get(settings.JWT_ACCESS_COOKIE)
         if not raw:
@@ -27,9 +33,16 @@ class CookieJWTAuthentication(JWTAuthentication):
             user = self.get_user(token)
             if token.get('session_version') != versao_sessao(user):
                 raise AuthenticationFailed('A sessão foi encerrada. Entre novamente.')
+            if not documentos_atualizados(user):
+                raise AuthenticationFailed(
+                    'Entre novamente para ler os documentos legais atualizados.'
+                )
             from .mfa import exigir_segundo_fator
+
             if exigir_segundo_fator(user) and token.get('mfa_verified') is not True:
-                raise AuthenticationFailed('Entre novamente para validar o segundo fator.')
+                raise AuthenticationFailed(
+                    'Entre novamente para validar o segundo fator.'
+                )
             return user, token
         except AuthenticationFailed:
             view = (request.parser_context or {}).get('view')

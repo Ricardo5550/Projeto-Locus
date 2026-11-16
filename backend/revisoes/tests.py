@@ -16,18 +16,24 @@ class FluxoQuestionarioTests(TestCase):
         self.q_b = Questionario.objects.create(autor=self.user_b, titulo='Estudo B')
         self.client = APIClient()
         self.anotacao_a = Anotacao.objects.create(
-            titulo='Biologia', conteudo={'type': 'doc', 'content': []}, autor=self.user_a
+            titulo='Biologia',
+            conteudo={'type': 'doc', 'content': []},
+            autor=self.user_a,
         )
 
     def test_usuario_nao_cria_pergunta_em_anotacao_de_outro(self):
         self.client.force_authenticate(self.user_b)
-        resposta = self.client.post('/api/perguntas/', {
-            'questionario': self.q_b.pk,
-            'anotacao': self.anotacao_a.pk,
-            'enunciado': 'Pergunta',
-            'resposta': 'Resposta',
-            'trecho_origem': 'Trecho',
-        }, format='json')
+        resposta = self.client.post(
+            '/api/perguntas/',
+            {
+                'questionario': self.q_b.pk,
+                'anotacao': self.anotacao_a.pk,
+                'enunciado': 'Pergunta',
+                'resposta': 'Resposta',
+                'trecho_origem': 'Trecho',
+            },
+            format='json',
+        )
         self.assertEqual(resposta.status_code, 400)
 
     def test_usuario_nao_enxerga_pergunta_de_outro(self):
@@ -40,21 +46,29 @@ class FluxoQuestionarioTests(TestCase):
 
     def test_fluxo_do_proprio_usuario(self):
         self.client.force_authenticate(self.user_a)
-        criada = self.client.post('/api/perguntas/', {
-            'questionario': self.q_a.pk,
-            'anotacao': self.anotacao_a.pk,
-            'enunciado': 'O que é mitose?',
-            'resposta': 'Divisão celular.',
-            'trecho_origem': 'Mitose',
-        }, format='json')
+        criada = self.client.post(
+            '/api/perguntas/',
+            {
+                'questionario': self.q_a.pk,
+                'anotacao': self.anotacao_a.pk,
+                'enunciado': 'O que é mitose?',
+                'resposta': 'Divisão celular.',
+                'trecho_origem': 'Mitose',
+            },
+            format='json',
+        )
         self.assertEqual(criada.status_code, 201)
 
-        tentativa = self.client.post('/api/tentativas/', {
-            'pergunta': criada.data['id'],
-            'resposta_digitada': 'Divisão celular',
-            'acertou': True,
-        }, format='json')
-        # Avaliações isoladas não podem mais registrar resultados: apenas Finalizar.
+        tentativa = self.client.post(
+            '/api/tentativas/',
+            {
+                'pergunta': criada.data['id'],
+                'resposta_digitada': 'Divisão celular',
+                'acertou': True,
+            },
+            format='json',
+        )
+        #Avaliações isoladas não podem mais registrar resultados: apenas Finalizar.
         self.assertEqual(tentativa.status_code, 405)
         self.assertFalse(Tentativa.objects.exists())
 

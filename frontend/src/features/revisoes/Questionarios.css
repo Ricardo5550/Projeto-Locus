@@ -33,7 +33,7 @@
 
 .revisoes button:disabled,
 .locus-modal button:disabled {
-  opacity: .55;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
@@ -45,7 +45,7 @@
 .revisoes input,
 .revisoes select,
 .revisoes textarea,
-.locus-modal input:not([type=checkbox]),
+.locus-modal input:not([type="checkbox"]),
 .locus-modal select,
 .locus-modal textarea {
   font: inherit;
@@ -68,7 +68,7 @@
   margin: 12px 0;
 }
 
-.locus-modal label input:not([type=checkbox]),
+.locus-modal label input:not([type="checkbox"]),
 .locus-modal label select,
 .locus-modal textarea {
   display: block;
@@ -127,7 +127,7 @@
   white-space: pre-wrap;
 }
 
-.revisoes button[aria-pressed=true] {
+.revisoes button[aria-pressed="true"] {
   outline: 3px solid #5e402b;
   outline-offset: 2px;
 }
@@ -260,7 +260,7 @@
   width: 100%;
 }
 
-.locus-modal form label input[type=checkbox] {
+.locus-modal form label input[type="checkbox"] {
   width: auto;
   display: inline;
   margin-right: 6px;

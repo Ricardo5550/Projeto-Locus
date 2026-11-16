@@ -6,7 +6,6 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-
 CROSSREF_URL = 'https://api.crossref.org/works'
 
 
@@ -31,7 +30,9 @@ def _ano_publicacao(item):
 def _normalizar(item):
     autores = []
     for autor in item.get('author') or []:
-        nome = ' '.join(parte for parte in (autor.get('given'), autor.get('family')) if parte)
+        nome = ' '.join(
+            parte for parte in (autor.get('given'), autor.get('family')) if parte
+        )
         if nome:
             autores.append(nome)
     doi = item.get('DOI') or ''
@@ -54,10 +55,13 @@ def pesquisar_crossref(termo):
         parametros['mailto'] = email
     url = f'{CROSSREF_URL}?{urlencode(parametros)}'
     agente = f'Locus/1.0 (mailto:{email})' if email else 'Locus/1.0'
-    requisicao = Request(url, headers={
-        'User-Agent': agente,
-        'Accept': 'application/json',
-    })
+    requisicao = Request(
+        url,
+        headers={
+            'User-Agent': agente,
+            'Accept': 'application/json',
+        },
+    )
 
     try:
         with urlopen(requisicao, timeout=8) as resposta:
@@ -66,5 +70,13 @@ def pesquisar_crossref(termo):
         if not isinstance(itens, list):
             raise ValueError('Resposta sem lista de obras')
         return [_normalizar(item) for item in itens if isinstance(item, dict)]
-    except (HTTPError, URLError, TimeoutError, ValueError, KeyError, TypeError, UnicodeError) as exc:
+    except (
+        HTTPError,
+        URLError,
+        TimeoutError,
+        ValueError,
+        KeyError,
+        TypeError,
+        UnicodeError,
+    ) as exc:
         raise CrossrefIndisponivel('Não foi possível consultar a Crossref.') from exc

@@ -2,6 +2,7 @@ import json
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.exceptions import ImproperlyConfigured
 
 _PREFIX = 'enc:v1:'
@@ -31,11 +32,11 @@ def decrypt_text(value: str) -> str:
     if value is None or not isinstance(value, str):
         return value
 
-    # Compatibilidade com registros antigos ainda em texto puro.
+    #Compatibilidade com registros antigos ainda em texto puro.
     if not value.startswith(_PREFIX):
         return value
 
-    token = value[len(_PREFIX):]
+    token = value[len(_PREFIX) :]
     try:
         return _fernet().decrypt(token.encode('ascii')).decode('utf-8')
     except (InvalidToken, ValueError, TypeError) as exc:
@@ -45,7 +46,9 @@ def decrypt_text(value: str) -> str:
 
 
 def serialize_json(value) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+    return json.dumps(
+        value, cls=DjangoJSONEncoder, ensure_ascii=False, separators=(',', ':')
+    )
 
 
 def deserialize_json(value: str):

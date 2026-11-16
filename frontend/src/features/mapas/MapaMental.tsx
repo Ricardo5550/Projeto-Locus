@@ -1,4 +1,12 @@
-import PageHeader from '../../components/PageHeader';
+import {
+  ID_VISAO_RAIZ,
+  criarDadosBloco,
+  criarMapaVazio,
+  redefinirModoConexao,
+  validarCaminhoVisoes,
+} from "./estruturaMapa";
+import { useDialogos } from "../../components/contextoDialogos";
+import PageHeader from "../../components/PageHeader";
 import {
   ReactFlow,
   Background,
@@ -12,7 +20,7 @@ import {
   type Edge,
   type Node,
   type ReactFlowInstance,
-} from '@xyflow/react';
+} from "@xyflow/react";
 
 import {
   Circle,
@@ -24,7 +32,7 @@ import {
   Star,
   Triangle,
   Type,
-} from 'lucide-react';
+} from "lucide-react";
 
 import {
   useEffect,
@@ -32,14 +40,18 @@ import {
   useState,
   type DragEvent,
   type ReactNode,
-} from 'react';
+} from "react";
 
-import '@xyflow/react/dist/style.css';
+import "@xyflow/react/dist/style.css";
 
-import BlocoEditavel from './BlocoEditavel';
-import { criarMapaMental, carregarMapaMental, atualizarMapaMental } from './apiMapas';
-import { criarAnotacao } from '../anotacoes/apiAnotacoes';
-import MapaMentalEditor from './MapaMentalEditor';
+import BlocoEditavel from "./BlocoEditavel";
+import {
+  criarMapaMental,
+  carregarMapaMental,
+  atualizarMapaMental,
+} from "./apiMapas";
+import { criarAnotacao } from "../anotacoes/apiAnotacoes";
+import MapaMentalEditor from "./MapaMentalEditor";
 
 import type {
   DadosBloco,
@@ -47,122 +59,40 @@ import type {
   TipoConteudo,
   DadosMapaMental,
   VisaoMapaMental,
-} from './tiposMapa';
-import './MapaMental.css';
+} from "./tiposMapa";
+import "./MapaMental.css";
 
 type MapaMentalProps = {
-  mapId: number | null;
-  initialFolderId?: number | null;
+  mapId: string | null;
+  initialFolderId?: string | null;
   breadcrumb: string[];
   initialViewStack?: string[];
   initialSelectedNodeId?: string;
   onBack: () => void;
   onHome: () => void;
-  onMapCreated: (id: number, title: string) => void;
+  onMapCreated: (id: string, title: string) => void;
   onOpenAnnotation: (
     blockName: string,
-    noteId: number,
-    parentMapId: number,
+    noteId: string,
+    parentMapId: string,
     viewStack: string[],
-    sourceNodeId: string
+    sourceNodeId: string,
   ) => void;
 };
 
 const TAMANHO_FORMA = 140;
-const ID_VISAO_RAIZ = 'root';
 const nodeTypes = { editable: BlocoEditavel };
-
-function criarDadosBloco(
-  label: string,
-  elementKind: 'shape' | 'text' = 'shape'
-): DadosBloco {
-  return {
-    label,
-    elementKind,
-    shape: 'square',
-    connectionMode: false,
-    fontSize: 16,
-    fontFamily: 'Arial',
-    textColor: '#000000',
-    bold: false,
-    italic: false,
-    strike: false,
-    textAlign: elementKind === 'text' ? 'left' : 'center',
-    verticalAlign: 'center',
-    backgroundColor: elementKind === 'text' ? 'transparent' : '#ffffff',
-    borderColor: '#5e402b',
-    borderWidth: elementKind === 'text' ? 0 : 1,
-    borderRadius: 0,
-  };
-}
-
-function criarMapaVazio(title: string): DadosMapaMental {
-  return {
-    rootViewId: ID_VISAO_RAIZ,
-    views: {
-      [ID_VISAO_RAIZ]: {
-        title,
-        nodes: [],
-        edges: [],
-      },
-    },
-  };
-}
-
-function redefinirModoConexao(data: DadosMapaMental): DadosMapaMental {
-  return {
-    ...data,
-    views: Object.fromEntries(
-      Object.entries(data.views).map(([viewId, view]) => [
-        viewId,
-        {
-          ...view,
-          nodes: view.nodes.map((node) => ({
-            ...node,
-            data: {
-              ...node.data,
-              connectionMode: false,
-            },
-          })),
-        },
-      ])
-    ),
-  };
-}
-
-function obterTipoConteudoVinculado(
-  data: DadosBloco
-): TipoConteudo | undefined {
-  return data.linkedContentType;
-}
-
-function normalizarDadosMapa(data: DadosMapaMental): DadosMapaMental {
-  return redefinirModoConexao(data);
-}
-
-function validarCaminhoVisoes(data: DadosMapaMental, requested?: string[]): string[] {
-  if (
-    requested &&
-    requested.length > 0 &&
-    requested[0] === data.rootViewId &&
-    requested.every((viewId) => Boolean(data.views[viewId]))
-  ) {
-    return requested;
-  }
-
-  return [data.rootViewId];
-}
 
 const shapeOptions: Array<{
   shape: FormatoBloco;
   label: string;
   icon: ReactNode;
 }> = [
-  { shape: 'square', label: 'Quadrado', icon: <Square /> },
-  { shape: 'circle', label: 'Círculo', icon: <Circle /> },
-  { shape: 'triangle', label: 'Triângulo', icon: <Triangle /> },
-  { shape: 'octagon', label: 'Octógono', icon: <Octagon /> },
-  { shape: 'star', label: 'Estrela', icon: <Star /> },
+  { shape: "square", label: "Quadrado", icon: <Square /> },
+  { shape: "circle", label: "Círculo", icon: <Circle /> },
+  { shape: "triangle", label: "Triângulo", icon: <Triangle /> },
+  { shape: "octagon", label: "Octógono", icon: <Octagon /> },
+  { shape: "star", label: "Estrela", icon: <Star /> },
 ];
 
 export default function MapaMental({
@@ -176,54 +106,65 @@ export default function MapaMental({
   onMapCreated,
   onOpenAnnotation,
 }: MapaMentalProps) {
-  const breadcrumbTitle = breadcrumb[breadcrumb.length - 1] || 'Mapa mental';
+  const dialogos = useDialogos();
+  const breadcrumbTitle = breadcrumb[breadcrumb.length - 1] || "Mapa mental";
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<DadosBloco>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [flow, setFlow] =
-    useState<ReactFlowInstance<Node<DadosBloco>, Edge> | null>(null);
-  const flowRef=useRef<ReactFlowInstance<Node<DadosBloco>, Edge> | null>(null);
+  const [flow, setFlow] = useState<ReactFlowInstance<
+    Node<DadosBloco>,
+    Edge
+  > | null>(null);
+  const flowRef = useRef<ReactFlowInstance<Node<DadosBloco>, Edge> | null>(
+    null,
+  );
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [enteringNode, setEnteringNode] = useState<Node<DadosBloco> | null>(null);
-  const [saveStatus, setSaveStatus] = useState('');
+  const [enteringNode, setEnteringNode] = useState<Node<DadosBloco> | null>(
+    null,
+  );
+  const [saveStatus, setSaveStatus] = useState("");
   const [isGoingHome, setIsGoingHome] = useState(false);
-  const [storedMapId, setStoredMapId] = useState<number | null>(mapId);
-  const [mapTitle, setMapTitle] = useState(mapId === null ? '' : breadcrumbTitle);
+  const [storedMapId, setStoredMapId] = useState<string | null>(mapId);
+  const [mapTitle, setMapTitle] = useState(
+    mapId === null ? "" : breadcrumbTitle,
+  );
   const [projectData, setProjectData] = useState<DadosMapaMental>(() =>
-    criarMapaVazio(breadcrumbTitle)
+    criarMapaVazio(breadcrumbTitle),
   );
   const [viewStack, setViewStack] = useState<string[]>([ID_VISAO_RAIZ]);
-  const mapVersion=useRef('');
-  const loadedSourceId = useRef<number | null | undefined>(undefined);
-
+  const mapVersion = useRef("");
+  const loadedSourceId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (loadedSourceId.current === mapId) return;
 
-    loadedSourceId.current = mapId;
+    let ativo = true;
     setStoredMapId(mapId);
     setEnteringNode(null);
     setIsConnecting(false);
 
     if (mapId === null) {
-      setMapTitle('');
-      const empty = criarMapaVazio('Mapa mental');
+      loadedSourceId.current = null;
+      setMapTitle("");
+      const empty = criarMapaVazio("Mapa mental");
       setProjectData(empty);
       setViewStack([empty.rootViewId]);
       setNodes([]);
       setEdges([]);
-      setSaveStatus('Novo mapa.');
+      setSaveStatus("Novo mapa.");
       return;
     }
 
-    setSaveStatus('Carregando...');
+    setSaveStatus("Carregando...");
 
     carregarMapaMental(mapId)
       .then((map) => {
+        if (!ativo) return;
+        loadedSourceId.current = mapId;
         setMapTitle(map.titulo);
-        mapVersion.current=map.data_atualizacao;
-        const normalized = normalizarDadosMapa(map.dados);
+        mapVersion.current = map.data_atualizacao;
+        const normalized = redefinirModoConexao(map.dados);
         const nextStack = validarCaminhoVisoes(normalized, initialViewStack);
         const nextViewId = nextStack[nextStack.length - 1];
         const nextView = normalized.views[nextViewId];
@@ -234,17 +175,21 @@ export default function MapaMental({
           (nextView?.nodes ?? []).map((node) => ({
             ...node,
             selected: node.id === initialSelectedNodeId,
-          }))
+          })),
         );
         setEdges(nextView?.edges ?? []);
-        setSaveStatus('Mapa carregado do banco.');
+        setSaveStatus("Mapa carregado do banco.");
         setTimeout(() => flowRef.current?.fitView({ padding: 0.2 }), 0);
       })
       .catch((error) => {
+        if (!ativo) return;
         console.error(error);
-        setSaveStatus('Erro ao carregar o mapa.');
+        setSaveStatus("Erro ao carregar o mapa.");
       });
-  }, [mapId, setEdges, setNodes]);
+    return () => {
+      ativo = false;
+    };
+  }, [mapId, setEdges, setNodes, initialSelectedNodeId, initialViewStack]);
 
   const selectedNode = nodes.find((node) => node.selected);
   const selectedEdge = edges.find((edge) => edge.selected);
@@ -267,22 +212,23 @@ export default function MapaMental({
     if (!parentView) return null;
 
     const sourceNode = parentView.nodes.find(
-      (node) => node.data.linkedViewId === currentViewId
+      (node) => node.data.linkedViewId === currentViewId,
     );
     if (!sourceNode) return null;
 
     const connectedIds = new Set(
       parentView.edges
         .filter(
-          (edge) => edge.source === sourceNode.id || edge.target === sourceNode.id
+          (edge) =>
+            edge.source === sourceNode.id || edge.target === sourceNode.id,
         )
         .map((edge) =>
-          edge.source === sourceNode.id ? edge.target : edge.source
-        )
+          edge.source === sourceNode.id ? edge.target : edge.source,
+        ),
     );
 
     const connectedNodes = parentView.nodes.filter((node) =>
-      connectedIds.has(node.id)
+      connectedIds.has(node.id),
     );
 
     if (!connectedNodes.length) return null;
@@ -298,7 +244,7 @@ export default function MapaMental({
   function snapshotCurrentView(
     nextNodes: Node<DadosBloco>[] = nodes,
     nextEdges: Edge[] = edges,
-    baseData: DadosMapaMental = projectData
+    baseData: DadosMapaMental = projectData,
   ): DadosMapaMental {
     const viewId = viewStack[viewStack.length - 1] ?? baseData.rootViewId;
     const existingView: VisaoMapaMental = baseData.views[viewId] ?? {
@@ -320,21 +266,21 @@ export default function MapaMental({
     };
   }
 
-  async function persistProject(data: DadosMapaMental): Promise<number> {
-    const inputData=data;
+  async function persistProject(data: DadosMapaMental): Promise<string> {
+    const inputData = data;
     data = redefinirModoConexao(data);
     let finalTitle = mapTitle.trim();
 
     if (!finalTitle) {
-      window.alert('Informe um nome para salvar o mapa mental.');
-      setSaveStatus('Informe um nome para salvar o mapa.');
-      throw new Error('MAP_NAME_REQUIRED');
+      void dialogos.avisar("Informe um nome para salvar o mapa mental.");
+      setSaveStatus("Informe um nome para salvar o mapa.");
+      throw new Error("MAP_NAME_REQUIRED");
     }
 
-    const activeId=viewStack[viewStack.length-1];
-    if(viewStack.length>1 && !data.views[activeId]?.title.trim()) {
-      window.alert('Informe um título para o mapa interno.');
-      throw new Error('MAP_NAME_REQUIRED');
+    const activeId = viewStack[viewStack.length - 1];
+    if (viewStack.length > 1 && !data.views[activeId]?.title.trim()) {
+      void dialogos.avisar("Informe um título para o mapa interno.");
+      throw new Error("MAP_NAME_REQUIRED");
     }
     const rootView = data.views[data.rootViewId];
     const dataWithTitle: DadosMapaMental = rootView
@@ -353,30 +299,39 @@ export default function MapaMental({
     setProjectData(dataWithTitle);
 
     if (storedMapId === null) {
-      const saved = await criarMapaMental(finalTitle, dataWithTitle, initialFolderId);
+      const saved = await criarMapaMental(
+        finalTitle,
+        dataWithTitle,
+        initialFolderId,
+      );
       setStoredMapId(saved.id);
-      mapVersion.current=saved.data_atualizacao;
+      mapVersion.current = saved.data_atualizacao;
       setProjectData(saved.dados);
-      Object.assign(inputData,saved.dados);
+      Object.assign(inputData, saved.dados);
       setMapTitle(saved.titulo);
       loadedSourceId.current = saved.id;
       onMapCreated(saved.id, saved.titulo);
       return saved.id;
     }
 
-    const saved = await atualizarMapaMental(storedMapId, finalTitle, dataWithTitle, mapVersion.current);
+    const saved = await atualizarMapaMental(
+      storedMapId,
+      finalTitle,
+      dataWithTitle,
+      mapVersion.current,
+    );
     setMapTitle(saved.titulo);
-    mapVersion.current=saved.data_atualizacao;
+    mapVersion.current = saved.data_atualizacao;
     setProjectData(saved.dados);
-    Object.assign(inputData,saved.dados);
+    Object.assign(inputData, saved.dados);
     return storedMapId;
   }
 
   function updateSelectedNode(changes: Partial<DadosBloco>) {
     setNodes((current) =>
       current.map((node) =>
-        node.selected ? { ...node, data: { ...node.data, ...changes } } : node
-      )
+        node.selected ? { ...node, data: { ...node.data, ...changes } } : node,
+      ),
     );
   }
 
@@ -388,12 +343,12 @@ export default function MapaMental({
               ...edge,
               style: {
                 ...edge.style,
-                stroke: color ?? edge.style?.stroke ?? '#5e402b',
+                stroke: color ?? edge.style?.stroke ?? "#5e402b",
                 strokeWidth: width ?? edge.style?.strokeWidth ?? 2,
               },
             }
-          : edge
-      )
+          : edge,
+      ),
     );
   }
 
@@ -405,9 +360,9 @@ export default function MapaMental({
         ...node,
         data: {
           ...node.data,
-          connectionMode: node.data.elementKind === 'shape' ? next : false,
+          connectionMode: node.data.elementKind === "shape" ? next : false,
         },
-      }))
+      })),
     );
   }
 
@@ -417,32 +372,35 @@ export default function MapaMental({
         {
           ...connection,
           id: crypto.randomUUID(),
-          type: 'straight',
-          style: { stroke: '#5e402b', strokeWidth: 2 },
+          type: "straight",
+          style: { stroke: "#5e402b", strokeWidth: 2 },
         },
-        current
-      )
+        current,
+      ),
     );
   }
 
   function handleDragStart(
     event: DragEvent<HTMLButtonElement>,
-    kind: 'shape' | 'text',
-    shape?: FormatoBloco
+    kind: "shape" | "text",
+    shape?: FormatoBloco,
   ) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('application/locus', JSON.stringify({ kind, shape }));
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(
+      "application/locus",
+      JSON.stringify({ kind, shape }),
+    );
   }
 
   function handleDrop(event: DragEvent) {
     event.preventDefault();
     if (!flow) return;
 
-    const raw = event.dataTransfer.getData('application/locus');
+    const raw = event.dataTransfer.getData("application/locus");
     if (!raw) return;
 
     const dragged = JSON.parse(raw) as {
-      kind: 'shape' | 'text';
+      kind: "shape" | "text";
       shape?: FormatoBloco;
     };
 
@@ -450,19 +408,22 @@ export default function MapaMental({
       x: event.clientX,
       y: event.clientY,
     });
-    const isText = dragged.kind === 'text';
+    const isText = dragged.kind === "text";
 
     const node: Node<DadosBloco> = {
       id: crypto.randomUUID(),
-      type: 'editable',
+      type: "editable",
       position,
       style: {
         width: isText ? 220 : TAMANHO_FORMA,
         height: isText ? 70 : TAMANHO_FORMA,
       },
       data: {
-        ...criarDadosBloco(isText ? 'Novo texto' : 'Novo conceito', dragged.kind),
-        shape: dragged.shape ?? 'square',
+        ...criarDadosBloco(
+          isText ? "Novo texto" : "Novo conceito",
+          dragged.kind,
+        ),
+        shape: dragged.shape ?? "square",
         connectionMode: !isText && isConnecting,
       },
     };
@@ -472,32 +433,44 @@ export default function MapaMental({
 
   async function handleSave() {
     try {
-      setSaveStatus('Salvando...');
+      setSaveStatus("Salvando...");
       const nextData = snapshotCurrentView();
       await persistProject(nextData);
-      setSaveStatus('Salvo no banco.');
+      setSaveStatus("Salvo no banco.");
     } catch (error) {
-      if (error instanceof Error && error.message === 'MAP_NAME_REQUIRED') return;
+      if (error instanceof Error && error.message === "MAP_NAME_REQUIRED")
+        return;
       console.error(error);
-      setSaveStatus(error instanceof Error ? error.message : 'Erro ao salvar o mapa.');
+      setSaveStatus(
+        error instanceof Error ? error.message : "Erro ao salvar o mapa.",
+      );
     }
   }
-
 
   async function handleHomeFromMap() {
     if (isGoingHome) return;
     if (!mapTitle.trim()) {
-      if (window.confirm('O mapa está sem título. Deseja ir para a Home e descartar as alterações?')) onHome();
+      if (
+        await dialogos.confirmar(
+          "O mapa está sem título. Deseja ir para a Home e descartar as alterações?",
+        )
+      )
+        onHome();
       return;
     }
     try {
       setIsGoingHome(true);
-      setSaveStatus('Salvando...');
+      setSaveStatus("Salvando...");
       await persistProject(snapshotCurrentView());
       onHome();
     } catch (error) {
-      if (error instanceof Error && error.message === 'MAP_NAME_REQUIRED') return;
-      setSaveStatus(error instanceof Error ? error.message : 'Não foi possível salvar antes de ir para a Home.');
+      if (error instanceof Error && error.message === "MAP_NAME_REQUIRED")
+        return;
+      setSaveStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar antes de ir para a Home.",
+      );
     } finally {
       setIsGoingHome(false);
     }
@@ -505,35 +478,43 @@ export default function MapaMental({
 
   async function handleBackFromMap() {
     if (viewStack.length <= 1) {
-      if(!mapTitle.trim() && !window.confirm('O mapa está sem título. Deseja sair e descartar as alterações?')) return;
+      if (
+        !mapTitle.trim() &&
+        !(await dialogos.confirmar(
+          "O mapa está sem título. Deseja sair e descartar as alterações?",
+        ))
+      )
+        return;
       onBack();
       return;
     }
 
     try {
-      setSaveStatus('Salvando...');
+      setSaveStatus("Salvando...");
       const nextData = snapshotCurrentView();
       await persistProject(nextData);
 
       const nextStack = viewStack.slice(0, -1);
-      const parentViewId = nextStack[nextStack.length - 1] ?? nextData.rootViewId;
+      const parentViewId =
+        nextStack[nextStack.length - 1] ?? nextData.rootViewId;
       const parentView = nextData.views[parentViewId];
 
       setViewStack(nextStack);
       setNodes(parentView?.nodes ?? []);
       setEdges(parentView?.edges ?? []);
       setEnteringNode(null);
-      setSaveStatus('Salvo no banco.');
+      setSaveStatus("Salvo no banco.");
       setTimeout(() => flowRef.current?.fitView({ padding: 0.2 }), 0);
     } catch (error) {
-      if (error instanceof Error && error.message === 'MAP_NAME_REQUIRED') return;
+      if (error instanceof Error && error.message === "MAP_NAME_REQUIRED")
+        return;
       console.error(error);
-      setSaveStatus('Erro ao salvar antes de voltar.');
+      setSaveStatus("Erro ao salvar antes de voltar.");
     }
   }
 
   function handleEnterNode(node: Node<DadosBloco>) {
-    const fixedContentType = obterTipoConteudoVinculado(node.data);
+    const fixedContentType = node.data.linkedContentType;
 
     if (fixedContentType) {
       void handleEnterContent(fixedContentType, node);
@@ -545,27 +526,29 @@ export default function MapaMental({
 
   async function handleEnterContent(
     contentType: TipoConteudo,
-    targetNode: Node<DadosBloco> | null = enteringNode
+    targetNode: Node<DadosBloco> | null = enteringNode,
   ) {
     if (!targetNode) return;
 
     try {
-      setSaveStatus('Preparando conteúdo...');
+      setSaveStatus("Preparando conteúdo...");
       const currentNode = targetNode;
-      if(!mapTitle.trim() || !currentNode.data.label.trim()) {
-        window.alert('Informe um título para o mapa e um nome para o bloco antes de criar o conteúdo.');
-        setSaveStatus('Preencha o título do mapa e o nome do bloco.');
+      if (!mapTitle.trim() || !currentNode.data.label.trim()) {
+        void dialogos.avisar(
+          "Informe um título para o mapa e um nome para o bloco antes de criar o conteúdo.",
+        );
+        setSaveStatus("Preencha o título do mapa e o nome do bloco.");
         return;
       }
-      const fixedContentType = obterTipoConteudoVinculado(currentNode.data);
+      const fixedContentType = currentNode.data.linkedContentType;
 
       if (fixedContentType && fixedContentType !== contentType) {
-        setSaveStatus('Este bloco já possui outro tipo de conteúdo associado.');
+        setSaveStatus("Este bloco já possui outro tipo de conteúdo associado.");
         setEnteringNode(null);
         return;
       }
 
-      if (contentType === 'mindmap') {
+      if (contentType === "mindmap") {
         let childViewId = currentNode.data.linkedViewId;
         let updatedNodes = nodes;
         let nextData = snapshotCurrentView();
@@ -580,12 +563,12 @@ export default function MapaMental({
                 ...node,
                 data: {
                   ...node.data,
-                  linkedContentType: 'mindmap' as TipoConteudo,
+                  linkedContentType: "mindmap" as TipoConteudo,
                   linkedViewId: childViewId,
                   linkedAnnotationId: undefined,
                 },
               }
-            : node
+            : node,
         );
 
         if (!nextData.views[childViewId]) {
@@ -595,7 +578,7 @@ export default function MapaMental({
             views: {
               ...nextData.views,
               [childViewId]: {
-                title: currentNode.data.label || 'Mapa mental',
+                title: currentNode.data.label || "Mapa mental",
                 nodes: [],
                 edges: [],
               },
@@ -615,7 +598,7 @@ export default function MapaMental({
                     title: currentNode.data.label || existingChild.title,
                   }
                 : {
-                    title: currentNode.data.label || 'Mapa mental',
+                    title: currentNode.data.label || "Mapa mental",
                     nodes: [],
                     edges: [],
                   },
@@ -630,7 +613,7 @@ export default function MapaMental({
         setNodes(childView.nodes);
         setEdges(childView.edges);
         setEnteringNode(null);
-        setSaveStatus('Mapa interno aberto.');
+        setSaveStatus("Mapa interno aberto.");
         setTimeout(() => flowRef.current?.fitView({ padding: 0.2 }), 0);
         return;
       }
@@ -638,7 +621,7 @@ export default function MapaMental({
       let noteId = currentNode.data.linkedAnnotationId;
 
       if (!noteId) {
-        const note = await criarAnotacao(currentNode.data.label || 'Anotação');
+        const note = await criarAnotacao(currentNode.data.label || "Anotação");
         noteId = note.id;
       }
 
@@ -648,12 +631,12 @@ export default function MapaMental({
               ...node,
               data: {
                 ...node.data,
-                linkedContentType: 'annotation' as TipoConteudo,
+                linkedContentType: "annotation" as TipoConteudo,
                 linkedAnnotationId: noteId,
                 linkedViewId: undefined,
               },
             }
-          : node
+          : node,
       );
 
       const nextData = snapshotCurrentView(updatedNodes, edges);
@@ -661,18 +644,19 @@ export default function MapaMental({
 
       setNodes(updatedNodes);
       setEnteringNode(null);
-      setSaveStatus('Anotação associada.');
+      setSaveStatus("Anotação associada.");
       onOpenAnnotation(
         currentNode.data.label,
         noteId,
         parentMapId,
         viewStack,
-        currentNode.id
+        currentNode.id,
       );
     } catch (error) {
-      if (error instanceof Error && error.message === 'MAP_NAME_REQUIRED') return;
+      if (error instanceof Error && error.message === "MAP_NAME_REQUIRED")
+        return;
       console.error(error);
-      setSaveStatus('Erro ao criar ou abrir o conteúdo associado.');
+      setSaveStatus("Erro ao criar ou abrir o conteúdo associado.");
     }
   }
 
@@ -680,13 +664,13 @@ export default function MapaMental({
     if (!externalNavigation) return;
 
     try {
-      setSaveStatus('Salvando...');
+      setSaveStatus("Salvando...");
       const nextData = snapshotCurrentView();
       const parentMapId = await persistProject(nextData);
-      const contentType = obterTipoConteudoVinculado(targetNode.data);
+      const contentType = targetNode.data.linkedContentType;
 
       if (
-        contentType === 'mindmap' &&
+        contentType === "mindmap" &&
         targetNode.data.linkedViewId &&
         nextData.views[targetNode.data.linkedViewId]
       ) {
@@ -697,19 +681,19 @@ export default function MapaMental({
         setNodes(targetView.nodes);
         setEdges(targetView.edges);
         setEnteringNode(null);
-        setSaveStatus(`Mapa de ${targetNode.data.label || 'bloco'} aberto.`);
+        setSaveStatus(`Mapa de ${targetNode.data.label || "bloco"} aberto.`);
         setTimeout(() => flowRef.current?.fitView({ padding: 0.2 }), 0);
         return;
       }
 
-      if (contentType === 'annotation' && targetNode.data.linkedAnnotationId) {
-        setSaveStatus('Abrindo anotação conectada...');
+      if (contentType === "annotation" && targetNode.data.linkedAnnotationId) {
+        setSaveStatus("Abrindo anotação conectada...");
         onOpenAnnotation(
-          targetNode.data.label || 'Anotação',
+          targetNode.data.label || "Anotação",
           targetNode.data.linkedAnnotationId,
           parentMapId,
           externalNavigation.parentStack,
-          targetNode.id
+          targetNode.id,
         );
         return;
       }
@@ -728,24 +712,25 @@ export default function MapaMental({
       setNodes(parentNodes);
       setEdges(parentView.edges);
       setEnteringNode(null);
-      setSaveStatus('Bloco conectado selecionado na visão externa.');
+      setSaveStatus("Bloco conectado selecionado na visão externa.");
       setTimeout(() => {
         flow?.setCenter(
           targetNode.position.x + TAMANHO_FORMA / 2,
           targetNode.position.y + TAMANHO_FORMA / 2,
-          { duration: 350, zoom: 1 }
+          { duration: 350, zoom: 1 },
         );
       }, 0);
     } catch (error) {
-      if (error instanceof Error && error.message === 'MAP_NAME_REQUIRED') return;
+      if (error instanceof Error && error.message === "MAP_NAME_REQUIRED")
+        return;
       console.error(error);
-      setSaveStatus('Erro ao abrir o bloco conectado.');
+      setSaveStatus("Erro ao abrir o bloco conectado.");
     }
   }
 
   function deleteSelected() {
     const selectedIds = new Set(
-      nodes.filter((node) => node.selected).map((node) => node.id)
+      nodes.filter((node) => node.selected).map((node) => node.id),
     );
 
     setNodes((current) => current.filter((node) => !node.selected));
@@ -754,38 +739,75 @@ export default function MapaMental({
         (edge) =>
           !edge.selected &&
           !selectedIds.has(edge.source) &&
-          !selectedIds.has(edge.target)
-      )
+          !selectedIds.has(edge.target),
+      ),
     );
   }
 
-  const currentViewId=viewStack[viewStack.length-1]??projectData.rootViewId;
-  const currentTitle=viewStack.length>1 ? projectData.views[currentViewId]?.title??'' : mapTitle;
-  function changeCurrentTitle(value:string) {
-    if(viewStack.length<=1) {setMapTitle(value);return;}
-    setProjectData(current=>({...current,views:Object.fromEntries(Object.entries(current.views).map(([id,view])=>[id,{
-      ...view,
-      title:id===currentViewId?value:view.title,
-      nodes:view.nodes.map(node=>node.data.linkedViewId===currentViewId?{...node,data:{...node.data,label:value}}:node),
-    }]))}));
+  const currentViewId =
+    viewStack[viewStack.length - 1] ?? projectData.rootViewId;
+  const currentTitle =
+    viewStack.length > 1
+      ? (projectData.views[currentViewId]?.title ?? "")
+      : mapTitle;
+  function changeCurrentTitle(value: string) {
+    if (viewStack.length <= 1) {
+      setMapTitle(value);
+      return;
+    }
+    setProjectData((current) => ({
+      ...current,
+      views: Object.fromEntries(
+        Object.entries(current.views).map(([id, view]) => [
+          id,
+          {
+            ...view,
+            title: id === currentViewId ? value : view.title,
+            nodes: view.nodes.map((node) =>
+              node.data.linkedViewId === currentViewId
+                ? { ...node, data: { ...node.data, label: value } }
+                : node,
+            ),
+          },
+        ]),
+      ),
+    }));
   }
 
   return (
-    <div className="mindmap" data-sidebar-open={sidebarOpen} inert={isGoingHome} aria-busy={isGoingHome}>
+    <div
+      className="mindmap"
+      data-sidebar-open={sidebarOpen}
+      inert={isGoingHome}
+      aria-busy={isGoingHome}
+    >
       <PageHeader
-        title={currentTitle} onTitleChange={changeCurrentTitle}
-        onBack={() => void handleBackFromMap()} onHome={() => void handleHomeFromMap()} status={saveStatus}
-        titleLabel="Nome do mapa mental" placeholder="Digite o título do mapa mental..." maxLength={150}
-        actions={<button type="button" className="page-action is-primary" onClick={() => void handleSave()}>Salvar</button>}
+        title={currentTitle}
+        onTitleChange={changeCurrentTitle}
+        onBack={() => void handleBackFromMap()}
+        onHome={() => void handleHomeFromMap()}
+        status={saveStatus}
+        titleLabel="Nome do mapa mental"
+        placeholder="Digite o título do mapa mental..."
+        maxLength={150}
+        actions={
+          <button
+            type="button"
+            className="page-action is-primary"
+            onClick={() => void handleSave()}
+          >
+            Salvar
+          </button>
+        }
       />
-      <div className="mindmap-breadcrumb">{fullBreadcrumb.join(' / ')}</div>
+      <div className="mindmap-breadcrumb">{fullBreadcrumb.join(" / ")}</div>
 
-      <aside className={`mindmap-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
+      <aside className={`mindmap-sidebar ${sidebarOpen ? "is-open" : ""}`}>
         <button
           type="button"
           className="mindmap-sidebar__toggle"
           onClick={() => setSidebarOpen((current) => !current)}
-          aria-label={sidebarOpen ? 'Fechar ferramentas' : 'Abrir ferramentas'}
+          aria-label={sidebarOpen ? "Fechar ferramentas" : "Abrir ferramentas"}
         >
           {sidebarOpen ? <PanelLeftClose size={19} /> : <Menu size={19} />}
         </button>
@@ -802,7 +824,9 @@ export default function MapaMental({
                   draggable
                   title={label}
                   aria-label={label}
-                  onDragStart={(event) => handleDragStart(event, 'shape', shape)}
+                  onDragStart={(event) =>
+                    handleDragStart(event, "shape", shape)
+                  }
                 >
                   {icon}
                 </button>
@@ -813,7 +837,7 @@ export default function MapaMental({
                 draggable
                 title="Texto"
                 aria-label="Texto"
-                onDragStart={(event) => handleDragStart(event, 'text')}
+                onDragStart={(event) => handleDragStart(event, "text")}
               >
                 <Type />
               </button>
@@ -823,13 +847,13 @@ export default function MapaMental({
               type="button"
               className={
                 isConnecting
-                  ? 'mindmap-sidebar__connect is-active'
-                  : 'mindmap-sidebar__connect'
+                  ? "mindmap-sidebar__connect is-active"
+                  : "mindmap-sidebar__connect"
               }
               onClick={toggleConnectionMode}
             >
               <Link2 size={17} />
-              {isConnecting ? 'Conectando' : 'Conectar blocos'}
+              {isConnecting ? "Conectando" : "Conectar blocos"}
             </button>
 
             {isConnecting && (
@@ -852,7 +876,6 @@ export default function MapaMental({
               }}
               onDelete={deleteSelected}
             />
-            
           </div>
         )}
       </aside>
@@ -861,14 +884,17 @@ export default function MapaMental({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        onInit={instance=>{flowRef.current=instance;setFlow(instance);}}
+        onInit={(instance) => {
+          flowRef.current = instance;
+          setFlow(instance);
+        }}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
         onDrop={handleDrop}
         onDragOver={(event) => {
           event.preventDefault();
-          event.dataTransfer.dropEffect = 'move';
+          event.dataTransfer.dropEffect = "move";
         }}
         connectionMode={ConnectionMode.Loose}
         connectionLineType={ConnectionLineType.Straight}
@@ -879,16 +905,21 @@ export default function MapaMental({
       </ReactFlow>
 
       {externalNavigation && (
-        <aside className="mindmap-neighbors" aria-label="Blocos conectados na visão externa">
+        <aside
+          className="mindmap-neighbors"
+          aria-label="Blocos conectados na visão externa"
+        >
           <h3>Blocos conectados</h3>
-          <small>Conexões de {externalNavigation.sourceNode.data.label || 'bloco'}</small>
+          <small>
+            Conexões de {externalNavigation.sourceNode.data.label || "bloco"}
+          </small>
           {externalNavigation.connectedNodes.map((node) => (
             <button
               key={node.id}
               type="button"
               onClick={() => void navigateToExternalConnection(node)}
             >
-              {node.data.label || 'Bloco sem título'} →
+              {node.data.label || "Bloco sem título"} →
             </button>
           ))}
         </aside>
@@ -896,7 +927,10 @@ export default function MapaMental({
 
       {enteringNode && (
         <div className="mindmap-modal" onClick={() => setEnteringNode(null)}>
-          <div className="mindmap-modal__box" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="mindmap-modal__box"
+            onClick={(event) => event.stopPropagation()}
+          >
             <small>{enteringNode.data.label}</small>
             <h2>O que deseja criar?</h2>
             <p className="mindmap-modal__description">
@@ -906,14 +940,14 @@ export default function MapaMental({
             <div className="mindmap-modal__option">
               <button
                 type="button"
-                onClick={() => void handleEnterContent('annotation')}
+                onClick={() => void handleEnterContent("annotation")}
               >
                 Criar anotação
               </button>
 
               <button
                 type="button"
-                onClick={() => void handleEnterContent('mindmap')}
+                onClick={() => void handleEnterContent("mindmap")}
               >
                 Criar mapa mental
               </button>

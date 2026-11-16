@@ -16,9 +16,13 @@ class PastaSerializer(serializers.ModelSerializer):
         current = value
         while current:
             if current.autor_id != user.pk or current.deletado_em is not None:
-                raise serializers.ValidationError('Escolha uma pasta ativa da sua conta.')
+                raise serializers.ValidationError(
+                    'Escolha uma pasta ativa da sua conta.'
+                )
             if current.pk in seen or (self.instance and current.pk == self.instance.pk):
-                raise serializers.ValidationError('Uma pasta não pode ficar dentro de si mesma ou de uma subpasta sua.')
+                raise serializers.ValidationError(
+                    'Uma pasta não pode ficar dentro de si mesma ou de uma subpasta sua.'
+                )
             seen.add(current.pk)
             current = current.pai
         return value
@@ -26,6 +30,9 @@ class PastaSerializer(serializers.ModelSerializer):
 
 class PastaConteudoMixin:
     def validate_pasta(self, value):
-        if value and (value.autor_id != self.context['request'].user.pk or value.deletado_em is not None):
+        if value and (
+            value.autor_id != self.context['request'].user.pk
+            or value.deletado_em is not None
+        ):
             raise serializers.ValidationError('Escolha uma pasta ativa da sua conta.')
         return value

@@ -1,17 +1,13 @@
-import type { Edge, Node } from '@xyflow/react';
+import type { Edge, Node } from "@xyflow/react";
 
 export type FormatoBloco =
-  | 'square'
-  | 'circle'
-  | 'triangle'
-  | 'octagon'
-  | 'star';
+  "square" | "circle" | "triangle" | "octagon" | "star";
 
-export type TipoConteudo = 'annotation' | 'mindmap';
+export type TipoConteudo = "annotation" | "mindmap";
 
 export type DadosBloco = {
   label: string;
-  elementKind: 'shape' | 'text';
+  elementKind: "shape" | "text";
   shape: FormatoBloco;
   connectionMode: boolean;
 
@@ -20,7 +16,7 @@ export type DadosBloco = {
 
   /** ID de uma visão interna do mesmo projeto de mapa mental. */
   linkedViewId?: string;
-  linkedAnnotationId?: number;
+  linkedAnnotationId?: string;
 
   fontSize: number;
   fontFamily: string;
@@ -28,8 +24,8 @@ export type DadosBloco = {
   bold: boolean;
   italic: boolean;
   strike: boolean;
-  textAlign: 'left' | 'center' | 'right';
-  verticalAlign: 'top' | 'center' | 'bottom';
+  textAlign: "left" | "center" | "right";
+  verticalAlign: "top" | "center" | "bottom";
 
   backgroundColor: string;
   borderColor: string;
@@ -51,4 +47,3 @@ export type DadosMapaMental = {
   rootViewId: string;
   views: Record<string, VisaoMapaMental>;
 };
-

@@ -1,10 +1,12 @@
+from uuid import uuid4
+
 from django.db import models
 from django.utils import timezone
 
 
 class SoftDeleteQuerySet(models.QuerySet):
     def delete(self):
-        count = self.update(deletado_em=timezone.now())
+        count = self.update(deletado_em=timezone.now(), **self.model.campos_ao_excluir)
         return count, {self.model._meta.label: count}
 
     def hard_delete(self):
@@ -23,7 +25,10 @@ class ActiveManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
 
 
 class SoftDeleteModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     deletado_em = models.DateTimeField(null=True, blank=True, editable=False)
+
+    campos_ao_excluir = {}
 
     objects = ActiveManager()
     all_objects = SoftDeleteQuerySet.as_manager()
@@ -36,7 +41,9 @@ class SoftDeleteModel(models.Model):
             return 0, {}
 
         self.deletado_em = timezone.now()
-        self.save(update_fields=['deletado_em'])
+        for campo, valor in self.campos_ao_excluir.items():
+            setattr(self, campo, valor)
+        self.save(using=using, update_fields=['deletado_em', *self.campos_ao_excluir])
         return 1, {self._meta.label: 1}
 
     def restore(self):

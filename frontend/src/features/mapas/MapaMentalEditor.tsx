@@ -1,23 +1,15 @@
-import type { Edge, Node } from '@xyflow/react';
-import { Trash2 } from 'lucide-react';
+import type { Edge, Node } from "@xyflow/react";
+import { Trash2 } from "lucide-react";
 
-import type {
-  DadosBloco,
-  FormatoBloco,
-} from './tiposMapa';
+import type { DadosBloco, FormatoBloco } from "./tiposMapa";
 
 type MapaMentalEditorProps = {
   selectedNode?: Node<DadosBloco>;
   selectedEdge?: Edge;
 
-  onUpdateNode: (
-    changes: Partial<DadosBloco>
-  ) => void;
+  onUpdateNode: (changes: Partial<DadosBloco>) => void;
 
-  onUpdateEdge: (
-    color?: string,
-    width?: number
-  ) => void;
+  onUpdateEdge: (color?: string, width?: number) => void;
 
   onEnter: () => void;
   onDelete: () => void;
@@ -46,10 +38,7 @@ export default function MapaMentalEditor({
       )}
 
       {selectedEdge && (
-        <ConexaoEditor
-          edge={selectedEdge}
-          onUpdate={onUpdateEdge}
-        />
+        <ConexaoEditor edge={selectedEdge} onUpdate={onUpdateEdge} />
       )}
 
       <button
@@ -67,29 +56,19 @@ export default function MapaMentalEditor({
 type BlocoEditorProps = {
   node: Node<DadosBloco>;
 
-  onUpdate: (
-    changes: Partial<DadosBloco>
-  ) => void;
+  onUpdate: (changes: Partial<DadosBloco>) => void;
 
   onEnter: () => void;
 };
 
-function BlocoEditor({
-  node,
-  onUpdate,
-  onEnter,
-}: BlocoEditorProps) {
+function BlocoEditor({ node, onUpdate, onEnter }: BlocoEditorProps) {
   const data = node.data;
 
   return (
     <div className="mindmap-editor">
-      <h3>
-        {data.elementKind === 'text'
-          ? 'Editar texto'
-          : 'Editar forma'}
-      </h3>
+      <h3>{data.elementKind === "text" ? "Editar texto" : "Editar forma"}</h3>
 
-      {data.elementKind === 'shape' && (
+      {data.elementKind === "shape" && (
         <>
           <button
             type="button"
@@ -99,8 +78,7 @@ function BlocoEditor({
             Entrar no bloco
           </button>
 
-          {(data.linkedViewId ||
-            data.linkedAnnotationId) && (
+          {(data.linkedViewId || data.linkedAnnotationId) && (
             <small className="mindmap-editor__linked">
               Conteúdo associado a este bloco.
             </small>
@@ -110,7 +88,6 @@ function BlocoEditor({
 
       <label>
         Fonte
-
         <select
           value={data.fontFamily}
           onChange={(event) =>
@@ -128,7 +105,6 @@ function BlocoEditor({
 
       <label>
         Tamanho
-
         <input
           type="number"
           min="8"
@@ -136,9 +112,7 @@ function BlocoEditor({
           value={data.fontSize}
           onChange={(event) =>
             onUpdate({
-              fontSize: Number(
-                event.target.value
-              ),
+              fontSize: Number(event.target.value),
             })
           }
         />
@@ -146,7 +120,6 @@ function BlocoEditor({
 
       <label>
         Cor do texto
-
         <input
           type="color"
           value={data.textColor}
@@ -199,48 +172,34 @@ function BlocoEditor({
         </label>
       </div>
 
-      {data.elementKind === 'shape' && (
+      {data.elementKind === "shape" && (
         <>
           <label>
             Formato
-
             <select
               value={data.shape}
               onChange={(event) =>
                 onUpdate({
-                  shape:
-                    event.target.value as FormatoBloco,
+                  shape: event.target.value as FormatoBloco,
                 })
               }
             >
-              <option value="square">
-                Quadrado
-              </option>
-              <option value="circle">
-                Círculo
-              </option>
-              <option value="triangle">
-                Triângulo
-              </option>
-              <option value="octagon">
-                Octógono
-              </option>
-              <option value="star">
-                Estrela
-              </option>
+              <option value="square">Quadrado</option>
+              <option value="circle">Círculo</option>
+              <option value="triangle">Triângulo</option>
+              <option value="octagon">Octógono</option>
+              <option value="star">Estrela</option>
             </select>
           </label>
 
           <label>
             Cor da forma
-
             <input
               type="color"
               value={data.backgroundColor}
               onChange={(event) =>
                 onUpdate({
-                  backgroundColor:
-                    event.target.value,
+                  backgroundColor: event.target.value,
                 })
               }
             />
@@ -248,14 +207,12 @@ function BlocoEditor({
 
           <label>
             Cor da borda
-
             <input
               type="color"
               value={data.borderColor}
               onChange={(event) =>
                 onUpdate({
-                  borderColor:
-                    event.target.value,
+                  borderColor: event.target.value,
                 })
               }
             />
@@ -266,9 +223,7 @@ function BlocoEditor({
             min={0}
             max={12}
             value={data.borderWidth}
-            onChange={(borderWidth) =>
-              onUpdate({ borderWidth })
-            }
+            onChange={(borderWidth) => onUpdate({ borderWidth })}
           />
 
           <RangeField
@@ -276,9 +231,7 @@ function BlocoEditor({
             min={0}
             max={50}
             value={data.borderRadius}
-            onChange={(borderRadius) =>
-              onUpdate({ borderRadius })
-            }
+            onChange={(borderRadius) => onUpdate({ borderRadius })}
           />
         </>
       )}
@@ -289,52 +242,35 @@ function BlocoEditor({
 type ConexaoEditorProps = {
   edge: Edge;
 
-  onUpdate: (
-    color?: string,
-    width?: number
-  ) => void;
+  onUpdate: (color?: string, width?: number) => void;
 };
 
-function ConexaoEditor({
-  edge,
-  onUpdate,
-}: ConexaoEditorProps) {
+function ConexaoEditor({ edge, onUpdate }: ConexaoEditorProps) {
   return (
     <div className="mindmap-editor">
       <h3>Conexão</h3>
 
       <label>
         Cor da linha
-
         <input
           type="color"
           value={
-            typeof edge.style?.stroke === 'string'
+            typeof edge.style?.stroke === "string"
               ? edge.style.stroke
-              : '#333333'
+              : "#333333"
           }
-          onChange={(event) =>
-            onUpdate(event.target.value)
-          }
+          onChange={(event) => onUpdate(event.target.value)}
         />
       </label>
 
       <label>
         Espessura
-
         <input
           type="range"
           min="1"
           max="10"
-          value={
-            Number(edge.style?.strokeWidth) || 2
-          }
-          onChange={(event) =>
-            onUpdate(
-              undefined,
-              Number(event.target.value)
-            )
-          }
+          value={Number(edge.style?.strokeWidth) || 2}
+          onChange={(event) => onUpdate(undefined, Number(event.target.value))}
         />
       </label>
     </div>
@@ -349,13 +285,7 @@ type RangeFieldProps = {
   onChange: (value: number) => void;
 };
 
-function RangeField({
-  label,
-  min,
-  max,
-  value,
-  onChange,
-}: RangeFieldProps) {
+function RangeField({ label, min, max, value, onChange }: RangeFieldProps) {
   return (
     <label>
       {label}
@@ -366,9 +296,7 @@ function RangeField({
           min={min}
           max={max}
           value={value}
-          onChange={(event) =>
-            onChange(Number(event.target.value))
-          }
+          onChange={(event) => onChange(Number(event.target.value))}
         />
 
         <input
@@ -376,9 +304,7 @@ function RangeField({
           min={min}
           max={max}
           value={value}
-          onChange={(event) =>
-            onChange(Number(event.target.value))
-          }
+          onChange={(event) => onChange(Number(event.target.value))}
         />
       </div>
     </label>

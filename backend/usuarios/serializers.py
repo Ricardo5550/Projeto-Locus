@@ -4,14 +4,8 @@ from django.db import transaction
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from rest_framework import serializers
 
-from .legal import (
-    PRIVACIDADE_HASH_SHA256,
-    PRIVACIDADE_VERSAO,
-    TERMOS_HASH_SHA256,
-    TERMOS_VERSAO,
-    obter_ip_cliente,
-)
-from .models import AceiteLegal, Estudante
+from .legal import documentos_vigentes, registrar_documentos
+from .models import Estudante
 
 
 class EstudanteSerializer(serializers.ModelSerializer):
@@ -23,6 +17,21 @@ class EstudanteSerializer(serializers.ModelSerializer):
 class LocusRegisterSerializer(RegisterSerializer):
     aceite_termos = serializers.BooleanField(write_only=True, required=True)
     ciencia_privacidade = serializers.BooleanField(write_only=True, required=True)
+
+    termos_versao = serializers.CharField(write_only=True, max_length=20)
+    privacidade_versao = serializers.CharField(write_only=True, max_length=20)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        termos, privacidade = documentos_vigentes()
+        if (
+            attrs.get('termos_versao') != termos[2]
+            or attrs.get('privacidade_versao') != privacidade[2]
+        ):
+            raise serializers.ValidationError(
+                'Recarregue a página para consultar os documentos vigentes.'
+            )
+        return attrs
 
     def validate_email(self, value):
         email = super().validate_email(value).strip().lower()
@@ -54,27 +63,14 @@ class LocusRegisterSerializer(RegisterSerializer):
 
     def save(self, request):
         with transaction.atomic():
+            documentos = documentos_vigentes()
+            if (
+                self.validated_data['termos_versao'] != documentos[0][2]
+                or self.validated_data['privacidade_versao'] != documentos[1][2]
+            ):
+                raise serializers.ValidationError(
+                    'Recarregue a página para consultar os documentos vigentes.'
+                )
             user = super().save(request)
-            endereco_ip = obter_ip_cliente(request)
-            user_agent = (request.META.get('HTTP_USER_AGENT') or '')[:500]
-
-            AceiteLegal.objects.create(
-                usuario=user,
-                tipo_documento=AceiteLegal.TipoDocumento.TERMOS,
-                tipo_manifestacao=AceiteLegal.TipoManifestacao.ACEITE,
-                versao=TERMOS_VERSAO,
-                hash_documento=TERMOS_HASH_SHA256,
-                endereco_ip=endereco_ip,
-                user_agent=user_agent,
-            )
-            AceiteLegal.objects.create(
-                usuario=user,
-                tipo_documento=AceiteLegal.TipoDocumento.PRIVACIDADE,
-                tipo_manifestacao=AceiteLegal.TipoManifestacao.CIENCIA,
-                versao=PRIVACIDADE_VERSAO,
-                hash_documento=PRIVACIDADE_HASH_SHA256,
-                endereco_ip=endereco_ip,
-                user_agent=user_agent,
-            )
-
+            registrar_documentos(request, user, documentos)
         return user

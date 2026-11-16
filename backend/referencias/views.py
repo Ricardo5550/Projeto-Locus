@@ -34,7 +34,9 @@ def buscar_referencias(request):
         except CrossrefIndisponivel:
             logger.warning('Falha ao consultar a API Crossref.', exc_info=True)
             return Response(
-                {'mensagem': 'Não foi possível consultar as referências agora. Tente novamente em alguns instantes.'},
+                {
+                    'mensagem': 'Não foi possível consultar as referências agora. Tente novamente em alguns instantes.'
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         cache.set(chave_cache, resultados, timeout=600)

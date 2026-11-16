@@ -33,7 +33,9 @@ class AnotacaoAccessTests(TestCase):
             format='json',
         )
         self.assertEqual(resposta.status_code, 201)
-        self.assertEqual(Anotacao.objects.get(pk=resposta.data['id']).autor, self.user_b)
+        self.assertEqual(
+            Anotacao.objects.get(pk=resposta.data['id']).autor, self.user_b
+        )
 
     def test_texto_com_sintaxe_sql_e_tratado_como_dado(self):
         self.client.force_authenticate(self.user_a)
@@ -52,14 +54,17 @@ class AnotacaoAccessTests(TestCase):
 
         anotacao = Anotacao.objects.create(
             titulo='Segredo',
-            conteudo={'type': 'doc', 'content': [{'type': 'text', 'text': 'conteudo reservado'}]},
+            conteudo={
+                'type': 'doc',
+                'content': [{'type': 'text', 'text': 'conteudo reservado'}],
+            },
             autor=self.user_a,
         )
 
         with connection.cursor() as cursor:
             cursor.execute(
                 'SELECT conteudo FROM anotacoes_anotacao WHERE id = %s',
-                [anotacao.pk],
+                [Anotacao._meta.pk.get_db_prep_value(anotacao.pk, connection)],
             )
             bruto = cursor.fetchone()[0]
 

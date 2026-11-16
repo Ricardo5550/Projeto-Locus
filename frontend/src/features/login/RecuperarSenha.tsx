@@ -1,41 +1,45 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import { requisicaoApi } from '../../services/apiClient';
-import './RecuperacaoAcesso.css';
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { requisicaoApi } from "../../services/apiClient";
+import "./RecuperacaoAcesso.css";
 
 interface RecuperarSenhaProps {
   onBackToLogin: () => void;
 }
 
 export default function RecuperarSenha({ onBackToLogin }: RecuperarSenhaProps) {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage('');
+    setMessage("");
     setIsSubmitting(true);
 
     try {
       const response = await requisicaoApi(
-        '/auth/password/reset/',
+        "/auth/password/reset/",
         {
-          method: 'POST',
+          method: "POST",
           body: JSON.stringify({ email: email.trim() }),
         },
-        { auth: false }
+        { auth: false },
       );
 
       if (!response.ok) {
-        setMessage('Não foi possível solicitar a redefinição. Tente novamente.');
+        setMessage(
+          "Não foi possível solicitar a redefinição. Tente novamente.",
+        );
         return;
       }
 
       // A mesma resposta é exibida independentemente de o e-mail existir.
-      setMessage('Se houver uma conta com este e-mail, enviaremos as instruções de redefinição.');
+      setMessage(
+        "Se houver uma conta com este e-mail, enviaremos as instruções de redefinição.",
+      );
     } catch {
-      setMessage('Não foi possível conectar ao servidor. Tente novamente.');
+      setMessage("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -64,12 +68,24 @@ export default function RecuperarSenha({ onBackToLogin }: RecuperarSenhaProps) {
             />
           </div>
 
-          {message && <p className="auth-recovery-message" role="status">{message}</p>}
+          {message && (
+            <p className="auth-recovery-message" role="status">
+              {message}
+            </p>
+          )}
 
-          <button type="submit" className="auth-recovery-primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Enviando...' : 'Enviar instruções'}
+          <button
+            type="submit"
+            className="auth-recovery-primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Enviando..." : "Enviar instruções"}
           </button>
-          <button type="button" className="auth-recovery-link" onClick={onBackToLogin}>
+          <button
+            type="button"
+            className="auth-recovery-link"
+            onClick={onBackToLogin}
+          >
             Voltar ao login
           </button>
         </form>

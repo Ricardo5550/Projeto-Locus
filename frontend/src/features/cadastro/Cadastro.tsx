@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import { requisicaoApi } from '../../services/apiClient';
-import PoliticaPrivacidade from '../usuarios/PoliticaPrivacidade';
-import TermosUso from '../usuarios/TermosUso';
-import './Cadastro.css';
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { apiJson, requisicaoApi } from "../../services/apiClient";
+import PoliticaPrivacidade from "../usuarios/PoliticaPrivacidade";
+import type { DadosDocumentoLegal } from "../usuarios/versoesLegais";
+import TermosUso from "../usuarios/TermosUso";
+import "./Cadastro.css";
 
 interface CadastroProps {
   onNavigateToLogin: () => void;
@@ -19,33 +20,34 @@ type ErrosCampos = {
   general?: string;
 };
 
-type DocumentoLegal = 'terms' | 'privacy' | null;
+type DocumentoLegal = "terms" | "privacy" | null;
 
 function primeiraMensagem(value: unknown): string | undefined {
-  if (Array.isArray(value)) return value.length > 0 ? String(value[0]) : undefined;
-  if (typeof value === 'string') return value;
+  if (Array.isArray(value))
+    return value.length > 0 ? String(value[0]) : undefined;
+  if (typeof value === "string") return value;
   return undefined;
 }
 
 function interpretarErrosCadastro(data: unknown): ErrosCampos {
-  if (!data || typeof data !== 'object') {
-    return { general: 'Não foi possível criar a conta. Tente novamente.' };
+  if (!data || typeof data !== "object") {
+    return { general: "Não foi possível criar a conta. Tente novamente." };
   }
 
   const payload = data as Record<string, unknown>;
   const errors: ErrosCampos = {};
 
   if (payload.username) {
-    const raw = primeiraMensagem(payload.username) ?? '';
+    const raw = primeiraMensagem(payload.username) ?? "";
     errors.username = /already|exist|já existe/i.test(raw)
-      ? 'Este nome de usuário já existe.'
+      ? "Este nome de usuário já existe."
       : raw;
   }
 
   if (payload.email) {
-    const raw = primeiraMensagem(payload.email) ?? '';
+    const raw = primeiraMensagem(payload.email) ?? "";
     errors.email = /already|registered|exist|unique|já existe/i.test(raw)
-      ? 'Este e-mail já está registrado.'
+      ? "Este e-mail já está registrado."
       : raw;
   }
 
@@ -68,30 +70,46 @@ export default function Cadastro({
   onNavigateToLogin,
   onRegistrationSuccess,
 }: CadastroProps) {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password1, setPassword1] = useState('');
-  const [password2, setPassword2] = useState('');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password1, setPassword1] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [termos, setTermos] = useState<DadosDocumentoLegal | null>(null);
+  const [erroTermos, setErroTermos] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [versaoPolitica, setVersaoPolitica] = useState("");
   const [privacyReadConfirmed, setPrivacyReadConfirmed] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [legalDocument, setLegalDocument] = useState<DocumentoLegal>(null);
   const [errors, setErrors] = useState<ErrosCampos>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canRegister = termsAccepted && privacyAcknowledged && !isSubmitting;
+  useEffect(() => {
+    let ativo = true;
+    apiJson<DadosDocumentoLegal>("/auth/documentos/termos/", {}, { auth: false })
+      .then((dados) => { if (ativo) setTermos(dados); })
+      .catch(() => { if (ativo) setErroTermos(true); });
+    return () => { ativo = false; };
+  }, []);
+
+  const canRegister = !!termos && termsAccepted && privacyAcknowledged && !isSubmitting;
 
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrors({});
+    if (!termos) return;
 
     const validationErrors: ErrosCampos = {};
-    if (!username.trim()) validationErrors.username = 'Informe um nome de usuário.';
-    if (!email.trim()) validationErrors.email = 'Informe um e-mail.';
-    if (password1.length < 7) validationErrors.password1 = 'A senha deve ter no mínimo 7 caracteres.';
-    if (password1 !== password2) validationErrors.password2 = 'As senhas não coincidem.';
+    if (!username.trim())
+      validationErrors.username = "Informe um nome de usuário.";
+    if (!email.trim()) validationErrors.email = "Informe um e-mail.";
+    if (password1.length < 9)
+      validationErrors.password1 = "A senha deve ter no mínimo 9 caracteres.";
+    if (password1 !== password2)
+      validationErrors.password2 = "As senhas não coincidem.";
     if (!termsAccepted || !privacyAcknowledged) {
-      validationErrors.legal = 'Leia e confirme os documentos obrigatórios antes de criar a conta.';
+      validationErrors.legal =
+        "Leia e confirme os documentos obrigatórios antes de criar a conta.";
     }
 
     if (Object.keys(validationErrors).length > 0) {
@@ -102,17 +120,23 @@ export default function Cadastro({
     setIsSubmitting(true);
 
     try {
-      const response = await requisicaoApi('/auth/registro/', {
-        method: 'POST',
-        body: JSON.stringify({
-          username: username.trim(),
-          email: email.trim(),
-          password1,
-          password2,
-          aceite_termos: termsAccepted,
-          ciencia_privacidade: privacyAcknowledged,
-        }),
-      }, { auth: false });
+      const response = await requisicaoApi(
+        "/auth/registro/",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            username: username.trim(),
+            email: email.trim(),
+            password1,
+            password2,
+            termos_versao: termos.versao,
+            privacidade_versao: versaoPolitica,
+            aceite_termos: termsAccepted,
+            ciencia_privacidade: privacyAcknowledged,
+          }),
+        },
+        { auth: false },
+      );
 
       const data = await response.json().catch(() => ({}));
 
@@ -123,7 +147,9 @@ export default function Cadastro({
 
       onRegistrationSuccess();
     } catch {
-      setErrors({ general: 'Não foi possível conectar ao servidor. Tente novamente.' });
+      setErrors({
+        general: "Não foi possível conectar ao servidor. Tente novamente.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -148,7 +174,9 @@ export default function Cadastro({
               disabled={isSubmitting}
               aria-invalid={Boolean(errors.username)}
             />
-            {errors.username && <span className="field-error">{errors.username}</span>}
+            {errors.username && (
+              <span className="field-error">{errors.username}</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -163,7 +191,9 @@ export default function Cadastro({
               disabled={isSubmitting}
               aria-invalid={Boolean(errors.email)}
             />
-            {errors.email && <span className="field-error">{errors.email}</span>}
+            {errors.email && (
+              <span className="field-error">{errors.email}</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -174,13 +204,15 @@ export default function Cadastro({
               value={password1}
               onChange={(event) => setPassword1(event.target.value)}
               autoComplete="new-password"
-              minLength={7}
+              minLength={9}
               required
               disabled={isSubmitting}
               aria-invalid={Boolean(errors.password1)}
             />
-            <span className="field-hint">Mínimo de 7 caracteres.</span>
-            {errors.password1 && <span className="field-error">{errors.password1}</span>}
+            <span className="field-hint">Mínimo de 9 caracteres.</span>
+            {errors.password1 && (
+              <span className="field-error">{errors.password1}</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -191,36 +223,47 @@ export default function Cadastro({
               value={password2}
               onChange={(event) => setPassword2(event.target.value)}
               autoComplete="new-password"
-              minLength={7}
+              minLength={9}
               required
               disabled={isSubmitting}
               aria-invalid={Boolean(errors.password2)}
             />
-            {errors.password2 && <span className="field-error">{errors.password2}</span>}
+            {errors.password2 && (
+              <span className="field-error">{errors.password2}</span>
+            )}
           </div>
 
           {errors.general && (
-            <p className="auth-message auth-message--error" role="alert">{errors.general}</p>
+            <p className="auth-message auth-message--error" role="alert">
+              {errors.general}
+            </p>
           )}
 
-          <button type="submit" className="btn-registrar" disabled={!canRegister}>
-            {isSubmitting ? 'Criando...' : 'Registrar'}
+          <button
+            type="submit"
+            className="btn-registrar"
+            disabled={!canRegister}
+          >
+            {isSubmitting ? "Criando..." : "Registrar"}
           </button>
 
-          <div className="legal-consents" aria-label="Documentos legais obrigatórios">
+          <div
+            className="legal-consents"
+            aria-label="Documentos legais obrigatórios"
+          >
             <label className="legal-consent-row">
               <input
                 type="checkbox"
                 checked={termsAccepted}
                 onChange={(event) => setTermsAccepted(event.target.checked)}
-                disabled={isSubmitting}
+                disabled={!termos || isSubmitting}
               />
               <span>
-                Li e aceito os{' '}
+                Li e aceito os{" "}
                 <button
                   type="button"
                   className="legal-inline-link"
-                  onClick={() => setLegalDocument('terms')}
+                  onClick={() => setLegalDocument("terms")}
                   disabled={isSubmitting}
                 >
                   Termos de Uso
@@ -229,19 +272,23 @@ export default function Cadastro({
               </span>
             </label>
 
-            <label className={`legal-consent-row${privacyReadConfirmed ? '' : ' is-locked'}`}>
+            <label
+              className={`legal-consent-row${privacyReadConfirmed ? "" : " is-locked"}`}
+            >
               <input
                 type="checkbox"
                 checked={privacyAcknowledged}
-                onChange={(event) => setPrivacyAcknowledged(event.target.checked)}
+                onChange={(event) =>
+                  setPrivacyAcknowledged(event.target.checked)
+                }
                 disabled={!privacyReadConfirmed || isSubmitting}
               />
               <span>
-                Declaro que li e estou ciente da{' '}
+                Declaro que li e estou ciente da{" "}
                 <button
                   type="button"
                   className="legal-inline-link"
-                  onClick={() => setLegalDocument('privacy')}
+                  onClick={() => setLegalDocument("privacy")}
                   disabled={isSubmitting}
                 >
                   Política de Privacidade
@@ -252,11 +299,19 @@ export default function Cadastro({
 
             {!privacyReadConfirmed && (
               <span className="legal-consent-hint">
-                Abra a Política de Privacidade e confirme a leitura no final para habilitar esta opção.
+                Abra a Política de Privacidade e confirme a leitura no final
+                para habilitar esta opção.
               </span>
             )}
 
-            {errors.legal && <span className="field-error legal-consent-error">{errors.legal}</span>}
+            {erroTermos && (
+              <p role="alert">Não foi possível carregar os Termos de Uso. Recarregue a página para tentar novamente.</p>
+            )}
+            {errors.legal && (
+              <span className="field-error legal-consent-error">
+                {errors.legal}
+              </span>
+            )}
           </div>
 
           <button
@@ -273,8 +328,9 @@ export default function Cadastro({
       {legalDocument && (
         <div className="legal-modal-backdrop" role="dialog" aria-modal="true">
           <div className="legal-modal-panel">
-            {legalDocument === 'terms' ? (
+            {legalDocument === "terms" ? (
               <TermosUso
+                dados={termos ?? undefined}
                 onBack={() => setLegalDocument(null)}
                 backLabel="Voltar ao cadastro"
               />
@@ -284,9 +340,11 @@ export default function Cadastro({
                 backLabel="Voltar ao cadastro"
                 requireReadConfirmation
                 readConfirmed={privacyReadConfirmed}
-                onReadConfirmedChange={(checked) => {
+                versaoConfirmada={versaoPolitica}
+                onReadConfirmedChange={(checked, versao) => {
+                  setVersaoPolitica(checked ? versao : "");
                   setPrivacyReadConfirmed(checked);
-                  if (!checked) setPrivacyAcknowledged(false);
+                  setPrivacyAcknowledged(false);
                 }}
               />
             )}

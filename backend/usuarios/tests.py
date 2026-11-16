@@ -6,6 +6,8 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
+from usuarios import legal
+
 from .models import AceiteLegal
 
 
@@ -32,11 +34,15 @@ class LoginSecurityTests(TestCase):
         resposta_google.json.return_value = {'success': False}
         post.return_value = resposta_google
 
-        resposta = self.client.post('/api/auth/login/', {
-            'email': 'teste@example.com',
-            'password': 'senha123',
-            'captcha_token': 'token-invalido',
-        }, format='json')
+        resposta = self.client.post(
+            '/api/auth/login/',
+            {
+                'email': 'teste@example.com',
+                'password': 'senha123',
+                'captcha_token': 'token-invalido',
+            },
+            format='json',
+        )
 
         self.assertEqual(resposta.status_code, 400)
         self.assertNotIn('access', resposta.data)
@@ -59,11 +65,15 @@ class RegistrationLegalAcceptanceTests(TestCase):
         self.assertEqual(resposta.status_code, 400)
         self.assertIn('aceite_termos', resposta.data)
         self.assertIn('ciencia_privacidade', resposta.data)
-        self.assertFalse(get_user_model().objects.filter(username='novo_usuario').exists())
+        self.assertFalse(
+            get_user_model().objects.filter(username='novo_usuario').exists()
+        )
 
     def test_cadastro_registra_duas_manifestacoes_legais(self):
         payload = {
             **self.payload,
+            'termos_versao': legal.termos_vigentes().versao,
+            'privacidade_versao': legal.politica_vigente().versao,
             'aceite_termos': True,
             'ciencia_privacidade': True,
         }
@@ -82,10 +92,14 @@ class RegistrationLegalAcceptanceTests(TestCase):
         self.assertEqual(registros.count(), 2)
 
         termos = registros.get(tipo_documento=AceiteLegal.TipoDocumento.TERMOS)
-        privacidade = registros.get(tipo_documento=AceiteLegal.TipoDocumento.PRIVACIDADE)
+        privacidade = registros.get(
+            tipo_documento=AceiteLegal.TipoDocumento.PRIVACIDADE
+        )
 
         self.assertEqual(termos.tipo_manifestacao, AceiteLegal.TipoManifestacao.ACEITE)
-        self.assertEqual(privacidade.tipo_manifestacao, AceiteLegal.TipoManifestacao.CIENCIA)
+        self.assertEqual(
+            privacidade.tipo_manifestacao, AceiteLegal.TipoManifestacao.CIENCIA
+        )
         self.assertEqual(termos.endereco_ip, '127.0.0.1')
         self.assertEqual(termos.user_agent, 'Locus-Test/1.0')
         self.assertTrue(termos.hash_documento)
