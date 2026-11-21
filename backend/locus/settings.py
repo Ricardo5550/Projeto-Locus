@@ -61,6 +61,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'auditoria.middleware.AuditoriaMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'core.middleware.AdminLoginRateLimitMiddleware',
@@ -195,6 +196,8 @@ EMAIL_BACKEND = os.getenv(
         else 'django.core.mail.backends.smtp.EmailBackend'
     ),
 )
+LOCUS_EMAIL_BACKEND = EMAIL_BACKEND
+EMAIL_BACKEND = 'auditoria.email_backend.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'

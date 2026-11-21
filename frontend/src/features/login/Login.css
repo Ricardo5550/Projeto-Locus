@@ -61,7 +61,7 @@
   color: #000000;
 }
 
-input {
+.card-login input:not([type="checkbox"]):not([type="radio"]) {
   width: 100%;
   padding: 12px;
   border: none;
@@ -70,7 +70,7 @@ input {
   box-sizing: border-box;
 }
 
-input:focus {
+.card-login input:focus {
   outline: 2px solid #5c4033;
 }
 
@@ -132,7 +132,7 @@ input:focus {
 
 .btn-entrar:disabled,
 .auth-link-button:disabled,
-input:disabled {
+.card-login input:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -193,3 +193,70 @@ input:disabled {
   width: auto;
   accent-color: #5c4033;
 }
+
+.page-background {
+  padding: 24px 12px;
+  box-sizing: border-box;
+  min-height: 100dvh;
+}
+@media (max-width: 380px) {
+  .card-login {
+    padding: 24px 12px;
+  }
+  .captcha-container {
+    min-height: 78px;
+  }
+}
+
+.page-background {
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  align-items: safe center;
+}
+.card-login {
+  flex-shrink: 0;
+}
+.login-background {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.logo-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.login-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+@media (max-width: 350px) {
+  .captcha-container {
+    transform: scale(0.9);
+    transform-origin: center;
+  }
+}
+
+.page-background:has(.card-login, .card-registro, .auth-recovery-card) {
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  align-items: safe center;
+}
+
+
+.login-background .logo-pill {
+  gap: 0;
+  align-items: center;
+}
+
+.login-background .login-logo {
+  width: 160px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+

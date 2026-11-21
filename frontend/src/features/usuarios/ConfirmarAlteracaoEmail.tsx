@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { apiJson } from "../../services/apiClient";
 import "../login/RecuperacaoAcesso.css";
@@ -6,6 +7,7 @@ export default function ConfirmarAlteracaoEmail({
 }: {
   onBackToLogin: () => void;
 }) {
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [message, setMessage] = useState(
@@ -24,7 +26,7 @@ export default function ConfirmarAlteracaoEmail({
 
       setDone(true);
       setMessage(result.detail);
-      window.history.replaceState({}, "", "/");
+      void navigate({ search: "" }, { replace: true });
     } catch (e) {
       setMessage(
         e instanceof Error

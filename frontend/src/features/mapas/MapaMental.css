@@ -514,3 +514,10 @@
   left: var(--map-sidebar-width);
   width: calc(100% - var(--map-sidebar-width)) !important;
 }
+
+@media (max-width: 640px) {
+  .mindmap { height: 100dvh; }
+  .mindmap-sidebar.is-open { width: min(300px, calc(100vw - 50px)); }
+  /* No celular, as ferramentas sobrepõem o canvas e podem ser recolhidas. */
+  .mindmap[data-sidebar-open="true"] { --map-sidebar-width: 50px; }
+}

@@ -30,8 +30,14 @@ class PerfilTutor(models.Model):
         default='privado',
     )
     aprovado = models.BooleanField(default=False)
+    motivo_rejeicao = models.TextField(max_length=300, blank=True)
+    rejeitado_em = models.DateTimeField(null=True, blank=True)
     ativo = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def situacao(self):
+        return 'aprovado' if self.aprovado else ('rejeitado' if self.rejeitado_em else 'pendente')
 
 
 class EspacoAcompanhamento(models.Model):
@@ -109,12 +115,28 @@ class MapaCompartilhado(models.Model):
         ]
 
 
+class QuestionarioCompartilhado(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    espaco = models.ForeignKey(EspacoAcompanhamento, on_delete=models.CASCADE)
+    questionario = models.ForeignKey('revisoes.Questionario', on_delete=models.CASCADE)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['espaco', 'questionario'],
+                name='unique_questionario_compartilhado_espaco_questionario',
+            )
+        ]
+
+
 class MensagemAcompanhamento(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
 
     class Material(models.TextChoices):
         ANOTACAO = 'anotacao', 'Anotação'
         MAPA = 'mapa', 'Mapa mental'
+        QUESTIONARIO = 'questionario', 'Questionário'
 
     espaco = models.ForeignKey(EspacoAcompanhamento, on_delete=models.CASCADE)
     autor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -122,7 +144,7 @@ class MensagemAcompanhamento(models.Model):
         'self', null=True, blank=True, on_delete=models.CASCADE
     )
     tipo_material = models.CharField(
-        max_length=10, choices=Material.choices, blank=True
+        max_length=12, choices=Material.choices, blank=True
     )
     material_id = models.UUIDField(null=True, blank=True)
     texto = EncryptedTextField(max_length=2000)

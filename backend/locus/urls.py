@@ -1,7 +1,7 @@
+from core.armazenamento import ArmazenamentoView
 from django.conf import settings
 from django.views.generic import RedirectView
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import include, path, re_path
 from usuarios.auth_endpoints import (
     RegisterView,
@@ -17,6 +17,7 @@ from usuarios.email_views import (
     EmailChangeRedirectView,
     ConfirmEmailChangeView,
 )
+from usuarios.encerramento_views import EncerramentoAdministrativoView
 from usuarios.mfa_views import MFAChallengeView, MFAEnrollmentView, MFAManagementView
 from anotacoes.views import AnotacaoViewSet
 from mapas.views import MapaMentalViewSet
@@ -52,7 +53,7 @@ router.register(r'perguntas', PerguntaViewSet, basename='pergunta')
 router.register(r'tentativas', TentativaViewSet, basename='tentativa')
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('api/gestao/', include('usuarios.gestao_api')),
     path('api/resultados/', resultados, name='resultados'),
     path('api/biblioteca/', biblioteca, name='biblioteca'),
     path('api/', include(router.urls)),
@@ -107,6 +108,8 @@ urlpatterns = [
     ),
     re_path(r'^api/auth/login/?$', LoginView.as_view(), name='login'),
     path('api/auth/account/', AccountView.as_view(), name='account'),
+    path('api/auth/account/encerramento/', EncerramentoAdministrativoView.as_view(), name='encerramento-admin'),
+    path('api/auth/armazenamento/', ArmazenamentoView.as_view(), name='armazenamento'),
     re_path(r'^api/auth/logout/?$', LogoutView.as_view(), name='logout'),
     re_path(
         r'^api/auth/token/refresh/?$', CookieRefreshView.as_view(), name='token-refresh'

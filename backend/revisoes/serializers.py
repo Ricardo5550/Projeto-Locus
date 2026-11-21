@@ -4,6 +4,9 @@ from .models import Pergunta, Tentativa, Questionario, Materia
 
 
 class PerguntaSerializer(serializers.ModelSerializer):
+    alternativas = serializers.ListField(
+        child=serializers.CharField(max_length=20000), max_length=10, required=False,
+    )
     questionario = serializers.PrimaryKeyRelatedField(
         queryset=Questionario.objects.all(), required=False, allow_null=False
     )
@@ -39,6 +42,9 @@ class PerguntaSerializer(serializers.ModelSerializer):
             'titulo_anotacao',
             'enunciado',
             'resposta',
+            'tipo',
+            'alternativas',
+            'alternativa_correta',
             'trecho_origem',
             'data_criacao',
             'total_tentativas',
@@ -58,6 +64,20 @@ class PerguntaSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        tipo = attrs.get('tipo', getattr(self.instance, 'tipo', 'dissertativa'))
+        if tipo == 'alternativa':
+            opcoes = attrs.get('alternativas', getattr(self.instance, 'alternativas', []))
+            correta = attrs.get('alternativa_correta', getattr(self.instance, 'alternativa_correta', None))
+            if len(opcoes) < 2:
+                raise serializers.ValidationError({'alternativas': 'Informe pelo menos duas alternativas.'})
+            if len(set(opcoes)) != len(opcoes):
+                raise serializers.ValidationError({'alternativas': 'As alternativas devem ser diferentes.'})
+            if correta is None or not 0 <= correta < len(opcoes):
+                raise serializers.ValidationError({'alternativa_correta': 'Selecione a alternativa correta.'})
+            attrs['resposta'] = opcoes[correta]
+        else:
+            attrs['alternativas'] = []
+            attrs['alternativa_correta'] = None
         if 'visao_origem' in attrs and 'mapa_origem' not in attrs:
             raise serializers.ValidationError('Informe o mapa da visão de origem.')
         if any(campo in attrs for campo in ('mapa_origem', 'visao_origem')) and (
@@ -224,6 +244,7 @@ class RespostaSerializer(serializers.Serializer):
         allow_blank=True, max_length=20000, trim_whitespace=False
     )
     resultado = serializers.ChoiceField(choices=['errei', 'parcial', 'acertei'])
+    alternativa = serializers.IntegerField(min_value=0, max_value=9, required=False)
 
 
 class FinalizacaoSerializer(serializers.Serializer):

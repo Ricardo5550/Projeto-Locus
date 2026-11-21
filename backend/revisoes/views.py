@@ -1,3 +1,4 @@
+from core.armazenamento import LimiteArmazenamentoMixin
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -20,7 +21,7 @@ class ConfirmacaoReinicioNecessaria(APIException):
     default_detail = 'Adicionar esta pergunta reiniciará o agendamento. Seu histórico será preservado. Deseja continuar?'
 
 
-class PerguntaViewSet(viewsets.ModelViewSet):
+class PerguntaViewSet(LimiteArmazenamentoMixin, viewsets.ModelViewSet):
     serializer_class = PerguntaSerializer
     permission_classes = [IsAuthenticated]
 
@@ -147,7 +148,7 @@ class PerguntaViewSet(viewsets.ModelViewSet):
         registrar_atividade(self.request, 'excluir', 'pergunta', identificador)
 
 
-class TentativaViewSet(viewsets.ModelViewSet):
+class TentativaViewSet(LimiteArmazenamentoMixin, viewsets.ModelViewSet):
     serializer_class = TentativaSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'head', 'options']

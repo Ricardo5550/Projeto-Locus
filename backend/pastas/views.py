@@ -1,3 +1,4 @@
+from core.armazenamento import LimiteArmazenamentoMixin
 from django.db import transaction
 from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
@@ -8,7 +9,7 @@ from .models import Pasta
 from .serializers import PastaSerializer
 
 
-class PastaViewSet(viewsets.ModelViewSet):
+class PastaViewSet(LimiteArmazenamentoMixin, viewsets.ModelViewSet):
     serializer_class = PastaSerializer
     permission_classes = [IsAuthenticated]
 

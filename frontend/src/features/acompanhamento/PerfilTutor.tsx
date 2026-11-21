@@ -14,7 +14,7 @@ const dadosIniciais: DadosPerfilTutor = {
   nome_apresentacao: "",
   descricao: "",
   area: "",
-  formacoes: [],
+  formacoes: [{ titulo: "", instituicao: "", link_comprovante: "" }],
   visibilidade: "privado",
   ativo: true,
 };
@@ -27,6 +27,7 @@ export default function PerfilTutor({
   const [dados, setDados] = useState<DadosPerfilTutor>(dadosIniciais);
 
   const [aprovado, setAprovado] = useState(false);
+  const [rejeicao, setRejeicao] = useState("");
   const [possuiPerfil, setPossuiPerfil] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -46,12 +47,17 @@ export default function PerfilTutor({
           nome_apresentacao: perfil.nome_apresentacao,
           descricao: perfil.descricao ?? "",
           area: perfil.area ?? "",
-          formacoes: perfil.formacoes,
+          formacoes: perfil.formacoes.length
+            ? perfil.formacoes
+            : dadosIniciais.formacoes,
           visibilidade: perfil.visibilidade,
           ativo: perfil.ativo,
         });
 
         setAprovado(perfil.aprovado);
+        setRejeicao(
+          perfil.situacao === "rejeitado" ? perfil.motivo_rejeicao : "",
+        );
         setPossuiPerfil(true);
       } catch (error) {
         if (!ativo) return;
@@ -168,7 +174,13 @@ export default function PerfilTutor({
         </p>
       </header>
 
-      {!aprovado && (
+      {rejeicao && (
+        <p className="perfil-tutor-erro" role="alert">
+          Solicitação rejeitada. Motivo: {rejeicao} Corrija as informações e
+          clique em Reenviar solicitação.
+        </p>
+      )}
+      {!aprovado && !rejeicao && (
         <p role="status">
           {possuiPerfil
             ? "Solicitação aguardando aprovação da administração."
@@ -238,10 +250,10 @@ export default function PerfilTutor({
           className="perfil-tutor-formacoes"
           aria-labelledby="tutor-formacoes"
         >
-          <h3 id="tutor-formacoes">Formação e cursos (opcional)</h3>
+          <h3 id="tutor-formacoes">Formação e certificados</h3>
           <p>
-            Adicione uma entrada para cada formação ou curso que quiser exibir
-            no seu perfil.
+            Informe pelo menos uma formação ou curso e o link do diploma ou
+            certificado. A comprovação será analisada pelo administrador.
           </p>
           {dados.formacoes.map((formacao, indice) => (
             <fieldset
@@ -279,10 +291,11 @@ export default function PerfilTutor({
               </div>
               <div className="perfil-tutor-campo">
                 <label htmlFor={`tutor-link-${indice}`}>
-                  Link do diploma ou certificado (opcional)
+                  Link do diploma ou certificado
                 </label>
                 <input
                   id={`tutor-link-${indice}`}
+                  required
                   type="url"
                   value={formacao.link_comprovante}
                   maxLength={500}
@@ -299,6 +312,7 @@ export default function PerfilTutor({
                 type="button"
                 className="perfil-tutor-acao-secundaria"
                 aria-label={`Remover formação ou curso ${indice + 1}`}
+                disabled={dados.formacoes.length === 1}
                 onClick={() =>
                   atualizarCampo(
                     "formacoes",
@@ -375,9 +389,11 @@ export default function PerfilTutor({
           <button type="submit" disabled={salvando}>
             {salvando
               ? "Salvando..."
-              : possuiPerfil
-                ? "Salvar alterações"
-                : "Enviar solicitação"}
+              : rejeicao
+                ? "Reenviar solicitação"
+                : possuiPerfil
+                  ? "Salvar alterações"
+                  : "Enviar solicitação"}
           </button>
         </div>
       </form>

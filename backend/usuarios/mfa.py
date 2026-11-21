@@ -16,6 +16,7 @@ from django.utils.crypto import salted_hmac
 
 from auditoria.services import registrar_atividade
 from .models import DesafioAutenticacao, EstadoAutenticacao, SegundoFator
+from .verificacao_email import email_confirmado
 
 
 def resumo(value):
@@ -169,6 +170,8 @@ def obter_desafio(value, contexto):
         .first()
     )
     if not user:
+        return None, None
+    if user.is_staff and contexto in ('api', 'legal') and not email_confirmado(user):
         return None, None
     challenge = (
         DesafioAutenticacao.objects.select_for_update().filter(pk=challenge.pk).first()

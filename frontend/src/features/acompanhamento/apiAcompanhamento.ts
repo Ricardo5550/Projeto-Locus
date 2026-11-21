@@ -46,6 +46,7 @@ export type MaterialCompartilhado = {
 export type MateriaisEspaco = {
   anotacoes: MaterialCompartilhado[];
   mapas: MaterialCompartilhado[];
+  questionarios: MaterialCompartilhado[];
 };
 
 export function listarMateriaisEspaco(
@@ -174,7 +175,17 @@ export function compartilharMapa(
   );
 }
 
+export function compartilharQuestionario(espacoId: string, questionarioId: string) {
+  return apiJson<{ id: string; espaco_id: string; questionario_id: string }>(
+    `/acompanhamento/espacos/${espacoId}/questionarios/${questionarioId}/compartilhar/`,
+    { method: "POST" },
+  );
+}
+
 export type PerfilTutor = DadosPerfilTutor & {
+  situacao: "pendente" | "aprovado" | "rejeitado";
+  motivo_rejeicao: string;
+  rejeitado_em: string | null;
   id: string;
   criado_em: string;
   aprovado: boolean;
@@ -245,8 +256,25 @@ export function obterMapaCompartilhado(
   return apiJson<MapaCompartilhadoDetalhe>(`/acompanhamento/mapas/${mapaId}/`);
 }
 export type MaterialSelecionado = MaterialCompartilhado & {
-  tipo: "anotacao" | "mapa";
+  tipo: "anotacao" | "mapa" | "questionario";
 };
+
+export type QuestionarioCompartilhadoDetalhe = MaterialCompartilhado & {
+  perguntas: {
+    id: string;
+    enunciado: string;
+    resposta: string;
+    tipo: "dissertativa" | "alternativa";
+    alternativas: string[];
+    alternativa_correta: number | null;
+  }[];
+};
+
+export function obterQuestionarioCompartilhado(espacoId: string, questionarioId: string) {
+  return apiJson<QuestionarioCompartilhadoDetalhe>(
+    `/acompanhamento/espacos/${espacoId}/questionarios/${questionarioId}/`,
+  );
+}
 
 export type MensagemAcompanhamento = {
   id: string;

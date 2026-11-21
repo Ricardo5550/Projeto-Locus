@@ -2,6 +2,8 @@ import { useRef, useState } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { requisicaoApi } from "../../services/apiClient";
 import "./Login.css";
+import logoUrl from "../../assets/logo-locus.png";
+import wallpaperUrl from "../../assets/wallpaper-login.png";
 import TermosUso from "../usuarios/TermosUso";
 import PoliticaPrivacidade, {
   type DadosPolitica,
@@ -14,6 +16,8 @@ interface LoginProps {
   onNavigateToRegister: () => void;
   onNavigateToForgotPassword: () => void;
   notice?: string;
+  administrativo?: boolean;
+  onNavigateToAdmin?: () => void;
 }
 
 function lerMensagemApi(data: unknown): string {
@@ -35,7 +39,10 @@ export default function Login({
   onNavigateToRegister,
   onNavigateToForgotPassword,
   notice,
+  administrativo = false,
+  onNavigateToAdmin,
 }: LoginProps) {
+  const [logoDisponivel, setLogoDisponivel] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -128,7 +135,9 @@ export default function Login({
         {
           method: "POST",
           body: JSON.stringify({
-            email: email.trim(),
+            ...(administrativo
+              ? { username: email.trim() }
+              : { email: email.trim() }),
             password,
             captcha_token: captchaToken,
           }),
@@ -144,7 +153,7 @@ export default function Login({
       if (!response.ok) {
         if (response.status === 403 && data.code === "email_not_verified") {
           setMessage(
-            "Seu e-mail ainda não foi validado. Confirme o endereço pelo link enviado para poder acessar sua conta.",
+            lerMensagemApi(data),
           );
           setNeedsVerification(true);
         } else {
@@ -180,7 +189,7 @@ export default function Login({
 
   async function handleResendVerification() {
     if (!email.trim()) {
-      setMessage("Informe seu e-mail para reenviar a confirmação.");
+      setMessage(administrativo ? "Informe seu nome para reenviar a confirmação." : "Informe seu e-mail para reenviar a confirmação.");
       return;
     }
 
@@ -190,7 +199,7 @@ export default function Login({
         "/auth/resend-verification/",
         {
           method: "POST",
-          body: JSON.stringify({ email: email.trim() }),
+          body: JSON.stringify(administrativo ? { username: email.trim() } : { email: email.trim() }),
         },
         { auth: false },
       );
@@ -199,7 +208,9 @@ export default function Login({
         return;
       }
       setMessage(
-        "Um novo e-mail de confirmação foi solicitado. Verifique sua caixa de entrada e a pasta de spam.",
+        administrativo
+          ? "Se a conta estiver aguardando confirmação, o envio será solicitado. Confira a caixa de entrada e o spam; aguarde um minuto antes de reenviar."
+          : "Um novo e-mail de confirmação foi solicitado. Verifique sua caixa de entrada e a pasta de spam.",
       );
       setNeedsVerification(true);
     } catch {
@@ -211,7 +222,11 @@ export default function Login({
 
   if (documento === "termos" && desafioLegal)
     return (
-      <TermosUso dados={desafioLegal.termos} embedded onBack={() => setDocumento(null)} />
+      <TermosUso
+        dados={desafioLegal.termos}
+        embedded
+        onBack={() => setDocumento(null)}
+      />
     );
   if (documento === "privacidade" && desafioLegal)
     return (
@@ -304,10 +319,27 @@ export default function Login({
     );
 
   return (
-    <div className="page-background">
+    <div
+      className="page-background login-background"
+      style={
+        wallpaperUrl
+          ? { backgroundImage: `url(${JSON.stringify(wallpaperUrl)})` }
+          : undefined
+      }
+    >
       <div className="card-login">
-        <div className="logo-pill">Locus</div>
-        <h1>Bem-vindo!</h1>
+        <div className="logo-pill" role="img" aria-label="Locus">
+          {logoDisponivel && (
+            <img
+              className="login-logo"
+              src={logoUrl}
+              alt=""
+              onError={() => setLogoDisponivel(false)}
+            />
+          )}
+          {!logoDisponivel && <span aria-hidden="true">Locus</span>}
+        </div>
+        <h1>{administrativo ? "Acesso administrativo" : "Bem-vindo!"}</h1>
 
         <form onSubmit={handleSubmit}>
           {notice && !needsVerification && (
@@ -336,13 +368,15 @@ export default function Login({
           )}
 
           <div className="form-group">
-            <label htmlFor="email">E-mail</label>
+            <label htmlFor="email">
+              {administrativo ? "Nome" : "E-mail"}
+            </label>
             <input
-              type="email"
+              type={administrativo ? "text" : "email"}
               id="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
+              autoComplete={administrativo ? "username" : "email"}
               required
               disabled={isSubmitting}
             />
@@ -395,8 +429,19 @@ export default function Login({
             onClick={onNavigateToRegister}
             disabled={isSubmitting}
           >
-            Não tem conta? Registre-se!
+            {administrativo
+              ? "Voltar ao login de usuário"
+              : "Não tem conta? Registre-se!"}
           </button>
+          {!administrativo && onNavigateToAdmin && (
+            <button
+              type="button"
+              className="auth-link auth-link-button"
+              onClick={onNavigateToAdmin}
+            >
+              Acesso administrativo
+            </button>
+          )}
         </form>
       </div>
     </div>

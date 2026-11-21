@@ -15,6 +15,8 @@ from .views import (
     RemoverTutorView,
     CompartilharAnotacaoView,
     CompartilharMapaView,
+    CompartilharQuestionarioView,
+    QuestionarioCompartilhadoDetalheView,
     EspacosTutorView,
     MateriaisCompartilhadosEspacoView,
     TutoresDisponiveisView,
@@ -22,6 +24,16 @@ from .views import (
 )
 
 urlpatterns = [
+    path(
+        'espacos/<uuid:pk>/questionarios/<uuid:questionario_id>/compartilhar/',
+        CompartilharQuestionarioView.as_view(),
+        name='acompanhamento-compartilhar-questionario',
+    ),
+    path(
+        'espacos/<uuid:pk>/questionarios/<uuid:questionario_id>/',
+        QuestionarioCompartilhadoDetalheView.as_view(),
+        name='acompanhamento-questionario-detalhe',
+    ),
     path(
         'anotacoes/<uuid:pk>/',
         AnotacaoCompartilhadaDetalheView.as_view(),

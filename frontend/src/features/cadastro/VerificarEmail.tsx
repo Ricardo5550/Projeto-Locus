@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { requisicaoApi } from "../../services/apiClient";
+import { caminhos } from "../../navegacao/rotas";
 import "../login/RecuperacaoAcesso.css";
 
 interface VerificarEmailProps {
@@ -9,10 +11,13 @@ interface VerificarEmailProps {
 type EstadoVerificacao = "loading" | "success" | "error";
 
 export default function VerificarEmail({ onBackToLogin }: VerificarEmailProps) {
+  const navigate = useNavigate();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const key = params.get("verify_email") ?? "";
   const [state, setState] = useState<EstadoVerificacao>("loading");
   const [message, setMessage] = useState("Confirmando seu e-mail...");
+  const [administrativo, setAdministrativo] = useState(false);
+  const verificacao = useRef<Promise<{ ok: boolean; administrativo?: boolean }> | null>(null);
 
   useEffect(() => {
     if (!key) {
@@ -23,26 +28,33 @@ export default function VerificarEmail({ onBackToLogin }: VerificarEmailProps) {
 
     let cancelled = false;
 
-    requisicaoApi(
+    // Reutiliza a mesma requisição quando o StrictMode repete o efeito.
+    verificacao.current ??= requisicaoApi(
       "/auth/verify-email/",
       {
         method: "POST",
         body: JSON.stringify({ key }),
       },
       { auth: false },
-    )
-      .then(async (response) => {
+    ).then(async (response) => ({
+      ok: response.ok,
+      ...(response.ok ? await response.json() : {}),
+    }));
+
+    verificacao.current
+      .then((dados) => {
         if (cancelled) return;
-        if (!response.ok) {
+        if (!dados.ok) {
           setState("error");
           setMessage(
             "Não foi possível confirmar este e-mail. O link pode ter expirado ou já ter sido utilizado.",
           );
           return;
         }
+        setAdministrativo(dados.administrativo === true);
         setState("success");
         setMessage("E-mail confirmado com sucesso. Você já pode entrar.");
-        window.history.replaceState({}, "", "/");
+        void navigate({ search: "" }, { replace: true });
       })
       .catch(() => {
         if (!cancelled) {
@@ -56,7 +68,7 @@ export default function VerificarEmail({ onBackToLogin }: VerificarEmailProps) {
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, navigate]);
 
   return (
     <div className="page-background">
@@ -79,7 +91,7 @@ export default function VerificarEmail({ onBackToLogin }: VerificarEmailProps) {
           <button
             type="button"
             className="auth-recovery-primary"
-            onClick={onBackToLogin}
+            onClick={() => administrativo ? void navigate(caminhos["admin-login"]) : onBackToLogin()}
           >
             Ir para o login
           </button>

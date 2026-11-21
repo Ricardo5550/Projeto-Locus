@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { ArrowLeft, Home } from "lucide-react";
+import { ArrowLeft, Home, X } from "lucide-react";
 import "./PageHeader.css";
 
 type Props = {
@@ -12,6 +12,8 @@ type Props = {
   maxLength?: number;
   status?: string;
   actions?: ReactNode;
+  beforeTitle?: ReactNode;
+  center?: ReactNode;
   afterTitle?: ReactNode;
 };
 
@@ -35,6 +37,26 @@ export function BackButton({
   );
 }
 
+export function CloseButton({
+  onClick,
+  label = "Fechar",
+}: {
+  onClick: () => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="page-back page-close"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      <X size={18} aria-hidden="true" />
+    </button>
+  );
+}
+
 export default function PageHeader({
   title,
   onBack,
@@ -45,6 +67,8 @@ export default function PageHeader({
   maxLength,
   status,
   actions,
+  beforeTitle,
+  center,
   afterTitle,
 }: Props) {
   const ref = useRef<HTMLElement>(null);
@@ -62,41 +86,48 @@ export default function PageHeader({
     return () => observer.disconnect();
   }, []);
   return (
-    <header className="page-header" ref={ref}>
-      {(onBack || onHome) && (
-        <div className="page-header__navigation">
-          {onBack && <BackButton onClick={onBack} />}
-          {onHome && (
-            <button
-              type="button"
-              className="page-action page-home"
-              onClick={onHome}
-              aria-label="Ir para a Home"
-              title="Ir para a Home"
-            >
-              <Home size={18} aria-hidden="true" />
-              <span>Menu</span>
-            </button>
-          )}
-        </div>
-      )}
-      {onTitleChange ? (
-        <input
-          className="page-header__title"
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          placeholder={placeholder}
-          aria-label={titleLabel || "Título"}
-          maxLength={maxLength}
-        />
-      ) : afterTitle ? (
-        <div className="page-header__title-group">
+    <header
+      className={`page-header${center ? " page-header--central" : ""}`}
+      ref={ref}
+    >
+      <div className="page-header__start">
+        {beforeTitle}
+        {(onBack || onHome) && (
+          <div className="page-header__navigation">
+            {onBack && <BackButton onClick={onBack} />}
+            {onHome && (
+              <button
+                type="button"
+                className="page-action page-home"
+                onClick={onHome}
+                aria-label="Ir para a Home"
+                title="Ir para a Home"
+              >
+                <Home size={18} aria-hidden="true" />
+                <span>Menu</span>
+              </button>
+            )}
+          </div>
+        )}
+        {onTitleChange ? (
+          <input
+            className="page-header__title"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder={placeholder}
+            aria-label={titleLabel || "Título"}
+            maxLength={maxLength}
+          />
+        ) : afterTitle ? (
+          <div className="page-header__title-group">
+            <h1 className="page-header__title">{title}</h1>
+            {afterTitle}
+          </div>
+        ) : (
           <h1 className="page-header__title">{title}</h1>
-          {afterTitle}
-        </div>
-      ) : (
-        <h1 className="page-header__title">{title}</h1>
-      )}
+        )}
+      </div>
+      {center && <div className="page-header__center">{center}</div>}
       <div className="page-header__actions">
         {status && (
           <span className="page-header__status" role="status">

@@ -5,6 +5,8 @@ import PoliticaPrivacidade from "../usuarios/PoliticaPrivacidade";
 import type { DadosDocumentoLegal } from "../usuarios/versoesLegais";
 import TermosUso from "../usuarios/TermosUso";
 import "./Cadastro.css";
+import logoUrl from "../../assets/logo-locus.png";
+import wallpaperUrl from "../../assets/wallpaper-login.png";
 
 interface CadastroProps {
   onNavigateToLogin: () => void;
@@ -70,6 +72,7 @@ export default function Cadastro({
   onNavigateToLogin,
   onRegistrationSuccess,
 }: CadastroProps) {
+  const [logoDisponivel, setLogoDisponivel] = useState(true);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password1, setPassword1] = useState("");
@@ -156,9 +159,22 @@ export default function Cadastro({
   }
 
   return (
-    <div className="page-background">
+    <div
+      className="page-background login-background"
+      style={{ backgroundImage: `url(${JSON.stringify(wallpaperUrl)})` }}
+    >
       <div className="card-registro">
-        <div className="logo-pill">Locus</div>
+        <div className="logo-pill" role="img" aria-label="Locus">
+          {logoDisponivel && (
+            <img
+              className="login-logo"
+              src={logoUrl}
+              alt=""
+              onError={() => setLogoDisponivel(false)}
+            />
+          )}
+          {!logoDisponivel && <span aria-hidden="true">Locus</span>}
+        </div>
         <h1>Crie sua conta</h1>
 
         <form onSubmit={handleRegister} noValidate>

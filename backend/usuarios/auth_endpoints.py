@@ -4,10 +4,12 @@ from dj_rest_auth.registration import views as registration
 from dj_rest_auth import views as auth
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from rest_framework.exceptions import APIException
+from rest_framework import serializers
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
 from auditoria.services import registrar_atividade
 from .mfa import revogar_sessoes
+from .verificacao_email import solicitar_confirmacao_admin
 
 
 class RegisterView(registration.RegisterView):
@@ -17,9 +19,39 @@ class RegisterView(registration.RegisterView):
 class VerifyEmailView(registration.VerifyEmailView):
     throttle_scope = 'email_verify'
 
+    def post(self, request, *args, **kwargs):
+        entrada = self.get_serializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        self.kwargs['key'] = entrada.validated_data['key']
+        confirmacao = self.get_object()
+        endereco = confirmacao.confirm(request)
+        if endereco is None:
+            raise ValidationError('Link de confirmação inválido ou indisponível.')
+        return Response({'detail': 'ok', 'administrativo': endereco.user.is_staff})
+
 
 class ResendEmailVerificationView(registration.ResendEmailVerificationView):
     throttle_scope = 'email_resend'
+
+    def create(self, request, *args, **kwargs):
+        if 'username' not in request.data:
+            return super().create(request, *args, **kwargs)
+
+        class Nome(serializers.Serializer):
+            username = serializers.CharField(max_length=150)
+
+        entrada = Nome(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        usuario = get_user_model().objects.filter(
+            username=entrada.validated_data['username'], is_staff=True, is_active=True,
+        ).first()
+        if usuario:
+            try:
+                solicitar_confirmacao_admin(request, usuario)
+            except Exception:
+                # Resposta genérica para não revelar a existência de uma conta.
+                pass
+        return Response({'detail': 'Se a conta estiver aguardando confirmação, o envio será solicitado. Aguarde um minuto antes de reenviar.'})
 
 
 class PasswordResetView(auth.PasswordResetView):

@@ -5,13 +5,6 @@ from dj_rest_auth.registration.serializers import RegisterSerializer
 from rest_framework import serializers
 
 from .legal import documentos_vigentes, registrar_documentos
-from .models import Estudante
-
-
-class EstudanteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Estudante
-        fields = '__all__'
 
 
 class LocusRegisterSerializer(RegisterSerializer):

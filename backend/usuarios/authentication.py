@@ -1,10 +1,11 @@
 from django.conf import settings
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import EstadoAutenticacao
 from .legal import documentos_atualizados
+from .verificacao_email import email_confirmado
 
 
 def exigir_csrf(request):
@@ -31,6 +32,8 @@ class CookieJWTAuthentication(JWTAuthentication):
         try:
             token = self.get_validated_token(raw)
             user = self.get_user(token)
+            if user.is_staff and not email_confirmado(user):
+                raise AuthenticationFailed('Confirme o e-mail administrativo antes de entrar.')
             if token.get('session_version') != versao_sessao(user):
                 raise AuthenticationFailed('A sessão foi encerrada. Entre novamente.')
             if not documentos_atualizados(user):
@@ -43,6 +46,10 @@ class CookieJWTAuthentication(JWTAuthentication):
                 raise AuthenticationFailed(
                     'Entre novamente para validar o segundo fator.'
                 )
+            if user.is_staff and request.path.startswith('/api/'):
+                permitida = request.path.startswith(('/api/gestao/', '/api/auth/'))
+                if not permitida or request.path == '/api/auth/armazenamento/':
+                    raise PermissionDenied('Contas administrativas têm acesso somente à administração e à própria conta.')
             return user, token
         except AuthenticationFailed:
             view = (request.parser_context or {}).get('view')

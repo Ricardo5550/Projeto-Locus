@@ -21,8 +21,17 @@ from notificacoes.models import Notificacao
 
 
 @transaction.atomic
-def anonimizar_e_desativar_conta(user):
+def anonimizar_e_desativar_conta(user, *, encerramento_controlado=False):
     """Remove PII da conta, desativa o login e preserva rastreabilidade por ID."""
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError
+    from .equipe import bloquear_equipe, impedir_perda_ultimo
+    bloquear_equipe()
+    user = get_user_model().objects.select_for_update().get(pk=user.pk)
+    if user.is_staff or user.is_superuser:
+        if not encerramento_controlado:
+            raise ValidationError('Contas administrativas exigem encerramento controlado.')
+        impedir_perda_ultimo(get_user_model().objects.filter(pk=user.pk), {'is_active': False})
     # Soft-delete dos dados de negócio do usuário.
     Tentativa.objects.filter(pergunta__anotacao__autor=user).delete()
     Pergunta.objects.filter(anotacao__autor=user).delete()
@@ -41,7 +50,7 @@ def anonimizar_e_desativar_conta(user):
         descricao='',
         area='',
         formacoes=[],
-        ativo=False,
+        ativo=False, aprovado=False, motivo_rejeicao='', rejeitado_em=None,
     )
 
     # Revoga todas as sessões JWT ainda conhecidas.
@@ -62,6 +71,10 @@ def anonimizar_e_desativar_conta(user):
     user.first_name = ''
     user.last_name = ''
     user.is_active = False
+    user.is_staff = False
+    user.is_superuser = False
+    user.groups.clear()
+    user.user_permissions.clear()
     user.set_unusable_password()
     user.save(
         update_fields=[
@@ -69,7 +82,7 @@ def anonimizar_e_desativar_conta(user):
             'email',
             'first_name',
             'last_name',
-            'is_active',
+            'is_active', 'is_staff', 'is_superuser',
             'password',
         ]
     )

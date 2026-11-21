@@ -1,3 +1,4 @@
+from core.armazenamento import LimiteArmazenamentoMixin
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from mapas.titles import sincronizar_titulo_anotacao
@@ -10,7 +11,7 @@ from .serializers import AnotacaoSerializer
 from .services import excluir_anotacao
 
 
-class AnotacaoViewSet(viewsets.ModelViewSet):
+class AnotacaoViewSet(LimiteArmazenamentoMixin, viewsets.ModelViewSet):
     serializer_class = AnotacaoSerializer
     permission_classes = [IsAuthenticated]
 

@@ -153,12 +153,18 @@ export default function DetalheEspaco({
           )}
           {!materiais && !erro && <p role="status">Carregando materiais…</p>}
           {materiais &&
-            (["anotacao", "mapa"] as const).map((tipo) => {
+            (["anotacao", "mapa", "questionario"] as const).map((tipo) => {
               const itens =
-                tipo === "anotacao" ? materiais.anotacoes : materiais.mapas;
+                tipo === "anotacao"
+                  ? materiais.anotacoes
+                  : tipo === "mapa"
+                    ? materiais.mapas
+                    : materiais.questionarios;
               return (
                 <section key={tipo}>
-                  <h3>{tipo === "anotacao" ? "Anotações" : "Mapas mentais"}</h3>
+                  <h3>
+                    {tipo === "anotacao" ? "Anotações" : tipo === "mapa" ? "Mapas mentais" : "Questionários"}
+                  </h3>
                   {itens.length ? (
                     <div className="acompanhamento-grade">
                       {itens.map((item) => (

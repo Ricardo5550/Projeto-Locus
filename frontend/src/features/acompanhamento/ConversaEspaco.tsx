@@ -169,6 +169,8 @@ export default function ConversaEspaco({
 
   function exibir(mensagem: MensagemAcompanhamento) {
     if (!mensagem.texto) return <p>Comentário excluído.</p>;
+    const podeResponder = mensagem.resposta_a === null && respondendo !== mensagem.id;
+    const podeGerenciar = material && mensagem.pode_gerenciar;
     return (
       <>
         <strong>{mensagem.autor_nome}</strong>{" "}
@@ -176,23 +178,40 @@ export default function ConversaEspaco({
           {new Date(mensagem.criada_em).toLocaleString("pt-BR")}
         </time>
         <p className="acompanhamento-mensagem">{mensagem.texto}</p>
-        {material && mensagem.pode_gerenciar && !erro && (
+        {!erro && (podeResponder || podeGerenciar) && (
           <div className="acompanhamento-acoes">
-            <button
-              type="button"
-              disabled={enviando}
-              onClick={() => abrirAcaoComentario("editar", mensagem)}
-            >
-              Editar
-            </button>
-            <button
-              type="button"
-              className="is-danger"
-              disabled={enviando}
-              onClick={() => abrirAcaoComentario("excluir", mensagem)}
-            >
-              Excluir
-            </button>
+            {podeResponder && (
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={() => {
+                  setRespondendo(mensagem.id);
+                  setTexto("");
+                  setErroEnvio("");
+                }}
+              >
+                Responder
+              </button>
+            )}
+            {podeGerenciar && (
+              <>
+                <button
+                  type="button"
+                  disabled={enviando}
+                  onClick={() => abrirAcaoComentario("editar", mensagem)}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="is-danger"
+                  disabled={enviando}
+                  onClick={() => abrirAcaoComentario("excluir", mensagem)}
+                >
+                  Excluir
+                </button>
+              </>
+            )}
           </div>
         )}
       </>
@@ -239,21 +258,8 @@ export default function ConversaEspaco({
             ))}
             {!erro &&
               mensagem.texto &&
-              (respondendo === mensagem.id ? (
-                formulario()
-              ) : (
-                <button
-                  type="button"
-                  disabled={enviando}
-                  onClick={() => {
-                    setRespondendo(mensagem.id);
-                    setTexto("");
-                    setErroEnvio("");
-                  }}
-                >
-                  Responder
-                </button>
-              ))}
+              respondendo === mensagem.id &&
+              formulario()}
           </article>
         ))}
       {acaoComentario && (

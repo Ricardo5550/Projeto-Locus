@@ -6,6 +6,7 @@ import "../mapas/MapaMental.css";
 import type { DadosMapaMental, VisaoMapaMental } from "../mapas/tiposMapa";
 import ConversaEspaco from "./ConversaEspaco";
 import VisualizarAnotacaoCompartilhada from "./VisualizarAnotacaoCompartilhada";
+import VisualizarQuestionarioCompartilhado from "./VisualizarQuestionarioCompartilhado";
 import {
   obterMapaCompartilhado,
   type MaterialSelecionado,
@@ -153,8 +154,10 @@ export default function MaterialEspaco({
       <h2>{material.titulo}</h2>
       {material.tipo === "anotacao" ? (
         <VisualizarAnotacaoCompartilhada anotacaoId={material.id} />
-      ) : (
+      ) : material.tipo === "mapa" ? (
         <MapaCompartilhado id={material.id} espacoId={espacoId} />
+      ) : (
+        <VisualizarQuestionarioCompartilhado id={material.id} espacoId={espacoId} />
       )}
       <ConversaEspaco espacoId={espacoId} material={material} podePublicar />
     </section>

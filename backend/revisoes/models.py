@@ -6,7 +6,10 @@ from core.models import SoftDeleteModel
 
 
 class Pergunta(SoftDeleteModel):
-    campos_ao_excluir = {"enunciado": "", "resposta": "", "trecho_origem": ""}
+    campos_ao_excluir = {
+        "enunciado": "", "resposta": "", "trecho_origem": "",
+        "alternativas": [], "alternativa_correta": None,
+    }
 
     anotacao = models.ForeignKey(
         'anotacoes.Anotacao', on_delete=models.CASCADE, related_name='perguntas'
@@ -20,6 +23,12 @@ class Pergunta(SoftDeleteModel):
     )
     enunciado = EncryptedTextField()
     resposta = EncryptedTextField()
+    tipo = models.CharField(
+        max_length=12, default='dissertativa',
+        choices=[('dissertativa', 'Dissertativa'), ('alternativa', 'Alternativa')],
+    )
+    alternativas = EncryptedJSONField(default=list, blank=True)
+    alternativa_correta = models.PositiveSmallIntegerField(null=True, blank=True)
     trecho_origem = EncryptedTextField(blank=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
 

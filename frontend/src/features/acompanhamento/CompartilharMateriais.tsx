@@ -1,14 +1,15 @@
 import { useEffect, useState, type SubmitEvent } from "react";
 import { listarAnotacoes } from "../anotacoes/apiAnotacoes";
 import { listarMapasMentais } from "../mapas/apiMapas";
-import { compartilharAnotacao, compartilharMapa } from "./apiAcompanhamento";
+import { listarQuestionarios } from "../revisoes/apiRevisoes";
+import { compartilharAnotacao, compartilharMapa, compartilharQuestionario } from "./apiAcompanhamento";
 
 type Material = {
   id: string;
   titulo: string;
 };
 
-type TipoMaterial = "anotacao" | "mapa";
+type TipoMaterial = "anotacao" | "mapa" | "questionario";
 
 type Props = {
   espacoId: string;
@@ -21,6 +22,7 @@ export default function CompartilharMateriais({
 }: Props) {
   const [anotacoes, setAnotacoes] = useState<Material[]>([]);
   const [mapas, setMapas] = useState<Material[]>([]);
+  const [questionarios, setQuestionarios] = useState<Material[]>([]);
 
   const [tipo, setTipo] = useState<TipoMaterial>("anotacao");
   const [materialId, setMaterialId] = useState("");
@@ -39,12 +41,13 @@ export default function CompartilharMateriais({
     setMensagem("");
     setMaterialId("");
 
-    Promise.all([listarAnotacoes(), listarMapasMentais()])
-      .then(([anotacoesRecebidas, mapasRecebidos]) => {
+    Promise.all([listarAnotacoes(), listarMapasMentais(), listarQuestionarios()])
+      .then(([anotacoesRecebidas, mapasRecebidos, questionariosRecebidos]) => {
         if (!ativo) return;
 
         setAnotacoes(anotacoesRecebidas);
         setMapas(mapasRecebidos);
+        setQuestionarios(questionariosRecebidos);
       })
       .catch((error) => {
         if (ativo) {
@@ -64,7 +67,8 @@ export default function CompartilharMateriais({
     };
   }, [espacoId]);
 
-  const materiaisDisponiveis = tipo === "anotacao" ? anotacoes : mapas;
+  const materiaisDisponiveis =
+    tipo === "anotacao" ? anotacoes : tipo === "mapa" ? mapas : questionarios;
 
   async function handleCompartilhar(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,8 +86,10 @@ export default function CompartilharMateriais({
     try {
       if (tipo === "anotacao") {
         await compartilharAnotacao(espacoId, id);
-      } else {
+      } else if (tipo === "mapa") {
         await compartilharMapa(espacoId, id);
+      } else {
+        await compartilharQuestionario(espacoId, id);
       }
 
       setMensagem("Material compartilhado com sucesso.");
@@ -121,6 +127,7 @@ export default function CompartilharMateriais({
           >
             <option value="anotacao">Anotação</option>
             <option value="mapa">Mapa mental</option>
+            <option value="questionario">Questionário</option>
           </select>
 
           <label htmlFor="material-compartilhar">Selecione o material</label>
@@ -149,6 +156,14 @@ export default function CompartilharMateriais({
             <p>
               Os tutores deste canal também poderão ler as anotações vinculadas
               ao mapa.
+            </p>
+          )}
+
+          {tipo === "questionario" && (
+            <p>
+              Os tutores poderão ler as perguntas, alternativas e respostas atuais
+              e deixar comentários. Seu agendamento e seus resultados continuam
+              individuais.
             </p>
           )}
 

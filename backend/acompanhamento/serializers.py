@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from mapas.models import MapaMental
 from anotacoes.models import Anotacao
+from revisoes.models import Pergunta
 from acompanhamento.models import MensagemAcompanhamento, PerfilTutor
 
 
@@ -43,13 +44,22 @@ class MapaCompartilhadoLeituraSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PerguntaCompartilhadaLeituraSerializer(serializers.ModelSerializer):
+    alternativas = serializers.JSONField(read_only=True)
+
+    class Meta:
+        model = Pergunta
+        fields = ['id', 'enunciado', 'resposta', 'tipo', 'alternativas', 'alternativa_correta']
+        read_only_fields = fields
+
+
 class FormacaoTutorSerializer(serializers.Serializer):
     titulo = serializers.CharField(max_length=200)
     instituicao = serializers.CharField(
         max_length=200, allow_blank=True, required=False
     )
     link_comprovante = serializers.URLField(
-        max_length=500, allow_blank=True, required=False
+        max_length=500
     )
 
     def validate_link_comprovante(self, value):
@@ -68,8 +78,26 @@ class FormacaoTutorSerializer(serializers.Serializer):
 
 
 class PerfilTutorSerializer(serializers.ModelSerializer):
+    situacao = serializers.CharField(read_only=True)
     descricao = serializers.CharField(max_length=1000, allow_blank=True, required=False)
-    formacoes = FormacaoTutorSerializer(many=True, required=False, max_length=20)
+    formacoes = FormacaoTutorSerializer(many=True, min_length=1, max_length=20)
+
+    def validate(self, attrs):
+        formacoes = attrs.get('formacoes', getattr(self.instance, 'formacoes', []))
+        if not formacoes or not any(item.get('link_comprovante') for item in formacoes):
+            raise serializers.ValidationError({'formacoes': 'Informe pelo menos um diploma ou certificado com link de comprovação.'})
+        return attrs
+
+    def update(self, instance, validated_data):
+        # Uma comprovação alterada precisa passar novamente pela aprovação.
+        if any(
+            campo in validated_data and validated_data[campo] != getattr(instance, campo)
+            for campo in ('formacoes', 'area')
+        ):
+            validated_data['aprovado'] = False
+        if instance.rejeitado_em is not None:
+            validated_data.update(aprovado=False, motivo_rejeicao='', rejeitado_em=None)
+        return super().update(instance, validated_data)
 
     class Meta:
         model = PerfilTutor
@@ -81,11 +109,12 @@ class PerfilTutorSerializer(serializers.ModelSerializer):
             'formacoes',
             'visibilidade',
             'ativo',
-            'aprovado',
+            'aprovado', 'situacao', 'motivo_rejeicao', 'rejeitado_em',
             'criado_em',
         ]
 
         read_only_fields = [
+            'situacao', 'motivo_rejeicao', 'rejeitado_em',
             'aprovado',
             'id',
             'criado_em',

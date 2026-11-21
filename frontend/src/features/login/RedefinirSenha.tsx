@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { requisicaoApi } from "../../services/apiClient";
@@ -27,6 +28,7 @@ function primeiroErro(data: unknown): string {
 }
 
 export default function RedefinirSenha({ onBackToLogin }: RedefinirSenhaProps) {
+  const navigate = useNavigate();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const uid = params.get("reset_uid") ?? "";
   const token = params.get("reset_token") ?? "";
@@ -77,7 +79,7 @@ export default function RedefinirSenha({ onBackToLogin }: RedefinirSenhaProps) {
 
       setSuccess(true);
       setMessage("Senha redefinida com sucesso.");
-      window.history.replaceState({}, "", "/");
+      void navigate({ search: "" }, { replace: true });
     } catch {
       setMessage("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {

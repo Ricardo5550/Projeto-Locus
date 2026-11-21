@@ -1,3 +1,4 @@
+from core.armazenamento import LimiteArmazenamentoMixin
 from datetime import timedelta, date
 from django.db import transaction
 from django.utils import timezone
@@ -19,7 +20,7 @@ from .serializers import (
 )
 
 
-class MateriaViewSet(viewsets.ModelViewSet):
+class MateriaViewSet(LimiteArmazenamentoMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = MateriaSerializer
 
@@ -68,7 +69,7 @@ def sessao_json(sessao):
     }
 
 
-class QuestionarioViewSet(viewsets.ModelViewSet):
+class QuestionarioViewSet(LimiteArmazenamentoMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = QuestionarioSerializer
 
@@ -181,6 +182,18 @@ class QuestionarioViewSet(viewsets.ModelViewSet):
             raise ValidationError(
                 'Responda e classifique todas as perguntas uma única vez.'
             )
+        for pergunta in perguntas:
+            resposta = respostas_por_pergunta[pergunta.pk]
+            if pergunta.tipo == 'alternativa':
+                selecionada = resposta.get('alternativa')
+                if selecionada is None or selecionada >= len(pergunta.alternativas):
+                    raise ValidationError('Selecione uma alternativa em cada questão objetiva.')
+                # A classificação recebida do navegador não decide o resultado.
+                resposta['resultado'] = (
+                    'acertei' if selecionada == pergunta.alternativa_correta else 'errei'
+                )
+                resposta['resposta_digitada'] = pergunta.alternativas[selecionada]
+            resposta.pop('alternativa', None)
         treino = dados['treino']
         hoje = timezone.localdate()
         if (

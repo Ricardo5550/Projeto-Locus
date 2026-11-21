@@ -51,12 +51,26 @@ export default function Acompanhamento({
   ref,
   onDetalheChange,
   avisoCanal,
+  avisoConvite,
+  initialPerfil = false,
+  initialMensagem = "",
+  onAbrirCanal,
+  onAbrirPerfil,
+  onVoltarLista,
 }: {
   ref?: Ref<NavegacaoAcompanhamento>;
   onDetalheChange: (aberto: boolean) => void;
   avisoCanal?: { id: string; aba: "duvidas" | "materiais" };
+  avisoConvite?: string;
+  initialPerfil?: boolean;
+  initialMensagem?: string;
+  onAbrirCanal?: (id: string) => void;
+  onAbrirPerfil?: () => void;
+  onVoltarLista?: (mensagem?: string) => void;
 }) {
-  const [tela, setTela] = useState<Tela>({ tipo: "lista" });
+  const [tela, setTela] = useState<Tela>({
+    tipo: initialPerfil ? "perfil" : "lista",
+  });
   const [meus, setMeus] = useState<EspacoAcompanhamento[]>([]);
   const [comoTutor, setComoTutor] = useState<EspacoAcompanhamento[]>([]);
   const [convites, setConvites] = useState<ConviteRecebido[]>([]);
@@ -70,10 +84,17 @@ export default function Acompanhamento({
   const [salvandoCanal, setSalvandoCanal] = useState(false);
   const [erroCanal, setErroCanal] = useState("");
   const [canalIndisponivel, setCanalIndisponivel] = useState(false);
-  const [mensagemPerfil, setMensagemPerfil] = useState("");
+  const [mensagemPerfil, setMensagemPerfil] = useState(initialMensagem);
   const [respondendo, setRespondendo] = useState(false);
   const [erroConvite, setErroConvite] = useState("");
   const emDetalhe = tela.tipo !== "lista";
+
+  useEffect(() => {
+    if (!avisoConvite || carregando || erro) return;
+    const titulo = document.getElementById(`convite-${avisoConvite}`);
+    titulo?.scrollIntoView({ block: "center" });
+    titulo?.focus({ preventScroll: true });
+  }, [avisoConvite, carregando, erro, convites]);
 
   useEffect(() => {
     onDetalheChange(emDetalhe);
@@ -85,7 +106,8 @@ export default function Acompanhamento({
       if (tela.tipo === "espaco" && tela.material) {
         setTela({ ...tela, material: undefined });
       } else {
-        setTela({ tipo: "lista" });
+        if (onVoltarLista) onVoltarLista();
+        else setTela({ tipo: "lista" });
       }
     },
   }));
@@ -159,7 +181,8 @@ export default function Acompanhamento({
       if (acaoCanal.tipo === "criar") {
         const canal = await criarEspaco(nome.trim());
         setMeus((atuais) => [canal, ...atuais]);
-        setTela({ tipo: "espaco", espaco: canal, proprietario: true });
+        if (onAbrirCanal) onAbrirCanal(canal.id);
+        else setTela({ tipo: "espaco", espaco: canal, proprietario: true });
       } else if (acaoCanal.tipo === "editar") {
         const canal = await renomearCanal(acaoCanal.canal.id, nome.trim());
         setMeus((atuais) =>
@@ -189,6 +212,7 @@ export default function Acompanhamento({
     setErroConvite("");
     try {
       await (aceitar ? aceitarConvite(id) : recusarConvite(id));
+      window.dispatchEvent(new Event("acompanhamento:atualizado"));
       setConvites((atuais) => atuais.filter((convite) => convite.id !== id));
       if (aceitar) setComoTutor(await listarEspacosComoTutor());
     } catch (erro) {
@@ -215,7 +239,9 @@ export default function Acompanhamento({
               <button
                 type="button"
                 onClick={() =>
-                  setTela({ tipo: "espaco", espaco, proprietario })
+                  onAbrirCanal
+                    ? onAbrirCanal(espaco.id)
+                    : setTela({ tipo: "espaco", espaco, proprietario })
                 }
               >
                 Abrir
@@ -254,14 +280,16 @@ export default function Acompanhamento({
         onSalvo={(aprovado) => {
           setPerfilExiste(true);
           setPerfilAprovado(aprovado);
-          setMensagemPerfil(
-            aprovado
-              ? "Perfil de tutor salvo."
-              : "Solicitação aguardando aprovação da administração.",
-          );
-          setTela((atual) =>
-            atual.tipo === "perfil" ? { tipo: "lista" } : atual,
-          );
+          const mensagem = aprovado
+            ? "Perfil de tutor salvo."
+            : "Solicitação aguardando aprovação da administração.";
+          if (onVoltarLista) onVoltarLista(mensagem);
+          else {
+            setMensagemPerfil(mensagem);
+            setTela((atual) =>
+              atual.tipo === "perfil" ? { tipo: "lista" } : atual,
+            );
+          }
         }}
       />
     );
@@ -298,7 +326,8 @@ export default function Acompanhamento({
               type="button"
               onClick={() => {
                 setMensagemPerfil("");
-                setTela({ tipo: "perfil" });
+                if (onAbrirPerfil) onAbrirPerfil();
+                else setTela({ tipo: "perfil" });
               }}
             >
               {perfilExiste
@@ -314,6 +343,9 @@ export default function Acompanhamento({
         <p role="status">O canal desta notificação não está mais disponível.</p>
       )}
       {mensagemPerfil && <p role="status">{mensagemPerfil}</p>}
+      {avisoConvite && !carregando && !erro && !convites.some((c) => c.id === avisoConvite) && (
+        <p role="status">Este convite não está mais pendente ou disponível.</p>
+      )}
       {carregando && <p role="status">Carregando acompanhamento…</p>}
       {erro && (
         <p role="alert">
@@ -351,8 +383,12 @@ export default function Acompanhamento({
               ) : (
                 <div className="acompanhamento-grade">
                   {convites.map((convite) => (
-                    <article className="acompanhamento-card" key={convite.id}>
-                      <h3>{convite.espaco_nome}</h3>
+                    <article
+                      className="acompanhamento-card"
+                      key={convite.id}
+                      aria-labelledby={`convite-${convite.id}`}
+                    >
+                      <h3 id={`convite-${convite.id}`} tabIndex={-1}>{convite.espaco_nome}</h3>
                       <div className="acompanhamento-acoes">
                         <button
                           type="button"
@@ -411,7 +447,7 @@ export default function Acompanhamento({
               <p>
                 Excluir <strong>{acaoCanal.canal.nome}</strong> apaga as
                 conversas e encerra o acesso dos tutores. As anotações e os
-                mapas originais continuam na sua biblioteca.
+                mapas e questionários originais continuam na sua biblioteca.
               </p>
             ) : (
               <>

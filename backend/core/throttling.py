@@ -24,7 +24,7 @@ class LoginPairThrottle(SimpleRateThrottle):
 
     def get_cache_key(self, request, view):
         data = request.data
-        email = data.get('email', '') if isinstance(data, dict) else ''
+        email = (data.get('email') or data.get('username', '')) if isinstance(data, dict) else ''
         if not isinstance(email, str):
             email = ''
         identity = self.get_ident(request) + ':' + email.strip().casefold()[:254]

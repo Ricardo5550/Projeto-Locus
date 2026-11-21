@@ -1,3 +1,4 @@
+from core.armazenamento import LimiteArmazenamentoMixin
 from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from .models import MapaMental
 from .serializers import MapaMentalSerializer
 
 
-class MapaMentalViewSet(viewsets.ModelViewSet):
+class MapaMentalViewSet(LimiteArmazenamentoMixin, viewsets.ModelViewSet):
     serializer_class = MapaMentalSerializer
     permission_classes = [IsAuthenticated]
 

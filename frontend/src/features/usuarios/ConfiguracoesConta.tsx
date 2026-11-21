@@ -1,7 +1,8 @@
 import { useDialogos } from "../../components/contextoDialogos";
 import PageHeader from "../../components/PageHeader";
 import { useEffect, useState } from "react";
-import { URL_BASE_API } from "../../services/apiClient";
+import { Link } from "react-router-dom";
+import { caminhos } from "../../navegacao/rotas";
 import {
   excluirConta,
   obterUsuarioAtual,
@@ -10,18 +11,22 @@ import {
   type UsuarioAtual,
 } from "./apiUsuarios";
 import "./ConfiguracoesConta.css";
+import EncerramentoAdministrativo from "./EncerramentoAdministrativo";
 import SegundoFatorConta from "./SegundoFatorConta";
+import ArmazenamentoConta from "./ArmazenamentoConta";
 
 type ConfiguracoesContaProps = {
   onBack: () => void;
   embedded?: boolean;
   onAccountUpdated?: () => void;
   onAccountDeleted: () => void;
+  onEncerramentoSolicitado: (mensagem: string) => void;
 };
 
 export default function ConfiguracoesConta({
   onBack,
   onAccountDeleted,
+  onEncerramentoSolicitado,
   embedded = false,
   onAccountUpdated,
 }: ConfiguracoesContaProps) {
@@ -152,13 +157,7 @@ export default function ConfiguracoesConta({
           <>
             {user.is_staff && (
               <p>
-                <a
-                  href={new URL("/admin/", URL_BASE_API).href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Abrir administração
-                </a>
+                <Link to={caminhos.gestao}>Abrir administração</Link>
               </p>
             )}
             <label htmlFor="account-username">Nome de usuário</label>
@@ -256,66 +255,74 @@ export default function ConfiguracoesConta({
 
             <SegundoFatorConta />
 
-            <section className="account-danger">
-              <h2>Excluir conta</h2>
+            {!user.is_staff && <ArmazenamentoConta />}
 
-              {!showDeleteForm ? (
-                <button
-                  type="button"
-                  className="account-delete"
-                  disabled={saving}
-                  onClick={() => {
-                    setError("");
-                    setShowDeleteForm(true);
-                  }}
-                >
-                  Excluir conta
-                </button>
-              ) : (
-                <>
-                  <p>
-                    Sua conta será excluida junto com seus dados. Para utilizar
-                    o Locus novamente após a exclusão, é necessário criar uma
-                    nova conta .
-                  </p>
+            {user.is_staff ? (
+              <EncerramentoAdministrativo
+                onSolicitado={onEncerramentoSolicitado}
+              />
+            ) : (
+              <section className="account-danger">
+                <h2>Excluir conta</h2>
 
-                  <label htmlFor="account-password">Senha atual</label>
-                  <input
-                    id="account-password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    autoComplete="current-password"
-                    autoFocus
-                    disabled={deleting || saving || emailBusy}
-                  />
+                {!showDeleteForm ? (
+                  <button
+                    type="button"
+                    className="account-delete"
+                    disabled={saving}
+                    onClick={() => {
+                      setError("");
+                      setShowDeleteForm(true);
+                    }}
+                  >
+                    Excluir conta
+                  </button>
+                ) : (
+                  <>
+                    <p>
+                      Sua conta será excluida junto com seus dados. Para
+                      utilizar o Locus novamente após a exclusão, é necessário
+                      criar uma nova conta .
+                    </p>
 
-                  <div className="account-actions">
-                    <button
-                      type="button"
-                      className="account-delete"
-                      onClick={() => void handleDelete()}
-                      disabled={deleting || saving || emailBusy || !password}
-                    >
-                      {deleting ? "Excluindo..." : "Confirmar exclusão"}
-                    </button>
+                    <label htmlFor="account-password">Senha atual</label>
+                    <input
+                      id="account-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete="current-password"
+                      autoFocus
+                      disabled={deleting || saving || emailBusy}
+                    />
 
-                    <button
-                      type="button"
-                      className="account-primary"
-                      disabled={deleting}
-                      onClick={() => {
-                        setShowDeleteForm(false);
-                        setPassword("");
-                        setError("");
-                      }}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </>
-              )}
-            </section>
+                    <div className="account-actions">
+                      <button
+                        type="button"
+                        className="account-delete"
+                        onClick={() => void handleDelete()}
+                        disabled={deleting || saving || emailBusy || !password}
+                      >
+                        {deleting ? "Excluindo..." : "Confirmar exclusão"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="account-primary"
+                        disabled={deleting}
+                        onClick={() => {
+                          setShowDeleteForm(false);
+                          setPassword("");
+                          setError("");
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
           </>
         )}
       </Content>

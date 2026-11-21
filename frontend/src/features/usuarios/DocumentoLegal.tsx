@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { apiJson } from "../../services/apiClient";
 
 import type { DadosDocumentoLegal } from "./versoesLegais";
-import PageHeader, { BackButton } from "../../components/PageHeader";
+import PageHeader, { CloseButton } from "../../components/PageHeader";
 import "./DocumentosLegais.css";
 
 export type DocumentoLegalProps = {
@@ -27,14 +27,21 @@ export default function DocumentoLegal({
   requireReadConfirmation = false,
   readConfirmed = false,
   onReadConfirmedChange,
-}: DocumentoLegalProps & { titulo: string; categoria: "privacidade" | "termos" }) {
+}: DocumentoLegalProps & {
+  titulo: string;
+  categoria: "privacidade" | "termos";
+}) {
   const [carregada, setCarregada] = useState<DadosDocumentoLegal | null>(null);
   const [erro, setErro] = useState("");
   const atual = dados ?? carregada;
   useEffect(() => {
     if (dados) return;
     let ativo = true;
-    apiJson<DadosDocumentoLegal>(`/auth/documentos/${categoria}/`, {}, { auth: false })
+    apiJson<DadosDocumentoLegal>(
+      `/auth/documentos/${categoria}/`,
+      {},
+      { auth: false },
+    )
       .then((dados) => {
         if (ativo) setCarregada(dados);
       })
@@ -56,14 +63,28 @@ export default function DocumentoLegal({
       {!embedded && (
         <PageHeader
           title={titulo}
-          actions={<BackButton onClick={onBack} label={backLabel} />}
+          actions={
+            <CloseButton
+              onClick={onBack}
+              label={backLabel === "Voltar" ? `Fechar ${titulo}` : backLabel}
+            />
+          }
         />
       )}
-      <article className={categoria === "privacidade" ? "policy-container" : "terms-container"}>
+      <article
+        className={
+          categoria === "privacidade" ? "policy-container" : "terms-container"
+        }
+      >
         <div className="legal-document__header">
           <div className="legal-document__topo">
-            {embedded && <BackButton onClick={onBack} label={backLabel} />}
             <span className="legal-document__brand">Locus</span>
+            {embedded && (
+              <CloseButton
+                onClick={onBack}
+                label={backLabel === "Voltar" ? `Fechar ${titulo}` : backLabel}
+              />
+            )}
           </div>
           <h1>{titulo}</h1>
           {atual && <p>Versão {atual.versao}</p>}
@@ -82,9 +103,7 @@ export default function DocumentoLegal({
             )}
         </div>
         {erro && <p role="alert">{erro}</p>}
-        {!atual && !erro && (
-          <p role="status">Carregando documento…</p>
-        )}
+        {!atual && !erro && <p role="status">Carregando documento…</p>}
 
         {requireReadConfirmation && atual && (
           <label className="privacy-read-confirmation">
@@ -104,7 +123,9 @@ export default function DocumentoLegal({
 
         <div className="legal-document__footer">
           {atual && (
-            <strong>{titulo} — versão {atual.versao}</strong>
+            <strong>
+              {titulo} — versão {atual.versao}
+            </strong>
           )}
         </div>
       </article>

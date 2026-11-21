@@ -1,4 +1,10 @@
-import { useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Modal from "./Modal";
 import { ContextoDialogos, type PedidoDialogo } from "./contextoDialogos";
 
@@ -7,13 +13,25 @@ export default function Dialogos({ children }: { children: ReactNode }) {
   const [texto, setTexto] = useState("");
   const fila = useRef<PedidoDialogo[]>([]);
 
-  function abrir(atual: PedidoDialogo) {
+  const abrir = useCallback((atual: PedidoDialogo) => {
     fila.current.push(atual);
     if (fila.current.length === 1) {
       setTexto(atual.inicial ?? "");
       setPedido(atual);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    function avisarLimite(evento: Event) {
+      if (!(evento instanceof CustomEvent) || typeof evento.detail !== "string")
+        return;
+      if (fila.current.some((item) => item.mensagem === evento.detail)) return;
+      abrir({ tipo: "aviso", mensagem: evento.detail, resolver: () => {} });
+    }
+    window.addEventListener("armazenamento:limite", avisarLimite);
+    return () =>
+      window.removeEventListener("armazenamento:limite", avisarLimite);
+  }, [abrir]);
 
   function fechar(valor: string | null) {
     const atual = fila.current.shift();

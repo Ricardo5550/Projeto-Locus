@@ -224,3 +224,36 @@
   min-height: 100vh;
   background: transparent;
 }
+
+
+/* Imagens e organização visual da página de cadastro. */
+.cadastro-background {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 24px 12px;
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  align-items: safe center;
+}
+
+.card-registro {
+  flex-shrink: 0;
+}
+
+.cadastro-background .logo-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.cadastro-logo {
+  width: 160px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}

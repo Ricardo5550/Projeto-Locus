@@ -5,7 +5,7 @@ import {
   type DadosResultados,
   type QuestionarioSalvo,
 } from "./apiRevisoes";
-import "./Questionarios.css";
+import "./Questionario.css";
 
 const pct = (acertos: number, total: number) =>
   total ? (100 * acertos) / total : 0;

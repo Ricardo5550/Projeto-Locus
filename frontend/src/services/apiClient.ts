@@ -1,6 +1,7 @@
 const configuredApi = new URL(
   import.meta.env.VITE_API_URL ??
     `${window.location.protocol}//${window.location.hostname}:8000/api`,
+  window.location.origin,
 );
 const loopback = new Set(["localhost", "127.0.0.1"]);
 // Evita misturar localhost e 127.0.0.1 no desenvolvimento com cookies SameSite.
@@ -72,6 +73,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
     ...init,
     headers,
     credentials: "include",
+    cache: "no-store",
   });
   if (unsafe && response.status === 403) {
     const body = await response
@@ -85,6 +87,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
         ...init,
         headers,
         credentials: "include",
+        cache: "no-store",
       });
     }
   }
@@ -93,10 +96,26 @@ async function send(path: string, init: RequestInit): Promise<Response> {
 
 async function renovarSessao(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
-  const renew = () =>
-    send("/auth/token/refresh/", { method: "POST" }).then((r) => r.ok);
+  let iniciouRenovacao = false;
+  const renew = () => {
+    iniciouRenovacao = true;
+    return send("/auth/token/refresh/", { method: "POST" }).then((r) => r.ok);
+  };
   refreshPromise = (
-    navigator.locks ? navigator.locks.request("locus-refresh", renew) : renew()
+    navigator.locks
+      ? navigator.locks
+          .request("locus-refresh", renew)
+          .catch((error: unknown) => {
+            // Alguns contextos de privacidade bloqueiam Web Locks mesmo com cookies válidos.
+            // Não repetir falhas de rede ou uma renovação já enviada ao servidor.
+            if (
+              !iniciouRenovacao && error instanceof DOMException &&
+              ["SecurityError", "NotAllowedError"].includes(error.name)
+            )
+              return renew();
+            throw error;
+          })
+      : renew()
   ).finally(() => {
     refreshPromise = null;
   });
@@ -142,6 +161,14 @@ export async function restaurarSessao(): Promise<boolean> {
 async function mensagemErro(response: Response): Promise<string> {
   try {
     const data = (await response.json()) as Record<string, unknown>;
+    if (
+      data.code === "limite_armazenamento" &&
+      typeof data.detail === "string"
+    ) {
+      window.dispatchEvent(
+        new CustomEvent("armazenamento:limite", { detail: data.detail }),
+      );
+    }
     const value =
       data.detail ?? data.error ?? data.mensagem ?? data.non_field_errors;
     if (Array.isArray(value))

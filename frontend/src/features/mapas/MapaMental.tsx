@@ -36,6 +36,7 @@ import {
 
 import {
   useEffect,
+  useCallback,
   useRef,
   useState,
   type DragEvent,
@@ -70,6 +71,8 @@ type MapaMentalProps = {
   initialSelectedNodeId?: string;
   onBack: () => void;
   onHome: () => void;
+  onSaidaPendenteChange?: (pendente: boolean) => void;
+  onViewChange?: (id: string, visoes: string[]) => void;
   onMapCreated: (id: string, title: string) => void;
   onOpenAnnotation: (
     blockName: string,
@@ -79,6 +82,15 @@ type MapaMentalProps = {
     sourceNodeId: string,
   ) => void;
 };
+
+// Seleção, medidas e modo de conexão são estado visual do React Flow.
+function assinaturaMapa(titulo: string, dados: DadosMapaMental) {
+  return JSON.stringify({ titulo, dados }, (chave, valor) =>
+    ["selected", "dragging", "measured", "connectionMode"].includes(chave)
+      ? undefined
+      : valor,
+  );
+}
 
 const TAMANHO_FORMA = 140;
 const nodeTypes = { editable: BlocoEditavel };
@@ -104,6 +116,8 @@ export default function MapaMental({
   onBack,
   onHome,
   onMapCreated,
+  onSaidaPendenteChange,
+  onViewChange,
   onOpenAnnotation,
 }: MapaMentalProps) {
   const dialogos = useDialogos();
@@ -134,6 +148,12 @@ export default function MapaMental({
   );
   const [viewStack, setViewStack] = useState<string[]>([ID_VISAO_RAIZ]);
   const mapVersion = useRef("");
+  const assinaturaSalva = useRef("");
+  const alteracoesPendentes = useRef(false);
+  const aoMudarVisao = useRef(onViewChange);
+  useEffect(() => {
+    aoMudarVisao.current = onViewChange;
+  }, [onViewChange]);
   const loadedSourceId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -146,6 +166,7 @@ export default function MapaMental({
 
     if (mapId === null) {
       loadedSourceId.current = null;
+      alteracoesPendentes.current = false;
       setMapTitle("");
       const empty = criarMapaVazio("Mapa mental");
       setProjectData(empty);
@@ -165,6 +186,8 @@ export default function MapaMental({
         setMapTitle(map.titulo);
         mapVersion.current = map.data_atualizacao;
         const normalized = redefinirModoConexao(map.dados);
+        assinaturaSalva.current = assinaturaMapa(map.titulo, normalized);
+        alteracoesPendentes.current = false;
         const nextStack = validarCaminhoVisoes(normalized, initialViewStack);
         const nextViewId = nextStack[nextStack.length - 1];
         const nextView = normalized.views[nextViewId];
@@ -199,7 +222,11 @@ export default function MapaMental({
     .map((viewId) => projectData.views[viewId]?.title)
     .filter((viewTitle): viewTitle is string => Boolean(viewTitle));
 
-  const fullBreadcrumb = [...breadcrumb, ...internalBreadcrumb];
+  const fullBreadcrumb = [
+    ...breadcrumb.slice(0, -1),
+    mapTitle || breadcrumbTitle,
+    ...internalBreadcrumb,
+  ];
 
   // Quando estamos dentro de um bloco, as conexões exibidas na lateral
   // pertencem ao bloco da visão externa (pai), e não à seleção atual.
@@ -241,30 +268,52 @@ export default function MapaMental({
     };
   })();
 
-  function snapshotCurrentView(
-    nextNodes: Node<DadosBloco>[] = nodes,
-    nextEdges: Edge[] = edges,
-    baseData: DadosMapaMental = projectData,
-  ): DadosMapaMental {
-    const viewId = viewStack[viewStack.length - 1] ?? baseData.rootViewId;
-    const existingView: VisaoMapaMental = baseData.views[viewId] ?? {
-      title: mapTitle || breadcrumbTitle,
-      nodes: [],
-      edges: [],
-    };
+  const snapshotCurrentView = useCallback(
+    (
+      nextNodes: Node<DadosBloco>[] = nodes,
+      nextEdges: Edge[] = edges,
+      baseData: DadosMapaMental = projectData,
+    ): DadosMapaMental => {
+      const viewId = viewStack[viewStack.length - 1] ?? baseData.rootViewId;
+      const existingView: VisaoMapaMental = baseData.views[viewId] ?? {
+        title: mapTitle || breadcrumbTitle,
+        nodes: [],
+        edges: [],
+      };
 
-    return {
-      ...baseData,
-      views: {
-        ...baseData.views,
-        [viewId]: {
-          ...existingView,
-          nodes: nextNodes,
-          edges: nextEdges,
+      return {
+        ...baseData,
+        views: {
+          ...baseData.views,
+          [viewId]: {
+            ...existingView,
+            nodes: nextNodes,
+            edges: nextEdges,
+          },
         },
-      },
-    };
-  }
+      };
+    },
+    [nodes, edges, projectData, viewStack, mapTitle, breadcrumbTitle],
+  );
+
+  useEffect(() => {
+    if (loadedSourceId.current === undefined) return;
+    // Depois da primeira edição, não serializa novamente todo o mapa a cada arraste.
+    alteracoesPendentes.current ||=
+      assinaturaMapa(mapTitle, snapshotCurrentView()) !==
+      assinaturaSalva.current;
+    onSaidaPendenteChange?.(!mapTitle.trim() || alteracoesPendentes.current);
+  }, [mapTitle, snapshotCurrentView, onSaidaPendenteChange]);
+
+  useEffect(
+    () => () => onSaidaPendenteChange?.(false),
+    [onSaidaPendenteChange],
+  );
+
+  useEffect(() => {
+    if (storedMapId && loadedSourceId.current === storedMapId)
+      aoMudarVisao.current?.(storedMapId, viewStack);
+  }, [storedMapId, viewStack]);
 
   async function persistProject(data: DadosMapaMental): Promise<string> {
     const inputData = data;
@@ -304,6 +353,8 @@ export default function MapaMental({
         dataWithTitle,
         initialFolderId,
       );
+      assinaturaSalva.current = assinaturaMapa(saved.titulo, saved.dados);
+      alteracoesPendentes.current = false;
       setStoredMapId(saved.id);
       mapVersion.current = saved.data_atualizacao;
       setProjectData(saved.dados);
@@ -320,6 +371,8 @@ export default function MapaMental({
       dataWithTitle,
       mapVersion.current,
     );
+    assinaturaSalva.current = assinaturaMapa(saved.titulo, saved.dados);
+    alteracoesPendentes.current = false;
     setMapTitle(saved.titulo);
     mapVersion.current = saved.data_atualizacao;
     setProjectData(saved.dados);
@@ -509,7 +562,11 @@ export default function MapaMental({
       if (error instanceof Error && error.message === "MAP_NAME_REQUIRED")
         return;
       console.error(error);
-      setSaveStatus("Erro ao salvar antes de voltar.");
+      setSaveStatus(
+        error instanceof Error
+          ? error.message
+          : "Erro ao salvar antes de voltar.",
+      );
     }
   }
 

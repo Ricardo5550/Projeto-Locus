@@ -1,3 +1,4 @@
+from core.armazenamento import LimiteArmazenamentoMixin
 from collections.abc import Mapping
 
 from django.db import transaction
@@ -18,6 +19,7 @@ from acompanhamento.models import (
     Participacao,
     AnotacaoCompartilhada,
     MapaCompartilhado,
+    QuestionarioCompartilhado,
     MensagemAcompanhamento,
 )
 from acompanhamento.services import (
@@ -30,14 +32,17 @@ from acompanhamento.services import (
     remover_tutor,
     compartilhar_anotacao,
     compartilhar_mapa,
+    compartilhar_questionario,
 )
 from mapas.models import MapaMental
 from mapas.services import anotacoes_vinculadas, blocos
 from anotacoes.models import Anotacao
+from revisoes.models import Questionario, Pergunta
 from .serializers import (
     CriarConviteSerializer,
     AnotacaoCompartilhadaLeituraSerializer,
     MapaCompartilhadoLeituraSerializer,
+    PerguntaCompartilhadaLeituraSerializer,
     PerfilTutorSerializer,
     MensagemAcompanhamentoSerializer,
     PublicarMensagemSerializer,
@@ -110,7 +115,7 @@ class MapaCompartilhadoDetalheView(APIView):
         return Response(serializer.data)
 
 
-class AceitarConviteView(APIView):
+class AceitarConviteView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -124,7 +129,7 @@ class AceitarConviteView(APIView):
         return Response({'status': 'aceito'}, status=200)
 
 
-class CriarConviteView(APIView):
+class CriarConviteView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -182,7 +187,7 @@ class ConvitesRecebidosView(APIView):
         return Response(dados)
 
 
-class RecusarConviteView(APIView):
+class RecusarConviteView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -196,7 +201,7 @@ class RecusarConviteView(APIView):
         return Response({'id': convite.pk, 'status': convite.status}, status=200)
 
 
-class EspacosAcompanhamentoView(APIView):
+class EspacosAcompanhamentoView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -226,7 +231,7 @@ def validar_nome_canal(dados):
     return nome
 
 
-class CanalAcompanhamentoDetalheView(APIView):
+class CanalAcompanhamentoDetalheView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     @transaction.atomic
@@ -275,7 +280,7 @@ class TutoresEspacoView(APIView):
         return Response(dados)
 
 
-class RemoverTutorView(APIView):
+class RemoverTutorView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk, tutor_id):
@@ -293,7 +298,7 @@ class RemoverTutorView(APIView):
         return Response(status=204)
 
 
-class CompartilharAnotacaoView(APIView):
+class CompartilharAnotacaoView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, anotacao_id):
@@ -320,7 +325,7 @@ class CompartilharAnotacaoView(APIView):
         )
 
 
-class CompartilharMapaView(APIView):
+class CompartilharMapaView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, mapa_id):
@@ -341,6 +346,51 @@ class CompartilharMapaView(APIView):
             {'id': compartilhamento.pk, 'espaco_id': espaco.pk, 'mapa_id': mapa.pk},
             status=200,
         )
+
+
+class CompartilharQuestionarioView(LimiteArmazenamentoMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, questionario_id):
+        espaco = get_object_or_404(
+            EspacoAcompanhamento, pk=pk, proprietario=request.user
+        )
+        questionario = get_object_or_404(
+            Questionario, pk=questionario_id, autor=request.user
+        )
+        try:
+            compartilhamento = compartilhar_questionario(espaco, questionario, request.user)
+        except DjangoValidationError as erro:
+            raise DRFValidationError(erro.messages)
+        return Response({
+            'id': compartilhamento.pk,
+            'espaco_id': espaco.pk,
+            'questionario_id': questionario.pk,
+        })
+
+
+class QuestionarioCompartilhadoDetalheView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk, questionario_id):
+        espaco = get_object_or_404(EspacoAcompanhamento, pk=pk)
+        exigir_acesso_espaco(espaco, request.user)
+        item = get_object_or_404(
+            QuestionarioCompartilhado.objects.select_related('questionario'),
+            espaco=espaco, questionario_id=questionario_id,
+            questionario__autor_id=espaco.proprietario_id,
+            questionario__deletado_em__isnull=True,
+        )
+        perguntas = Pergunta.objects.filter(
+            questionario=item.questionario,
+            anotacao__autor_id=espaco.proprietario_id,
+            anotacao__deletado_em__isnull=True,
+        ).order_by('data_criacao', 'pk')
+        return Response({
+            'id': item.questionario_id,
+            'titulo': item.questionario.titulo,
+            'perguntas': PerguntaCompartilhadaLeituraSerializer(perguntas, many=True).data,
+        })
 
 
 class EspacosTutorView(APIView):
@@ -388,6 +438,11 @@ class MateriaisCompartilhadosEspacoView(APIView):
             espaco=espaco, mapa__deletado_em__isnull=True
         ).select_related('mapa')
 
+        questionarios = QuestionarioCompartilhado.objects.filter(
+            espaco=espaco, questionario__deletado_em__isnull=True,
+            questionario__autor_id=espaco.proprietario_id,
+        ).select_related('questionario')
+
         dados = {
             'anotacoes': [
                 {'id': item.anotacao_id, 'titulo': item.anotacao.titulo}
@@ -395,6 +450,10 @@ class MateriaisCompartilhadosEspacoView(APIView):
             ],
             'mapas': [
                 {'id': item.mapa_id, 'titulo': item.mapa.titulo} for item in mapas
+            ],
+            'questionarios': [
+                {'id': item.questionario_id, 'titulo': item.questionario.titulo}
+                for item in questionarios
             ],
         }
 
@@ -441,7 +500,7 @@ class TutoresDisponiveisView(APIView):
         return Response(list(tutores))
 
 
-class PerfilTutorView(APIView):
+class PerfilTutorView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -469,7 +528,7 @@ class PerfilTutorView(APIView):
         return Response(PerfilTutorSerializer(perfil).data, status=201)
 
     def patch(self, request):
-        perfil = get_object_or_404(PerfilTutor, usuario=request.user)
+        perfil = get_object_or_404(PerfilTutor.objects.select_for_update(), usuario=request.user)
 
         serializer = PerfilTutorSerializer(perfil, data=request.data, partial=True)
 
@@ -500,7 +559,7 @@ def exigir_acesso_espaco(espaco, usuario):
     raise PermissionDenied("Você não tem permissão para acessar este canal.")
 
 
-class MensagensAcompanhamentoView(APIView):
+class MensagensAcompanhamentoView(LimiteArmazenamentoMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def contexto(
@@ -525,6 +584,14 @@ class MensagensAcompanhamentoView(APIView):
                 espaco=espaco,
                 mapa_id=material_id,
                 mapa__deletado_em__isnull=True,
+            )
+        elif tipo_material == MensagemAcompanhamento.Material.QUESTIONARIO:
+            get_object_or_404(
+                QuestionarioCompartilhado,
+                espaco=espaco,
+                questionario_id=material_id,
+                questionario__autor_id=espaco.proprietario_id,
+                questionario__deletado_em__isnull=True,
             )
         elif tipo_material:
             raise DRFValidationError('Tipo de material inválido.')

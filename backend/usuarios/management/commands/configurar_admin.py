@@ -16,6 +16,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        from usuarios.equipe import bloquear_equipe
+        bloquear_equipe()
         try:
             user = (
                 get_user_model()

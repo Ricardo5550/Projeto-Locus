@@ -30,6 +30,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from auditoria.services import registrar_atividade
 from .services import anonimizar_e_desativar_conta
+from .verificacao_email import email_confirmado, solicitar_confirmacao_admin
 from .legal import (
     apresentar_documento,
     documentos_atualizados,
@@ -55,19 +56,21 @@ class LoginView(APIView):
         exigir_csrf(request)
 
         class Credentials(serializers.Serializer):
-            email = serializers.EmailField(max_length=254)
+            email = serializers.EmailField(max_length=254, required=False)
+            username = serializers.CharField(max_length=150, required=False)
             password = serializers.CharField(max_length=1024, trim_whitespace=False)
             captcha_token = serializers.CharField(max_length=8192, required=False)
 
         credentials = Credentials(data=request.data)
         credentials.is_valid(raise_exception=True)
-        email = credentials.validated_data['email']
+        email = credentials.validated_data.get('email')
+        username = credentials.validated_data.get('username')
         password = credentials.validated_data['password']
         captcha_token = credentials.validated_data.get('captcha_token')
 
-        if not email or not password:
+        if bool(email) == bool(username) or not password:
             return Response(
-                {'error': 'Informe o e-mail e a senha.'},
+                {'error': 'Informe e-mail ou username, e a senha.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -109,61 +112,53 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        email_record = (
-            EmailAddress.objects.select_related('user')
-            .filter(email__iexact=email)
-            .order_by('-verified', '-primary', '-id')
-            .first()
-        )
-
-        if email_record is None:
-            registrar_atividade(
-                request,
-                'login_falha',
-                'conta',
-                resultado='falha',
-                descricao='Credenciais inválidas.',
+        # Username é exclusivo de staff. Não confirma e-mails fictícios.
+        email_record = None
+        if username:
+            user_record = get_user_model().objects.filter(username=username, is_staff=True).first()
+        else:
+            email_record = (
+                EmailAddress.objects.select_related('user').filter(email__iexact=email)
+                .order_by('-verified', '-primary', '-id').first()
             )
-            return Response(
-                {'error': 'E-mail ou senha inválidos.'},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        user_record = email_record.user
+            user_record = email_record.user if email_record else None
         user = authenticate(
-            request,
-            username=user_record.get_username(),
-            password=password,
-        )
-
+            request, username=user_record.get_username(), password=password,
+        ) if user_record else None
         if user is None:
             registrar_atividade(
-                request,
-                'login_falha',
-                'conta',
-                user_record.pk,
-                resultado='falha',
-                descricao='Credenciais inválidas.',
+                request, 'login_falha', 'conta', user_record.pk if user_record else None,
+                resultado='falha', descricao='Credenciais inválidas.',
             )
             return Response(
-                {'error': 'E-mail ou senha inválidos.'},
+                {'error': 'Nome ou senha inválidos.' if username else 'E-mail ou senha inválidos.'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-
-        if not email_record.verified:
+        if user.is_staff and not email_confirmado(user):
             registrar_atividade(
-                request,
-                'login_bloqueado',
-                'conta',
-                user.pk,
-                resultado='bloqueado',
-                descricao='E-mail não confirmado.',
+                request, 'login_bloqueado', 'conta', user.pk,
+                resultado='bloqueado', descricao='E-mail administrativo não confirmado.',
             )
+            try:
+                solicitada = solicitar_confirmacao_admin(request, user)
+            except Exception:
+                return limpar_cookies(Response({
+                    'error': 'Não foi possível solicitar a confirmação. Tente novamente ou peça ao supremo para conferir o e-mail cadastrado.',
+                    'code': 'email_confirmation_unavailable',
+                }, status=503))
+            return limpar_cookies(Response({
+                'error': (
+                    'Solicitamos a confirmação do seu e-mail. Abra o link recebido antes de entrar.'
+                    if solicitada else
+                    'Uma confirmação já foi solicitada. Confira a caixa de entrada e o spam; aguarde um minuto para reenviar.'
+                ),
+                'code': 'email_not_verified',
+            }, status=403))
+        if email_record is not None and not email_record.verified:
+            registrar_atividade(request, 'login_bloqueado', 'conta', user.pk,
+                                resultado='bloqueado', descricao='E-mail não confirmado.')
             return Response(
-                {
-                    'error': 'Confirme seu e-mail antes de entrar.',
-                    'code': 'email_not_verified',
-                },
+                {'error': 'Confirme seu e-mail antes de entrar.', 'code': 'email_not_verified'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -296,6 +291,8 @@ class CookieRefreshView(APIView):
         try:
             old = RefreshToken(raw)
             user = JWTAuthentication().get_user(old)
+            if user.is_staff and not email_confirmado(user):
+                raise TokenError('E-mail administrativo não confirmado.')
             if not documentos_atualizados(user):
                 raise TokenError('Documentos legais atualizados.')
             from .mfa import exigir_segundo_fator
@@ -371,13 +368,19 @@ class AccountView(APIView):
             {
                 'pending_email': pending.email if pending else None,
                 'is_staff': request.user.is_staff,
+                'is_superuser': request.user.is_superuser,
                 'pk': request.user.pk,
                 'username': request.user.username,
                 'email': request.user.email,
             }
         )
 
+    @transaction.atomic
     def patch(self, request):
+        # Não reaplica um username antigo se o encerramento ocorrer em paralelo.
+        request.user = get_object_or_404(
+            get_user_model().objects.select_for_update(), pk=request.user.pk, is_active=True,
+        )
         class AccountInput(serializers.Serializer):
             username = serializers.CharField(max_length=150)
 
@@ -424,11 +427,16 @@ class AccountView(APIView):
 
     @transaction.atomic
     def delete(self, request):
+        from .equipe import bloquear_equipe
+        bloquear_equipe()
         user = get_object_or_404(
             get_user_model().objects.select_for_update(),
             pk=request.user.pk,
             is_active=True,
         )
+
+        if user.is_staff or user.is_superuser:
+            return Response({'detail': 'Contas administrativas possuem encerramento controlado. Use Solicitar encerramento em Minha conta.'}, status=403)
 
         class DeleteInput(serializers.Serializer):
             password = serializers.CharField(max_length=1024, trim_whitespace=False)

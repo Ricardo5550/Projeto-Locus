@@ -25,6 +25,7 @@ type HomeMenuProps = {
   onCreateNote: () => void;
   onOpenMindMap: (id: string, title: string) => void;
   onOpenNote: (id: string, title: string) => void;
+  onOpenQuestionario: (id: string) => void;
 };
 type ItemBiblioteca = {
   id: string;
@@ -34,6 +35,9 @@ type ItemBiblioteca = {
   updatedAt: string | null;
   hasContent: boolean;
 };
+
+type ResultadoBiblioteca =
+  ItemBiblioteca | (Omit<ItemBiblioteca, "type"> & { type: "Questionário" });
 
 function caminhoPasta(id: string | null, folders: PastaSalva[]): PastaSalva[] {
   const path: PastaSalva[] = [];
@@ -55,6 +59,7 @@ export default function HomeMenu({
   onCreateNote,
   onOpenMindMap,
   onOpenNote,
+  onOpenQuestionario,
   search = "",
 }: HomeMenuProps) {
   const dialogos = useDialogos();
@@ -77,7 +82,7 @@ export default function HomeMenu({
     "pagina",
     String(navegacao.chave === chave ? navegacao.pagina : 1),
   );
-  const biblioteca = useListaPaginada<ItemBiblioteca>(
+  const biblioteca = useListaPaginada<ResultadoBiblioteca>(
     `/biblioteca/?${filtros}`,
   );
 
@@ -208,6 +213,11 @@ export default function HomeMenu({
           aria-busy={busy || biblioteca.carregando}
         >
           <span className="home-eyebrow">SUA BIBLIOTECA</span>
+          {busca && (
+            <p role="status">
+              Resultados de todos os seus conteúdos, em qualquer pasta.
+            </p>
+          )}
 
           <nav className="home-folder-path" aria-label="Caminho da pasta">
             {folderId !== null && (
@@ -252,76 +262,96 @@ export default function HomeMenu({
             <p role="status">Carregando biblioteca...</p>
           )}
           <div className="home-library__list">
-            {visible.map((item) => (
-              <div
-                key={`${item.type}-${item.id}`}
-                className="home-library__item"
-              >
-                <button
-                  type="button"
-                  className="home-library__open"
-                  onClick={() => open(item)}
-                >
-                  {item.type === "Pasta" && (
-                    <Folder size={24} aria-hidden="true" />
-                  )}
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>{item.type}</span>
+            {visible.map((item) => {
+              if (item.type === "Questionário")
+                return (
+                  <div
+                    key={`Questionário-${item.id}`}
+                    className="home-library__item"
+                  >
+                    <button
+                      type="button"
+                      className="home-library__open"
+                      onClick={() => onOpenQuestionario(item.id)}
+                    >
+                      <div>
+                        <strong>{item.title}</strong>
+                        <span>Questionário</span>
+                      </div>
+                    </button>
                   </div>
-                </button>
-                <div className="home-library__meta">
-                  {item.updatedAt && (
-                    <time>
-                      {new Date(item.updatedAt).toLocaleDateString("pt-BR")}
-                    </time>
-                  )}
+                );
+              return (
+                <div
+                  key={`${item.type}-${item.id}`}
+                  className="home-library__item"
+                >
                   <button
                     type="button"
-                    disabled={busy}
-                    className="home-library__icon-button"
-                    aria-label={`Mover ${item.title}`}
-                    title="Mover para pasta"
-                    onClick={() => {
-                      setDestination(
-                        item.folder === null ? "" : String(item.folder),
-                      );
-                      setMoving(item);
-                      setError("");
-                    }}
+                    className="home-library__open"
+                    onClick={() => open(item)}
                   >
-                    <FolderInput size={16} />
+                    {item.type === "Pasta" && (
+                      <Folder size={24} aria-hidden="true" />
+                    )}
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.type}</span>
+                    </div>
                   </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="home-library__icon-button"
-                    aria-label={`Renomear ${item.title}`}
-                    title="Renomear"
-                    onClick={() => void rename(item)}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="home-library__icon-button is-danger"
-                    aria-label={`Excluir ${item.title}`}
-                    title="Excluir"
-                    onClick={() => {
-                      if (item.type === "Pasta" && !item.hasContent)
-                        void run(() => excluirPasta(item.id));
-                      else {
-                        setDeleting(item);
+                  <div className="home-library__meta">
+                    {item.updatedAt && (
+                      <time>
+                        {new Date(item.updatedAt).toLocaleDateString("pt-BR")}
+                      </time>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="home-library__icon-button"
+                      aria-label={`Mover ${item.title}`}
+                      title="Mover para pasta"
+                      onClick={() => {
+                        setDestination(
+                          item.folder === null ? "" : String(item.folder),
+                        );
+                        setMoving(item);
                         setError("");
-                      }
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                      }}
+                    >
+                      <FolderInput size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="home-library__icon-button"
+                      aria-label={`Renomear ${item.title}`}
+                      title="Renomear"
+                      onClick={() => void rename(item)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="home-library__icon-button is-danger"
+                      aria-label={`Excluir ${item.title}`}
+                      title="Excluir"
+                      onClick={() => {
+                        if (item.type === "Pasta" && !item.hasContent)
+                          void run(() => excluirPasta(item.id));
+                        else {
+                          setDeleting(item);
+                          setError("");
+                        }
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {biblioteca.dados && (
@@ -335,7 +365,7 @@ export default function HomeMenu({
           {biblioteca.dados && !visible.length && (
             <p className="home-library__status">
               {busca
-                ? "Nenhum resultado nesta pasta."
+                ? "Nenhum conteúdo encontrado na sua conta."
                 : "Esta pasta ainda não possui conteúdos."}
             </p>
           )}

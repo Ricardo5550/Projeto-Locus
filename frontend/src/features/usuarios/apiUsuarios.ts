@@ -6,6 +6,7 @@ export type UsuarioAtual = {
   email: string;
   pending_email?: string | null;
   is_staff?: boolean;
+  is_superuser?: boolean;
 };
 
 export function obterUsuarioAtual(): Promise<UsuarioAtual> {

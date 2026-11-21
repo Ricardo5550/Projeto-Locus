@@ -38,11 +38,13 @@ export default function SinoNotificacoes({
     const timer = window.setInterval(() => void carregar(), 60000);
     const atualizar = () => void carregar();
     window.addEventListener("revisoes:atualizadas", atualizar);
+    window.addEventListener("acompanhamento:atualizado", atualizar);
     document.addEventListener("visibilitychange", atualizar);
     return () => {
       ativo = false;
       clearInterval(timer);
       window.removeEventListener("revisoes:atualizadas", atualizar);
+      window.removeEventListener("acompanhamento:atualizado", atualizar);
       document.removeEventListener("visibilitychange", atualizar);
     };
   }, [atualizacao]);

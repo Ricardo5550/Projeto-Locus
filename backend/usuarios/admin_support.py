@@ -1,13 +1,10 @@
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
-from django.db import transaction
 from django.template.response import TemplateResponse
 from allauth.account.models import EmailAddress
-from dj_rest_auth.serializers import PasswordResetSerializer
 
-from auditoria.services import registrar_atividade
-from .mfa import ativo, revogar_sessoes
+from .mfa import ativo
 
 
 class MotivoForm(forms.Form):
@@ -22,7 +19,7 @@ class MotivoForm(forms.Form):
 class ContaAdmin(admin.ModelAdmin):
     list_display = (
         'username',
-        'email',
+        'email_oculto',
         'is_active',
         'email_confirmado',
         'segundo_fator',
@@ -32,7 +29,7 @@ class ContaAdmin(admin.ModelAdmin):
     list_filter = ('is_active',)
     readonly_fields = (
         'username',
-        'email',
+        'email_oculto',
         'is_active',
         'email_confirmado',
         'segundo_fator',
@@ -47,6 +44,11 @@ class ContaAdmin(admin.ModelAdmin):
         'reativar',
         'encerrar_sessoes',
     )
+
+    @admin.display(description='E-mail')
+    def email_oculto(self, obj):
+        from auditoria.services import mascarar_email
+        return mascarar_email(obj.email)
 
     @admin.display(boolean=True, description='E-mail confirmado')
     def email_confirmado(self, obj):
@@ -109,56 +111,10 @@ class ContaAdmin(admin.ModelAdmin):
             ):
                 continue
             try:
-                with transaction.atomic():
-                    user = (
-                        get_user_model().objects.select_for_update().get(pk=selected.pk)
-                    )
-                    if not request.user.is_superuser and (
-                        user.is_staff or user.is_superuser
-                    ):
-                        continue
-                    if action == 'reenviar_confirmacao':
-                        address = EmailAddress.objects.filter(
-                            user=user, email__iexact=user.email, verified=False
-                        ).first()
-                        if address is None or not user.is_active:
-                            continue
-                        address.send_confirmation(request, signup=False)
-                    elif action == 'enviar_recuperacao':
-                        if not user.is_active:
-                            continue
-                        data = PasswordResetSerializer(
-                            data={'email': user.email}, context={'request': request}
-                        )
-                        data.is_valid(raise_exception=True)
-                        data.save()
-                    elif action in ('suspender', 'reativar'):
-                        #Contas anonimizadas por exclusão não são reativáveis pelo suporte.
-                        if action == 'reativar' and not user.has_usable_password():
-                            continue
-                        user.is_active = action == 'reativar'
-                        user.save(update_fields=['is_active'])
-                        revogar_sessoes(user)
-                    else:
-                        revogar_sessoes(user)
-                    registrar_atividade(
-                        request,
-                        'suporte_' + action,
-                        'conta',
-                        user.pk,
-                        descricao=form.cleaned_data['motivo'],
-                    )
-                    completed += 1
+                from .atendimento import atender_conta
+                atender_conta(request, selected.pk, action, form.cleaned_data['motivo'])
+                completed += 1
             except Exception:
-                #Nenhuma senha, código ou token de e-mail entra no registro.
-                registrar_atividade(
-                    request,
-                    'suporte_' + action,
-                    'conta',
-                    selected.pk,
-                    resultado='falha',
-                    descricao=form.cleaned_data['motivo'],
-                )
                 self.message_user(
                     request,
                     f'Não foi possível concluir o atendimento da conta #{selected.pk}.',

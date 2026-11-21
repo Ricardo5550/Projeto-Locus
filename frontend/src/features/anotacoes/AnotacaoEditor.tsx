@@ -27,6 +27,7 @@ type AnotacaoEditorProps = {
   breadcrumb: string[];
   onBack: () => void;
   onHome: () => void;
+  onSaidaPendenteChange?: (pendente: boolean) => void;
   onCreated: (id: string, title: string) => void;
   relationshipContext?: ContextoRelacionamentoAnotacao | null;
   onNavigateRelationship?: (target: DestinoRelacionamentoAnotacao) => void;
@@ -61,6 +62,7 @@ export default function AnotacaoEditor({
   onBack,
   onHome,
   onCreated,
+  onSaidaPendenteChange,
   relationshipContext = null,
   onNavigateRelationship,
 }: AnotacaoEditorProps) {
@@ -81,6 +83,15 @@ export default function AnotacaoEditor({
   } | null>(null);
   const [relatedBlocks, setRelatedBlocks] = useState<BlocoRelacionado[]>([]);
   const [relationshipTitle, setRelationshipTitle] = useState("");
+
+  useEffect(() => {
+    onSaidaPendenteChange?.(dirty || !title.trim());
+  }, [dirty, title, onSaidaPendenteChange]);
+
+  useEffect(
+    () => () => onSaidaPendenteChange?.(false),
+    [onSaidaPendenteChange],
+  );
 
   const editor = useEditor({
     extensions: extensoesAnotacao(),
@@ -251,7 +262,11 @@ export default function AnotacaoEditor({
       setStatus("Salvo no banco.");
     } catch (error) {
       console.error(error);
-      setStatus("Erro ao salvar. Verifique se o backend está rodando.");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a anotação.",
+      );
     }
   }
 
@@ -385,7 +400,9 @@ export default function AnotacaoEditor({
         onSave={handleSave}
       />
 
-      <div className="note-editor__breadcrumb">{breadcrumb.join(" / ")}</div>
+      <div className="note-editor__breadcrumb">
+        {[...breadcrumb.slice(0, -1), title || breadcrumb.at(-1)].join(" / ")}
+      </div>
 
       <AnotacaoToolbar editor={editor} />
 

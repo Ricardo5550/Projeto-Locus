@@ -30,21 +30,104 @@
   min-height: 0;
   overflow: visible;
 }
-@media (max-width: 540px) {
+
+.home-layout--shared {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+.home-layout--shared.home-layout--recolhido {
+  grid-template-columns: minmax(0, 1fr);
+}
+.home-sidebar[hidden] {
+  display: none;
+}
+.home-layout--shared .home-sidebar {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+}
+.home-menu-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.home-menu-fechar {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  border: 0;
+  padding: 4px;
+  background: transparent;
+  color: #5e402b;
+  cursor: pointer;
+}
+.home-menu-fundo {
+  display: none;
+}
+@media (max-width: 900px) {
   .home-layout--shared {
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
-  .home-layout--shared .home-sidebar__bottom {
-    margin: 0;
+  .home-layout--shared .home-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(280px, 85vw);
+    z-index: 51;
+    box-shadow: 5px 0 24px #0003;
+    padding-top: 40px;
   }
-  .home-layout--shared .home-sidebar nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+  .home-layout--shared .home-menu-fundo {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    border: 0;
+    background: #0006;
   }
+}
+@media (max-width: 540px) {
   .home-layout--shared .home-account {
     min-width: 34px;
     min-height: 34px;
     justify-content: center;
   }
+  .home-account span {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-search {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+    order: 2;
+  }
+  .home-layout--shared .home-sidebar__bottom {
+    margin-top: auto;
+  }
+}
+
+.home-layout--shared .home-sidebar {
+  flex-direction: column;
+}
+.home-layout--shared .home-sidebar .home-nav-button {
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.home-layout--shared .home-sidebar nav {
+  display: block;
+}
+
+.home-sidebar a.home-nav-button {
+  display: block;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.home-sidebar a.home-nav-button:not([aria-current="page"]) {
+  color: inherit;
 }

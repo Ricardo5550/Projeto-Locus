@@ -30,13 +30,13 @@ CAMPOS = (
 )
 
 
-def materiais(queryset, tipo):
+def materiais(queryset, tipo, campo_data='data_atualizacao'):
     return (
         queryset.annotate(
             tipo=Value(tipo),
             titulo_item=F('titulo'),
             pasta_item=F('pasta_id'),
-            atualizado=F('data_atualizacao'),
+            atualizado=F(campo_data),
             tem_conteudo=Value(False, output_field=BooleanField()),
             ordem=Value(1),
             nome_ordenacao=Lower('titulo'),
@@ -59,8 +59,14 @@ def biblioteca(request):
 
     mapas = MapaMental.objects.filter(autor=request.user)
     anotacoes = Anotacao.objects.filter(autor=request.user)
-    notas_da_pasta = anotacoes.filter(pasta_id=pasta, titulo__icontains=busca)
-    if notas_da_pasta.exists():
+    notas_da_pasta = anotacoes.filter(titulo__icontains=busca)
+    mapas_encontrados = mapas.filter(titulo__icontains=busca)
+    pastas_encontradas = pastas.filter(nome__icontains=busca)
+    if not busca:
+        notas_da_pasta = notas_da_pasta.filter(pasta_id=pasta)
+        mapas_encontrados = mapas_encontrados.filter(pasta_id=pasta)
+        pastas_encontradas = pastas_encontradas.filter(pai_id=pasta)
+    if not busca and notas_da_pasta.exists():
         #Os vínculos ficam nos mapas criptografados. Leia um mapa por vez
         #para manter a regra de ocultar as anotações vinculadas na Biblioteca.
         vinculadas = set()
@@ -71,7 +77,7 @@ def biblioteca(request):
         notas_da_pasta = notas_da_pasta.exclude(pk__in=vinculadas)
 
     subpastas = (
-        pastas.filter(pai_id=pasta, nome__icontains=busca)
+        pastas_encontradas
         .annotate(
             tipo=Value('Pasta'),
             titulo_item=F('nome'),
@@ -94,11 +100,18 @@ def biblioteca(request):
         .values(*CAMPOS)
     )
 
-    itens = subpastas.union(
-        materiais(mapas.filter(pasta_id=pasta, titulo__icontains=busca), 'Mapa mental'),
+    conteudos = [
+        materiais(mapas_encontrados, 'Mapa mental'),
         materiais(notas_da_pasta, 'Anotação'),
-        all=True,
-    ).order_by('ordem', 'nome_ordenacao', 'tipo', 'id')
+    ]
+    if busca:
+        conteudos.append(materiais(
+            Questionario.objects.filter(autor=request.user, titulo__icontains=busca),
+            'Questionário', 'data_criacao',
+        ))
+    itens = subpastas.union(*conteudos, all=True).order_by(
+        'ordem', 'nome_ordenacao', 'tipo', 'id'
+    )
     pagina = obter_pagina(request, itens)
     return responder_pagina(
         pagina,

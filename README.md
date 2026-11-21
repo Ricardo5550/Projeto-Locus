@@ -10,9 +10,10 @@ O **Locus** é uma plataforma web para criação, organização e revisão de co
 - **Anotações e mapas mentais:** edição de textos formatados, criação de blocos e conexões, vínculo entre conteúdos e busca de referências acadêmicas pela Crossref.
 - **Questionários e revisões:** criação de perguntas a partir das anotações, devolutiva após finalizar a revisão e agendamento com uma adaptação do algoritmo SuperMemo SM-2.
 - **Resultados:** painel com revisões para hoje, revisões atrasadas, revisões concluídas e percentual de acertos. Inclui gráficos de acertos por questionário e de evolução ao longo do tempo, com filtros por questionário e período.
-- **Notificações:** avisos de revisão e de atividades nos canais de acompanhamento.
-- **Tutoria:** convite e aceite de tutores, compartilhamento de anotações e mapas para leitura e troca de dúvidas e comentários. Ao abrir um mapa compartilhado, o tutor também pode consultar as anotações vinculadas aos blocos do mapa.
+- **Notificações:** avisos de revisão, de convites de tutoria e de atividades nos canais de acompanhamento. O convite recebido aparece no sino e abre a seção Convites recebidos para aceitar ou recusar.
+- **Tutoria:** convite e aceite de tutores, compartilhamento de anotações, mapas e questionários para leitura e troca de dúvidas e comentários. Ao abrir um mapa compartilhado, o tutor também pode consultar as anotações vinculadas aos blocos do mapa. Questionários compartilhados exibem perguntas, alternativas e respostas atuais, mantendo revisões e resultados individuais.
 - **Conta e segurança:** cadastro com confirmação por e-mail, recuperação de senha, alteração de e-mail, verificação em duas etapas, exclusão de conta e registros de auditoria. Os Termos de Uso e a Política de Privacidade estão disponíveis na interface.
+- **Administração:** painel React para atendimento de contas, aprovação de tutores e consulta dos registros de auditoria. A revelação de e-mail exige motivo e fica registrada com a identificação do administrador.
 
 ## Tecnologias
 
@@ -39,6 +40,10 @@ O **Locus** é uma plataforma web para criação, organização e revisão de co
 ### Banco de dados
 
 O **PostgreSQL** armazena os dados da aplicação. Cada anotação e cada mapa mental principal possui um registro próprio. Os campos de conteúdo representam em JSON o texto estruturado do editor e os blocos, posições, propriedades, conexões e visualizações internas dos mapas.
+
+Cada conta possui uma cota de **60 MB** para seus conteúdos e dados associados. A medição considera os valores armazenados, incluindo a criptografia e as imagens incorporadas às anotações, com uma reserva estimada por registro. Em **Minha conta → Armazenamento**, é possível consultar o uso estimado e atualizar a consulta.
+
+Quando uma gravação ultrapassa a cota, a API devolve HTTP 413 com o código `limite_armazenamento`, desfaz a operação inteira e a interface apresenta um aviso. Leitura, exclusão e alterações que reduzam o espaço continuam disponíveis. Conteúdos de uma conta não consomem a cota de outra; materiais compartilhados não são copiados. Registros de auditoria, autenticação e notificações não entram na cota de conteúdo. O tamanho total do banco também inclui índices e estruturas internas, portanto é necessário manter uma margem no armazenamento da hospedagem.
 
 ### Arquitetura
 
@@ -115,4 +120,3 @@ npm run dev
 ```
 
 Abra `http://localhost:5173/` no navegador. Se estiver usando o e-mail no console, copie do terminal do Django o link de confirmação da conta após o cadastro.
-

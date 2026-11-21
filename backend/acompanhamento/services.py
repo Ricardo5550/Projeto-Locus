@@ -7,9 +7,11 @@ from acompanhamento.models import (
     Participacao,
     AnotacaoCompartilhada,
     MapaCompartilhado,
+    QuestionarioCompartilhado,
 )
 from anotacoes.models import Anotacao
 from mapas.models import MapaMental
+from revisoes.models import Questionario
 from notificacoes.models import Notificacao
 
 
@@ -44,6 +46,31 @@ def avisar_no_canal(espaco, autor, chave, texto, *, duvida=False):
         )
 
 
+def notificar_convite(convite):
+    dados = {
+        'tipo': 'convite_tutoria',
+        'texto': (
+            f'Convite de tutoria recebido para o canal “{convite.espaco.nome}”. '
+            'Acesse para aceitar ou recusar.'
+        ),
+        'destino': 'acompanhamento-convites',
+        'recurso_id': convite.pk,
+    }
+    aviso, criado = Notificacao.all_objects.get_or_create(
+        destinatario_id=convite.tutor.usuario_id,
+        chave=f'convite_tutoria:{convite.pk}',
+        defaults=dados,
+    )
+    if not criado:
+        alterados = []
+        for campo, valor in {**dados, 'deletado_em': None}.items():
+            if getattr(aviso, campo) != valor:
+                setattr(aviso, campo, valor)
+                alterados.append(campo)
+        if alterados:
+            aviso.save(update_fields=alterados)
+
+
 @transaction.atomic
 def criar_convite(espaco, tutor, usuario):
     if not usuario.is_authenticated or not usuario.is_active:
@@ -67,9 +94,11 @@ def criar_convite(espaco, tutor, usuario):
     if Convite.objects.filter(espaco=espaco, tutor=tutor, status='pendente').exists():
         raise ValidationError("Já existe um convite pendente para este tutor.")
 
-    return Convite.objects.create(
+    convite = Convite.objects.create(
         espaco=espaco, tutor=tutor, solicitado_por=usuario, status='pendente'
     )
+    notificar_convite(convite)
+    return convite
 
 
 @transaction.atomic
@@ -120,6 +149,11 @@ def aceitar_convite(convite, usuario):
     convite.respondido_em = timezone.now()
     convite.save(update_fields=['status', 'respondido_em'])
 
+    Notificacao.objects.filter(
+        destinatario_id=convite.tutor.usuario_id,
+        chave=f'convite_tutoria:{convite.pk}',
+    ).delete()
+
 
 @transaction.atomic
 def recusar_convite(convite, usuario):
@@ -148,6 +182,11 @@ def recusar_convite(convite, usuario):
     convite.status = 'recusado'
     convite.respondido_em = timezone.now()
     convite.save(update_fields=['status', 'respondido_em'])
+
+    Notificacao.objects.filter(
+        destinatario_id=convite.tutor.usuario_id,
+        chave=f'convite_tutoria:{convite.pk}',
+    ).delete()
 
     return convite
 
@@ -236,6 +275,32 @@ def compartilhar_mapa(espaco, mapa, usuario):
             usuario,
             f'mapa:{compartilhamento.pk}',
             'Novo mapa mental compartilhado no canal.',
+        )
+    return compartilhamento
+
+
+@transaction.atomic
+def compartilhar_questionario(espaco, questionario, usuario):
+    if (
+        not usuario.is_authenticated
+        or not usuario.is_active
+        or usuario != espaco.proprietario
+    ):
+        raise PermissionDenied("Você não tem permissão para compartilhar este questionário.")
+
+    if questionario.autor_id != usuario.pk:
+        raise PermissionDenied("Você não pode compartilhar um questionário que não é seu.")
+
+    if not Questionario.objects.filter(pk=questionario.pk, autor=usuario).exists():
+        raise ValidationError("O questionário não existe ou foi excluído.")
+
+    compartilhamento, criado = QuestionarioCompartilhado.objects.get_or_create(
+        espaco=espaco, questionario=questionario
+    )
+    if criado:
+        avisar_no_canal(
+            espaco, usuario, f'questionario:{compartilhamento.pk}',
+            'Novo questionário compartilhado no canal.',
         )
     return compartilhamento
 

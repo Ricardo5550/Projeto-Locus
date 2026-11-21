@@ -35,6 +35,26 @@ def atualizar_revisoes(usuario):
     ).delete()
 
 
+def atualizar_convites(usuario):
+    from acompanhamento.models import Convite
+    from acompanhamento.services import notificar_convite
+
+    pendentes = Convite.objects.filter(
+        tutor__usuario=usuario,
+        tutor__ativo=True,
+        tutor__aprovado=True,
+        espaco__proprietario__is_active=True,
+        status='pendente',
+    ).select_related('espaco', 'tutor')
+    chaves = []
+    for convite in pendentes:
+        notificar_convite(convite)
+        chaves.append(f'convite_tutoria:{convite.pk}')
+    Notificacao.objects.filter(destinatario=usuario, tipo='convite_tutoria').exclude(
+        chave__in=chaves
+    ).delete()
+
+
 class NotificacaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notificacao
@@ -56,6 +76,7 @@ class NotificacaoViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         atualizar_revisoes(self.request.user)
+        atualizar_convites(self.request.user)
         return (
             Notificacao.objects.filter(destinatario=self.request.user)[:100]
             if self.action == 'list'

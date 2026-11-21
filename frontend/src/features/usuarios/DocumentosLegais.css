@@ -19,7 +19,7 @@
 .legal-document__topo {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -75,3 +75,8 @@
   top: -24px;
   z-index: 10;
 }
+
+.legal-page > .page-header .page-header__actions {
+  width: auto; margin-left: auto; align-self: flex-start;
+}
+.legal-document__topo .page-close { margin-left: auto; }

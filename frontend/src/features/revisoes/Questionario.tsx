@@ -6,7 +6,7 @@ import Modal from "../../components/Modal";
 import Paginacao from "../../components/Paginacao";
 import { useListaPaginada } from "../../services/useListaPaginada";
 import * as api from "./apiRevisoes";
-import "./Questionarios.css";
+import "./Questionario.css";
 const AVISO =
   "Salvar esta alteração reiniciará o agendamento das revisões. Seu histórico será preservado.";
 const dataBr = (d: string | null) =>
@@ -25,14 +25,27 @@ type Props = {
   ref?: Ref<NavegacaoQuestionario>;
   initialId?: string | null;
   initialDevolutiva?: boolean;
+  onAbrirQuestionario?: (id: string) => void;
+  onVoltarLista?: () => void;
   onOpenNote?: (id: string, title: string, questionario: string) => void;
   onSessionChange?: (active: boolean) => void;
   onDetalheChange?: (aberto: boolean) => void;
 };
+function embaralhar<T>(itens: T[]): T[] {
+  const copia = [...itens];
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+
 export default function Questionario({
   ref,
   initialId = null,
   initialDevolutiva = false,
+  onAbrirQuestionario,
+  onVoltarLista,
   onOpenNote,
   onSessionChange,
   onDetalheChange,
@@ -60,9 +73,19 @@ export default function Questionario({
   const [respostas, setRespostas] = useState<
     Record<
       string,
-      { texto: string; resultado?: api.Classificacao; revelada: boolean }
+      {
+        texto: string;
+        resultado?: api.Classificacao;
+        revelada: boolean;
+        alternativa?: number;
+      }
     >
   >({});
+  const [ordemPerguntas, setOrdemPerguntas] = useState<string[]>([]);
+  const [ordemAlternativas, setOrdemAlternativas] = useState<
+    Record<string, number[]>
+  >({});
+  const [paginaPergunta, setPaginaPergunta] = useState(0);
   const [pagina, setPagina] = useState(1);
   const filtros = new URLSearchParams({ pagina: String(pagina) });
   if (busca.trim()) filtros.set("busca", busca.trim());
@@ -72,6 +95,10 @@ export default function Questionario({
   );
 
   async function abrir(id: string, verDevolutiva = false, sinal?: AbortSignal) {
+    if (onAbrirQuestionario && id !== initialId) {
+      onAbrirQuestionario(id);
+      return;
+    }
     setErro("");
     setProcessando(true);
     try {
@@ -83,6 +110,18 @@ export default function Questionario({
       if (sinal?.aborted) return;
       setAtual(q);
       setPerguntas(p);
+      setOrdemPerguntas(embaralhar(p.map((pergunta) => pergunta.id)));
+      setOrdemAlternativas(
+        Object.fromEntries(
+          p.map((pergunta) => [
+            pergunta.id,
+            embaralhar(
+              (pergunta.alternativas ?? []).map((_, indice) => indice),
+            ),
+          ]),
+        ),
+      );
+      setPaginaPergunta(0);
       setDevolutiva(d);
       setMostrarDevolutiva(verDevolutiva && !!d);
       setSessao(null);
@@ -178,6 +217,7 @@ export default function Questionario({
       setMostrarDevolutiva(false);
       fecharEdicao();
       setAtual(null);
+      onVoltarLista?.();
     },
   }));
 
@@ -196,6 +236,9 @@ export default function Questionario({
       await api.atualizarPergunta(perguntaEmEdicao.id, {
         enunciado: perguntaEmEdicao.enunciado,
         resposta: perguntaEmEdicao.resposta,
+        tipo: perguntaEmEdicao.tipo,
+        alternativas: perguntaEmEdicao.alternativas,
+        alternativa_correta: perguntaEmEdicao.alternativa_correta,
         questionario: destino,
         manter_agendamento: manter && !transferir,
         confirmar_reinicio: true,
@@ -236,6 +279,7 @@ export default function Questionario({
       texto: string;
       resultado: api.Classificacao;
       revelada: boolean;
+      alternativa: number;
     }>,
   ) {
     if (!sessao) iniciar(treinoAutomatico);
@@ -253,6 +297,7 @@ export default function Questionario({
           pergunta: p.id,
           resposta_digitada: respostas[p.id].texto,
           resultado: respostas[p.id].resultado!,
+          alternativa: respostas[p.id].alternativa,
         })),
       });
       setSessao(null);
@@ -266,13 +311,16 @@ export default function Questionario({
   }
   const completas =
     perguntas.length > 0 && perguntas.every((p) => respostas[p.id]?.resultado);
+  const perguntasDaRevisao = ordemPerguntas
+    .map((id) => perguntas.find((p) => p.id === id))
+    .filter((p): p is api.PerguntaEstudo => !!p);
   const visiveis = lista.dados?.itens ?? [];
   return (
     <section className="revisoes" aria-label="Questionários">
       <div className="revisoes-titulo">
         <h2>{atual ? atual.titulo : "Seus questionários"}</h2>
         <button onClick={() => setAjuda(true)}>
-          Como marcamos a repetição do questionário?
+          Como funciona a próxima revisão?
         </button>
       </div>
       {erro && (
@@ -458,6 +506,30 @@ export default function Questionario({
                         </button>
                       </div>
 
+                      <label className="revisoes-tipo">
+                        Tipo da questão
+                        <select
+                          value={perguntaEmEdicao.tipo ?? "dissertativa"}
+                          disabled={processando}
+                          onChange={(event) => {
+                            const tipo = event.target
+                              .value as api.PerguntaEstudo["tipo"];
+                            setPerguntaEmEdicao({
+                              ...perguntaEmEdicao,
+                              tipo,
+                              alternativas:
+                                tipo === "alternativa"
+                                  ? [perguntaEmEdicao.resposta]
+                                  : [],
+                              alternativa_correta:
+                                tipo === "alternativa" ? 0 : null,
+                            });
+                          }}
+                        >
+                          <option value="dissertativa">Dissertativa</option>
+                          <option value="alternativa">Alternativa</option>
+                        </select>
+                      </label>
                       <label>
                         Pergunta
                         <textarea
@@ -474,22 +546,125 @@ export default function Questionario({
                           }
                         />
                       </label>
-                      <label>
-                        Resposta esperada
-                        <textarea
-                          aria-label="Resposta esperada"
-                          required
-                          maxLength={20000}
+                      {perguntaEmEdicao.tipo === "alternativa" ? (
+                        <fieldset
+                          className="revisoes-alternativas"
                           disabled={processando}
-                          value={perguntaEmEdicao.resposta}
-                          onChange={(e) =>
-                            setPerguntaEmEdicao({
-                              ...perguntaEmEdicao,
-                              resposta: e.target.value,
-                            })
-                          }
-                        />
-                      </label>
+                        >
+                          <legend>Alternativas — marque a correta</legend>
+                          {perguntaEmEdicao.alternativas.map(
+                            (texto, indice) => (
+                              <div
+                                className="revisoes-alternativa"
+                                key={indice}
+                              >
+                                <input
+                                  type="radio"
+                                  name="alternativa-correta"
+                                  aria-label={`Marcar alternativa ${indice + 1} como correta`}
+                                  checked={
+                                    perguntaEmEdicao.alternativa_correta ===
+                                    indice
+                                  }
+                                  onChange={() =>
+                                    setPerguntaEmEdicao({
+                                      ...perguntaEmEdicao,
+                                      alternativa_correta: indice,
+                                      resposta: texto,
+                                    })
+                                  }
+                                />
+                                <textarea
+                                  aria-label={`Alternativa ${indice + 1}`}
+                                  required
+                                  maxLength={20000}
+                                  value={texto}
+                                  onChange={(e) =>
+                                    setPerguntaEmEdicao({
+                                      ...perguntaEmEdicao,
+                                      alternativas:
+                                        perguntaEmEdicao.alternativas.map(
+                                          (opcao, i) =>
+                                            i === indice
+                                              ? e.target.value
+                                              : opcao,
+                                        ),
+                                      resposta:
+                                        perguntaEmEdicao.alternativa_correta ===
+                                        indice
+                                          ? e.target.value
+                                          : perguntaEmEdicao.resposta,
+                                    })
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const correta =
+                                      perguntaEmEdicao.alternativa_correta ?? 0;
+                                    const alternativas =
+                                      perguntaEmEdicao.alternativas.filter(
+                                        (_, i) => i !== indice,
+                                      );
+                                    const novaCorreta =
+                                      correta === indice
+                                        ? 0
+                                        : correta > indice
+                                          ? correta - 1
+                                          : correta;
+                                    setPerguntaEmEdicao({
+                                      ...perguntaEmEdicao,
+                                      alternativas,
+                                      alternativa_correta: novaCorreta,
+                                      resposta: alternativas[novaCorreta] ?? "",
+                                    });
+                                  }}
+                                  disabled={
+                                    perguntaEmEdicao.alternativas.length <= 1
+                                  }
+                                >
+                                  Remover
+                                </button>
+                              </div>
+                            ),
+                          )}
+                          <button
+                            type="button"
+                            disabled={
+                              perguntaEmEdicao.alternativas.length >= 10
+                            }
+                            onClick={() =>
+                              setPerguntaEmEdicao({
+                                ...perguntaEmEdicao,
+                                alternativas: [
+                                  ...perguntaEmEdicao.alternativas,
+                                  "",
+                                ],
+                              })
+                            }
+                          >
+                            Adicionar alternativa
+                          </button>
+                          <p>De 2 a 10 alternativas, com apenas uma correta.</p>
+                        </fieldset>
+                      ) : (
+                        <label>
+                          Resposta esperada
+                          <textarea
+                            aria-label="Resposta esperada"
+                            required
+                            maxLength={20000}
+                            disabled={processando}
+                            value={perguntaEmEdicao.resposta}
+                            onChange={(e) =>
+                              setPerguntaEmEdicao({
+                                ...perguntaEmEdicao,
+                                resposta: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                      )}
 
                       <div className="revisoes-edicao-opcoes">
                         <label>
@@ -587,59 +762,141 @@ export default function Questionario({
               {!perguntas.length && (
                 <p>Crie perguntas no editor das suas anotações.</p>
               )}
-              {perguntas.map((p, i) => {
-                const r = respostas[p.id];
-                return (
-                  <article key={p.id}>
-                    <h3>
-                      {i + 1}. {p.enunciado}
-                    </h3>
-                    <textarea
-                      aria-label={`Sua resposta ${i + 1}`}
-                      value={r?.texto ?? ""}
-                      disabled={processando}
-                      onChange={(e) => mudar(p.id, { texto: e.target.value })}
-                    />
-                    <button
-                      disabled={processando}
-                      onClick={() => mudar(p.id, { revelada: true })}
-                    >
-                      Ver resposta esperada
-                    </button>
-                    {r?.revelada && (
-                      <>
-                        <p className="revisoes-resposta">{p.resposta}</p>
-                        <div
-                          className="revisoes-acoes"
-                          role="group"
-                          aria-label={`Classificar pergunta ${i + 1}`}
+              {perguntasDaRevisao
+                .slice(paginaPergunta, paginaPergunta + 1)
+                .map((p) => {
+                  const i = paginaPergunta;
+                  const r = respostas[p.id];
+                  return (
+                    <article key={p.id}>
+                      <h3>
+                        {i + 1}. {p.enunciado}
+                      </h3>
+                      {p.tipo === "alternativa" ? (
+                        <fieldset
+                          className="revisoes-alternativas"
+                          disabled={processando}
                         >
-                          {ORDEM_RESULTADOS.map((tipo) => (
-                            <button
-                              key={tipo}
-                              disabled={processando}
-                              aria-pressed={r.resultado === tipo}
-                              className={`resultado-${tipo}`}
-                              onClick={() => mudar(p.id, { resultado: tipo })}
-                            >
-                              {CLASSIFICACOES[tipo]}
-                            </button>
+                          <legend>Selecione uma alternativa</legend>
+                          {(ordemAlternativas[p.id] ?? []).map((indice) => (
+                            <label className="revisoes-opcao" key={indice}>
+                              <input
+                                type="radio"
+                                name={`resposta-${p.id}`}
+                                checked={r?.alternativa === indice}
+                                onChange={() =>
+                                  mudar(p.id, {
+                                    alternativa: indice,
+                                    texto: p.alternativas[indice],
+                                    resultado: "errei",
+                                  })
+                                }
+                              />
+                              <span>{p.alternativas[indice]}</span>
+                            </label>
                           ))}
-                        </div>
-                      </>
-                    )}
-                  </article>
-                );
-              })}
+                        </fieldset>
+                      ) : (
+                        <>
+                          <textarea
+                            aria-label={`Sua resposta ${i + 1}`}
+                            value={r?.texto ?? ""}
+                            disabled={processando}
+                            onChange={(e) =>
+                              mudar(p.id, { texto: e.target.value })
+                            }
+                          />
+                          <button
+                            disabled={processando}
+                            onClick={() => mudar(p.id, { revelada: true })}
+                          >
+                            Ver resposta esperada
+                          </button>
+                          {r?.revelada && (
+                            <>
+                              <p className="revisoes-resposta">{p.resposta}</p>
+                              <div
+                                className="revisoes-acoes"
+                                role="group"
+                                aria-label={`Classificar pergunta ${i + 1}`}
+                              >
+                                {ORDEM_RESULTADOS.map((tipo) => (
+                                  <button
+                                    key={tipo}
+                                    disabled={processando}
+                                    aria-pressed={r.resultado === tipo}
+                                    className={`resultado-${tipo}`}
+                                    onClick={() =>
+                                      mudar(p.id, { resultado: tipo })
+                                    }
+                                  >
+                                    {CLASSIFICACOES[tipo]}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}{" "}
+                        </>
+                      )}
+                    </article>
+                  );
+                })}
               {perguntas.length > 0 && (
-                <button
-                  className="is-primary"
-                  disabled={processando || !completas}
-                  onClick={() => void finalizar()}
+                <nav
+                  className="revisoes-paginacao"
+                  aria-label="Navegação entre perguntas"
                 >
-                  Finalizar
-                </button>
+                  <button
+                    type="button"
+                    disabled={processando || paginaPergunta === 0}
+                    onClick={() => setPaginaPergunta((p) => p - 1)}
+                  >
+                    Anterior
+                  </button>
+                  <span aria-live="polite">
+                    Pergunta {paginaPergunta + 1} de {perguntas.length}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={
+                      processando || paginaPergunta >= perguntas.length - 1
+                    }
+                    onClick={() => setPaginaPergunta((p) => p + 1)}
+                  >
+                    Próxima
+                  </button>
+                  <span>
+                    {perguntas.filter((p) => respostas[p.id]?.resultado).length}{" "}
+                    respondida(s)
+                  </span>
+                </nav>
               )}
+              {perguntas.length > 0 &&
+                paginaPergunta === perguntas.length - 1 && (
+                  <section
+                    className="revisoes-finalizacao"
+                    aria-label="Concluir revisão"
+                  >
+                    <p>
+                      Confira suas respostas antes de finalizar. Ao concluir, o
+                      Locus processará o resultado e atualizará a devolutiva.
+                    </p>
+                    {!completas && (
+                      <p role="status">
+                        Ainda há perguntas sem resposta ou classificação. Volte
+                        às páginas anteriores para completar.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="is-primary"
+                      disabled={processando || !completas}
+                      onClick={() => void finalizar()}
+                    >
+                      Finalizar
+                    </button>
+                  </section>
+                )}
             </>
           )}
         </>
@@ -749,29 +1006,36 @@ export default function Questionario({
           }
         >
           <p>
-            Usamos uma adaptação do SuperMemo SM-2 para o questionário completo.
-            Ao finalizar, acertos valem 1, parciais 0,5 e erros 0. Multiplicamos
-            a proporção por 5 e usamos a parte inteira como avaliação de 0 a 5.
+            O Locus usa suas respostas para escolher a data da próxima revisão.
+            A ideia é voltar ao conteúdo antes que você o esqueça.
           </p>
           <p>
-            A facilidade começa em 2,5. Avaliações de 3 a 5 avançam a sequência:
-            primeiro 1 dia, depois 6 dias e, a partir daí, o intervalo anterior
-            multiplicado pela facilidade. A facilidade é ajustada a cada
-            revisão. Uma avaliação inferior a 3 reinicia a sequência em 1 dia.
+            Nas questões de alternativa, a correção é automática. Nas
+            dissertativas, você compara sua resposta com a esperada e escolhe
+            Acertei, Parcial ou Errei.
           </p>
           <p>
-            Você pode limitar o máximo de dias ou deixar sem limite. O prazo
-            começa na conclusão. A adaptação e os pesos são escolhas do Locus,
-            sem garantia de memorização. A porcentagem de acertos no painel
-            considera apenas os acertos completos.
+            Cada acerto vale um ponto, cada parcial vale meio ponto e cada erro
+            vale zero. Por exemplo: em quatro perguntas, dois acertos, uma
+            parcial e um erro somam 2,5 pontos, ou 62,5%.
           </p>
-          <a
-            href="https://super-memory.org/archive/english/ol/sm2.htm"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Referência do SM-2
-          </a>
+          <p>
+            Se você conseguir menos de 60% dos pontos, a próxima revisão será no
+            dia seguinte. Com pelo menos 60%, as duas primeiras revisões
+            bem-sucedidas são marcadas para um dia e seis dias depois. A partir
+            daí, o intervalo se ajusta ao seu desempenho: ele pode aumentar
+            quando você vai bem e diminuir quando sente mais dificuldade.
+          </p>
+          <p>
+            Você pode definir um limite máximo de dias entre as revisões. O
+            prazo começa quando você finaliza. O treino livre serve para
+            praticar e não altera esse agendamento.
+          </p>
+          <p>
+            A devolutiva considera os parciais como meio acerto. Já a
+            porcentagem de acertos em Resultados conta apenas as respostas
+            totalmente corretas.
+          </p>
         </Modal>
       )}
     </section>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiJson } from "../../services/apiClient";
 import CodigosRecuperacao from "../../components/CodigosRecuperacao";
 
@@ -21,17 +21,24 @@ export default function SegundoFatorLogin({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [recovery, setRecovery] = useState<string[]>([]);
+  const configuracao = useRef<{
+    challenge: string;
+    pedido: Promise<{ secret: string; qr_code: string }>;
+  } | null>(null);
   useEffect(() => {
     if (!setup) return;
     let active = true;
-    apiJson<{ secret: string; qr_code: string }>(
-      "/auth/mfa/enroll/",
-      {
-        method: "POST",
-        body: JSON.stringify({ challenge }),
-      },
-      { auth: false },
-    )
+    if (configuracao.current?.challenge !== challenge) {
+      configuracao.current = {
+        challenge,
+        pedido: apiJson<{ secret: string; qr_code: string }>(
+          "/auth/mfa/enroll/",
+          { method: "POST", body: JSON.stringify({ challenge }) },
+          { auth: false },
+        ),
+      };
+    }
+    configuracao.current.pedido
       .then((data) => {
         if (active) setConfig(data);
       })

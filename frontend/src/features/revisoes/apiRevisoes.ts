@@ -7,25 +7,13 @@ export type PerguntaEstudo = {
   titulo_anotacao: string;
   enunciado: string;
   resposta: string;
+  tipo: "dissertativa" | "alternativa";
+  alternativas: string[];
+  alternativa_correta: number | null;
   trecho_origem: string;
   data_criacao: string;
   total_tentativas: number;
 };
-
-export type TentativaEstudo = {
-  id: string;
-  pergunta: string;
-  resposta_digitada: string;
-  acertou: boolean;
-  data_criacao: string;
-};
-
-export function listarPerguntas(
-  annotationId?: string,
-): Promise<PerguntaEstudo[]> {
-  const query = annotationId === undefined ? "" : `?anotacao=${annotationId}`;
-  return apiJson<PerguntaEstudo[]>(`/perguntas/${query}`);
-}
 
 export function criarPergunta(
   data: Pick<
@@ -46,6 +34,9 @@ export function criarPergunta(
 export function atualizarPergunta(
   id: string,
   data: Pick<PerguntaEstudo, "enunciado" | "resposta"> & {
+    tipo?: PerguntaEstudo["tipo"];
+    alternativas?: string[];
+    alternativa_correta?: number | null;
     questionario?: string;
     manter_agendamento?: boolean;
     confirmar_reinicio?: boolean;
@@ -60,15 +51,6 @@ export function atualizarPergunta(
 export function excluirPergunta(id: string): Promise<void> {
   return apiSemRetorno(`/perguntas/${id}/?confirmar_reinicio=true`, {
     method: "DELETE",
-  });
-}
-
-export function registrarTentativa(
-  data: Pick<TentativaEstudo, "pergunta" | "resposta_digitada" | "acertou">,
-): Promise<TentativaEstudo> {
-  return apiJson<TentativaEstudo>("/tentativas/", {
-    method: "POST",
-    body: JSON.stringify(data),
   });
 }
 
@@ -87,6 +69,7 @@ export type RespostaSessao = {
   pergunta: string;
   resposta_digitada: string;
   resultado: Classificacao;
+  alternativa?: number;
 };
 export type Devolutiva = {
   id: string;
