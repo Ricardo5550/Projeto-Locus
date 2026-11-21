@@ -386,7 +386,6 @@ export default function App({
       <Login
         key={screen}
         administrativo={screen === "admin-login"}
-        onNavigateToAdmin={() => void navigate(caminhos["admin-login"])}
         notice={loginNotice}
         onLoginSuccess={() => {
           logoutVoluntario.current = false;
