@@ -221,7 +221,7 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-#Em produção, habilite via variáveis de ambiente e proxy HTTPS.
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -229,7 +229,7 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
 
 
-#Cookies da API. Em produção, use HTTPS e mantenha Secure habilitado.
+#Cookies da API
 JWT_ACCESS_COOKIE = 'locus_access'
 JWT_REFRESH_COOKIE = 'locus_refresh'
 JWT_COOKIE_SECURE = not DEBUG
@@ -244,11 +244,10 @@ CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = JWT_COOKIE_SECURE
 CSRF_COOKIE_SAMESITE = JWT_COOKIE_SAMESITE
 EMAIL_CHANGE_MAX_AGE = 86400
-#Limite para o corpo antes do processamento dos documentos JSON (imagens incluídas).
+#Limite para o corpo antes do processamento dos documentos JSON.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 #Cache compartilhado entre os processos de produção, sem dependência extra.
-#Antes de iniciar em produção: python manage.py createcachetable
 CACHES = {
     'default': {
         'BACKEND': (
