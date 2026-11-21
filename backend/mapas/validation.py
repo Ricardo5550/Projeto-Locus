@@ -13,6 +13,7 @@ DEFAULTS = dict(
     fontFamily='Arial',
     textColor='#000000',
     bold=False,
+    underline=False,
     italic=False,
     strike=False,
     textAlign='center',
@@ -185,7 +186,7 @@ def validate_map(value):
             ]:
                 if not isinstance(data[key], str) or data[key] not in allowed:
                     fail(f'{key}: opção inválida.')
-            for key in ('connectionMode', 'bold', 'italic', 'strike'):
+            for key in ('connectionMode', 'bold', 'underline', 'italic', 'strike'):
                 if type(data[key]) is not bool:
                     fail(f'{key}: esperado booleano.')
             for key in ('textColor', 'backgroundColor', 'borderColor'):

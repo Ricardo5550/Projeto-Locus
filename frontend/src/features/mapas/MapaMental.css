@@ -107,6 +107,10 @@
   stroke-width: 1.8;
 }
 
+.mindmap-block__rotulo.is-placeholder {
+  opacity: 0.5;
+}
+
 .mindmap-sidebar__connect {
   width: 100%;
   padding: 9px;
@@ -189,23 +193,27 @@
 }
 
 .mindmap-editor__checks {
-  display: grid;
-  gap: 5px;
-  font-size: 13px;
-}
-
-.mindmap-editor__checks label {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.mindmap-editor__checks input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+.mindmap-editor__checks button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
   padding: 0;
-  margin: 0;
-  accent-color: #5e402b;
+  border: 1px solid #d0c3b6;
+  border-radius: 7px;
+  background: #fff;
+  color: #3b291d;
+  cursor: pointer;
+}
+
+.mindmap-editor__checks button[aria-pressed="true"] {
+  border-color: #5e402b;
+  background: #5e402b;
+  color: #fff;
 }
 
 .mindmap-editor__enter {
@@ -520,4 +528,17 @@
   .mindmap-sidebar.is-open { width: min(300px, calc(100vw - 50px)); }
   /* No celular, as ferramentas sobrepõem o canvas e podem ser recolhidas. */
   .mindmap[data-sidebar-open="true"] { --map-sidebar-width: 50px; }
+}
+
+@media (pointer: coarse) {
+  /* Um toque abre a escrita; o campo em repouso deixa o arraste passar. */
+  .mindmap-block__text,
+  .mindmap-block__text textarea:not(:focus) {
+    pointer-events: none;
+  }
+
+  .mindmap-block__text textarea:focus {
+    pointer-events: auto;
+  }
+
 }

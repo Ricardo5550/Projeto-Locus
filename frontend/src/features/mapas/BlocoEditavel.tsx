@@ -6,7 +6,7 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 import type { DadosBloco, FormatoBloco } from "./tiposMapa";
 
 type NoEditavel = Node<DadosBloco, "editable">;
@@ -213,6 +213,9 @@ function Bloco({
   abrirConteudo?: () => void;
 }) {
   const isText = data.elementKind === "text";
+  const placeholder = isText ? "Novo texto" : "Novo conceito";
+  const textoRef = useRef<HTMLTextAreaElement>(null);
+  const inicioToque = useRef<{ x: number; y: number; arrastou: boolean } | null>(null);
 
   const textStyle: CSSProperties = {
     color: data.textColor,
@@ -220,14 +223,39 @@ function Bloco({
     fontSize: data.fontSize,
     fontWeight: data.bold ? 700 : 400,
     fontStyle: data.italic ? "italic" : "normal",
-    textDecoration: data.strike ? "line-through" : "none",
+    textDecoration: [data.underline && "underline", data.strike && "line-through"].filter(Boolean).join(" ") || "none",
     textAlign: data.textAlign,
     lineHeight: 1.2,
     height: `${Math.max(1, data.label.split("\n").length) * data.fontSize * 1.2}px`,
   };
 
   return (
-    <div className={`mindmap-block ${isText ? "is-text" : ""}`}>
+    <div
+      className={`mindmap-block ${isText ? "is-text" : ""}`}
+      onTouchStartCapture={(event) => {
+        inicioToque.current = null;
+        if (!onChange || event.touches.length !== 1) return;
+        if ((event.target as HTMLElement).closest(".react-flow__resize-control, .react-flow__handle, button")) return;
+        const toque = event.touches[0];
+        inicioToque.current = { x: toque.clientX, y: toque.clientY, arrastou: false };
+      }}
+      onTouchMoveCapture={(event) => {
+        const inicio = inicioToque.current;
+        if (!inicio) return;
+        if (event.touches.length !== 1) {
+          inicioToque.current = null;
+          return;
+        }
+        const toque = event.touches[0];
+        inicio.arrastou ||= Math.hypot(toque.clientX - inicio.x, toque.clientY - inicio.y) > 8;
+      }}
+      onTouchEndCapture={() => {
+        const inicio = inicioToque.current;
+        inicioToque.current = null;
+        if (inicio && !inicio.arrastou) textoRef.current?.focus();
+      }}
+      onTouchCancelCapture={() => { inicioToque.current = null; }}
+    >
       {onChange && (
         <NodeResizer
           isVisible={selected}
@@ -244,8 +272,10 @@ function Bloco({
       <div className={`mindmap-block__text is-${data.verticalAlign}`}>
         {onChange && (
           <textarea
+            ref={textoRef}
             className="nodrag"
             value={data.label}
+            placeholder={placeholder}
             onChange={(event) => onChange(event.target.value)}
             style={textStyle}
             rows={1}
@@ -253,11 +283,11 @@ function Bloco({
           />
         )}
         <span
-          className="mindmap-block__rotulo"
+          className={`mindmap-block__rotulo${onChange && !data.label ? " is-placeholder" : ""}`}
           style={textStyle}
           aria-hidden={onChange ? true : undefined}
         >
-          {data.label}
+          {data.label || (onChange ? placeholder : "")}
         </span>
       </div>
 

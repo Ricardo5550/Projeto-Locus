@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Bold, Italic, Underline } from "lucide-react";
 
 import type { DadosBloco, FormatoBloco } from "./tiposMapa";
 
@@ -131,45 +131,37 @@ function BlocoEditor({ node, onUpdate, onEnter }: BlocoEditorProps) {
         />
       </label>
 
-      <div className="mindmap-editor__checks">
-        <label>
-          <input
-            type="checkbox"
-            checked={data.bold}
-            onChange={(event) =>
-              onUpdate({
-                bold: event.target.checked,
-              })
-            }
-          />
-          Negrito
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={data.italic}
-            onChange={(event) =>
-              onUpdate({
-                italic: event.target.checked,
-              })
-            }
-          />
-          Itálico
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={data.strike}
-            onChange={(event) =>
-              onUpdate({
-                strike: event.target.checked,
-              })
-            }
-          />
-          Tachado
-        </label>
+      <div className="mindmap-editor__checks" role="group" aria-label="Formatação do texto">
+        <button
+          type="button"
+          aria-label="Negrito"
+          title="Negrito"
+          aria-pressed={Boolean(data.bold)}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onUpdate({ bold: !data.bold })}
+        >
+          <Bold size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-label="Sublinhado"
+          title="Sublinhado"
+          aria-pressed={Boolean(data.underline)}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onUpdate({ underline: !data.underline })}
+        >
+          <Underline size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-label="Itálico"
+          title="Itálico"
+          aria-pressed={Boolean(data.italic)}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onUpdate({ italic: !data.italic })}
+        >
+          <Italic size={18} aria-hidden="true" />
+        </button>
       </div>
 
       {data.elementKind === "shape" && (
