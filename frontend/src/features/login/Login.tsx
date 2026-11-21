@@ -17,7 +17,6 @@ interface LoginProps {
   onNavigateToForgotPassword: () => void;
   notice?: string;
   administrativo?: boolean;
-  onNavigateToAdmin?: () => void;
 }
 
 function lerMensagemApi(data: unknown): string {
@@ -40,7 +39,6 @@ export default function Login({
   onNavigateToForgotPassword,
   notice,
   administrativo = false,
-  onNavigateToAdmin,
 }: LoginProps) {
   const [logoDisponivel, setLogoDisponivel] = useState(true);
   const [email, setEmail] = useState("");
@@ -433,15 +431,6 @@ export default function Login({
               ? "Voltar ao login de usuário"
               : "Não tem conta? Registre-se!"}
           </button>
-          {!administrativo && onNavigateToAdmin && (
-            <button
-              type="button"
-              className="auth-link auth-link-button"
-              onClick={onNavigateToAdmin}
-            >
-              Acesso administrativo
-            </button>
-          )}
         </form>
       </div>
     </div>
