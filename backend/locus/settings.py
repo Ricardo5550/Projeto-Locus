@@ -198,6 +198,8 @@ EMAIL_BACKEND = os.getenv(
 )
 LOCUS_EMAIL_BACKEND = EMAIL_BACKEND
 EMAIL_BACKEND = 'auditoria.email_backend.EmailBackend'
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '15'))
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
