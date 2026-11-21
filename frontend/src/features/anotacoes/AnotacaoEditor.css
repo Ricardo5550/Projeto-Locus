@@ -340,7 +340,7 @@
   margin: 0 0 10px;
   font-size: 15px;
 }
-.note-editor__sidebar > button,
+.note-editor__sidebar .note-editor__panel-content > button,
 .note-editor__question button {
   display: block;
   width: 100%;
@@ -421,7 +421,7 @@
   font-size: 15px;
 }
 
-.note-editor__relations > small {
+.note-editor__relations .note-editor__panel-content > small {
   display: block;
   margin-bottom: 10px;
   color: #806b5d;
@@ -487,5 +487,142 @@
 
   .note-editor__scroll {
     min-height: 160px;
+  }
+}
+
+/* Os painéis continuam abertos no desktop. */
+.note-editor__panel-toggle,
+.note-toolbar__label {
+  display: none;
+}
+
+.note-toolbar__icon {
+  display: block;
+}
+
+@media (max-width: 780px) {
+  .note-editor {
+    height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .note-editor > .page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .note-editor .page-header__start {
+    flex-basis: 100%;
+  }
+
+  .note-editor .page-header__title {
+    font-size: 18px;
+  }
+
+  .note-editor .page-header__actions {
+    width: 100%;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .note-editor .page-header__status {
+    flex: 1 1 80px;
+    min-width: 0;
+    max-width: none;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+  }
+
+  .note-editor .page-action {
+    min-height: 40px;
+  }
+
+  .note-editor__breadcrumb {
+    padding: 8px 12px 0;
+    overflow-wrap: anywhere;
+  }
+
+  .note-toolbar {
+    flex-shrink: 0;
+    gap: 4px;
+    margin: 8px 12px;
+    padding: 6px;
+  }
+
+  .note-toolbar button,
+  .note-toolbar select {
+    min-height: 40px;
+  }
+
+  .note-toolbar__icon {
+    display: block;
+  }
+
+  .note-toolbar__label {
+    display: none;
+  }
+
+  .note-editor__workspace {
+    flex: 0 0 auto;
+    min-height: auto;
+    gap: 10px;
+    padding: 0 12px 20px;
+  }
+
+  .note-editor__sidebar,
+  .note-editor__relations {
+    box-sizing: border-box;
+    max-height: none;
+    padding: 10px 12px;
+    overflow: visible;
+  }
+
+  .note-editor__panel-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 40px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .note-editor__panel-content {
+    display: none;
+  }
+
+  .note-editor__panel-content.is-open {
+    display: block;
+    padding-top: 8px;
+  }
+
+  .note-editor__panel-content > h3 {
+    display: none;
+  }
+
+  .note-editor__scroll {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding-bottom: 0;
+    width: 100%;
+  }
+
+  .note-editor__paper {
+    box-sizing: border-box;
+    padding: 18px 16px;
+    min-height: 50dvh;
+  }
+
+  .note-editor__paper .ProseMirror {
+    min-height: 42dvh;
+    overflow-wrap: anywhere;
+    scroll-margin-block: 24px;
   }
 }

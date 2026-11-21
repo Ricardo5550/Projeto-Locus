@@ -22,6 +22,7 @@ export type DadosBloco = {
   fontFamily: string;
   textColor: string;
   bold: boolean;
+  underline?: boolean;
   italic: boolean;
   strike: boolean;
   textAlign: "left" | "center" | "right";

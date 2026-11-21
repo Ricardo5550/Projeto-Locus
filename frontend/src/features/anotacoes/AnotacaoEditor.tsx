@@ -81,6 +81,8 @@ export default function AnotacaoEditor({
     answer: string;
     step: "question" | "answer" | "confirm";
   } | null>(null);
+  const [ferramentasAbertas, setFerramentasAbertas] = useState(false);
+  const [conexoesAbertas, setConexoesAbertas] = useState(false);
   const [relatedBlocks, setRelatedBlocks] = useState<BlocoRelacionado[]>([]);
   const [relationshipTitle, setRelationshipTitle] = useState("");
 
@@ -411,6 +413,15 @@ export default function AnotacaoEditor({
           className="note-editor__sidebar"
           aria-label="Ferramentas de anotação"
         >
+          <button
+            type="button" className="note-editor__panel-toggle"
+            aria-expanded={ferramentasAbertas} aria-controls="note-tools-content"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => setFerramentasAbertas((abertas) => !abertas)}
+          >
+            Ferramentas <span aria-hidden="true">{ferramentasAbertas ? "−" : "+"}</span>
+          </button>
+          <div id="note-tools-content" className={`note-editor__panel-content${ferramentasAbertas ? " is-open" : ""}`}>
           <h3>Ferramentas</h3>
           <p className="note-editor__help">
             Selecione um trecho no texto para pesquisar fontes ou criar uma
@@ -543,6 +554,7 @@ export default function AnotacaoEditor({
               </button>
             </section>
           )}
+          </div>
         </aside>
         <main className="note-editor__scroll">
           <EditorContent editor={editor} className="note-editor__paper" />
@@ -560,6 +572,15 @@ export default function AnotacaoEditor({
             className="note-editor__relations"
             aria-label="Conteúdos relacionados"
           >
+            <button
+              type="button" className="note-editor__panel-toggle"
+              aria-expanded={conexoesAbertas} aria-controls="note-relations-content"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setConexoesAbertas((abertas) => !abertas)}
+            >
+              Blocos conectados ({relatedBlocks.length}) <span aria-hidden="true">{conexoesAbertas ? "−" : "+"}</span>
+            </button>
+            <div id="note-relations-content" className={`note-editor__panel-content${conexoesAbertas ? " is-open" : ""}`}>
             <h3>Blocos conectados</h3>
             <small>Conexões de {relationshipTitle}</small>
             <div className="note-editor__relations-list">
@@ -589,6 +610,7 @@ export default function AnotacaoEditor({
                   </small>
                 </button>
               ))}
+            </div>
             </div>
           </aside>
         )}

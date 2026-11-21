@@ -15,6 +15,7 @@ export function criarDadosBloco(
     fontFamily: "Arial",
     textColor: "#000000",
     bold: false,
+    underline: false,
     italic: false,
     strike: false,
     textAlign: elementKind === "text" ? "left" : "center",

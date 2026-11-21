@@ -32,7 +32,7 @@ MARK_ATTRS = {
     'underline': set(),
     'strike': set(),
     'code': set(),
-    'textStyle': {'color', 'fontFamily'},
+    'textStyle': {'color', 'fontFamily', 'fontSize'},
     'link': {'href', 'target', 'rel', 'class', 'title'},
 }
 
@@ -140,6 +140,10 @@ def marks(values):
                 'Tahoma',
             ):
                 fail('Fonte não permitida.')
+            elif key == 'fontSize' and value not in (
+                '12px', '14px', '16px', '18px', '24px', '32px', '48px',
+            ):
+                fail('Tamanho de fonte não permitido.')
             elif key == 'color' and not re.fullmatch(
                 r'#[0-9a-fA-F]{3,8}|rgba?\([0-9., %]+\)', value
             ):

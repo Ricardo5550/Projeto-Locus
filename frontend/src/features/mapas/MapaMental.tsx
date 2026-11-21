@@ -25,6 +25,7 @@ import {
 import {
   Circle,
   Link2,
+  LogIn,
   Menu,
   Octagon,
   PanelLeftClose,
@@ -124,6 +125,7 @@ export default function MapaMental({
   const breadcrumbTitle = breadcrumb[breadcrumb.length - 1] || "Mapa mental";
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<DadosBloco>>([]);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [flow, setFlow] = useState<ReactFlowInstance<
     Node<DadosBloco>,
@@ -461,27 +463,52 @@ export default function MapaMental({
       x: event.clientX,
       y: event.clientY,
     });
-    const isText = dragged.kind === "text";
+    adicionarBloco(dragged.kind, position, dragged.shape);
+  }
+
+  function adicionarBloco(
+    kind: "shape" | "text",
+    position: { x: number; y: number },
+    shape?: FormatoBloco,
+  ) {
+    const isText = kind === "text";
 
     const node: Node<DadosBloco> = {
       id: crypto.randomUUID(),
       type: "editable",
+      selected: true,
       position,
       style: {
         width: isText ? 220 : TAMANHO_FORMA,
         height: isText ? 70 : TAMANHO_FORMA,
       },
       data: {
-        ...criarDadosBloco(
-          isText ? "Novo texto" : "Novo conceito",
-          dragged.kind,
-        ),
-        shape: dragged.shape ?? "square",
+        ...criarDadosBloco("", kind),
+        shape: shape ?? "square",
         connectionMode: !isText && isConnecting,
       },
     };
 
-    setNodes((current) => [...current, node]);
+    setNodes((current) => [
+      ...current.map((item) => ({ ...item, selected: false })),
+      node,
+    ]);
+  }
+
+  function adicionarNoCentro(kind: "shape" | "text", shape?: FormatoBloco) {
+    const area = canvasRef.current?.getBoundingClientRect();
+    if (!flow || !area) return;
+    const centro = flow.screenToFlowPosition({
+      x: area.left + area.width / 2,
+      y: area.top + area.height / 2,
+    });
+    adicionarBloco(kind, {
+      x: centro.x - (kind === "text" ? 220 : TAMANHO_FORMA) / 2,
+      y: centro.y - (kind === "text" ? 70 : TAMANHO_FORMA) / 2,
+    }, shape);
+    if (window.matchMedia("(max-width: 640px), (pointer: coarse)").matches) {
+      setSidebarOpen(false);
+    }
   }
 
   async function handleSave() {
@@ -869,6 +896,37 @@ export default function MapaMental({
           {sidebarOpen ? <PanelLeftClose size={19} /> : <Menu size={19} />}
         </button>
 
+        {!sidebarOpen && (
+          <button
+            type="button"
+            className="mindmap-sidebar__toggle"
+            style={{
+              marginTop: 8,
+              ...(isConnecting ? { backgroundColor: "#eee8e0", borderColor: "#5e402b" } : {}),
+            }}
+            onClick={toggleConnectionMode}
+            aria-label="Conectar blocos"
+            aria-pressed={isConnecting}
+            title={isConnecting ? "Sair do modo de conexão" : "Conectar blocos"}
+          >
+            <Link2 size={19} />
+          </button>
+        )}
+
+        {!sidebarOpen && selectedNode?.data.elementKind === "shape" && (
+          <button
+            type="button"
+            className="mindmap-sidebar__toggle"
+            style={{ marginTop: 8, height: 52 }}
+            onClick={() => void handleEnterNode(selectedNode)}
+            aria-label="Entrar no bloco"
+            title="Entrar no bloco"
+          >
+            <LogIn size={19} />
+            <span style={{ fontSize: 10 }}>Entrar</span>
+          </button>
+        )}
+
         {sidebarOpen && (
           <div className="mindmap-sidebar__content">
             <h4>ELEMENTOS</h4>
@@ -881,6 +939,7 @@ export default function MapaMental({
                   draggable
                   title={label}
                   aria-label={label}
+                  onClick={() => adicionarNoCentro("shape", shape)}
                   onDragStart={(event) =>
                     handleDragStart(event, "shape", shape)
                   }
@@ -894,6 +953,7 @@ export default function MapaMental({
                 draggable
                 title="Texto"
                 aria-label="Texto"
+                onClick={() => adicionarNoCentro("text")}
                 onDragStart={(event) => handleDragStart(event, "text")}
               >
                 <Type />
@@ -938,6 +998,7 @@ export default function MapaMental({
       </aside>
 
       <ReactFlow
+        ref={canvasRef}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -955,6 +1016,8 @@ export default function MapaMental({
         }}
         connectionMode={ConnectionMode.Loose}
         connectionLineType={ConnectionLineType.Straight}
+        panOnDrag
+        zoomOnPinch
         fitView
       >
         <Background />
