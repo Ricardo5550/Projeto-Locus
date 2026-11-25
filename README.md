@@ -3,6 +3,8 @@
 O **Locus** é uma plataforma web para criação, organização e revisão de conteúdos de estudo. A aplicação reúne anotações formatadas, mapas mentais interativos, questionários com repetição espaçada e acompanhamento por tutores.
 
 - [Como executar](#como-executar)
+  
+- Link do deploy no Render: https://locus-web-zuhr.onrender.com/login
 
 ## Funcionalidades
 
